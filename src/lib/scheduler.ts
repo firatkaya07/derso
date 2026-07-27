@@ -12,6 +12,7 @@ export interface ClassSubjectInput {
   subjectId: string;
   subjectName: string;
   weeklyHours: number;
+  teacherId?: string | null;
 }
 
 export interface ScheduleRules {
@@ -69,6 +70,7 @@ interface LessonBlock {
   subjectId: string;
   subjectName: string;
   blockSize: number;
+  preAssignedTeacherId?: string;
 }
 
 function slotKey(dayOfWeek: number, startTime: string): string {
@@ -90,7 +92,8 @@ export function autoSchedule(
   classSubjects: ClassSubjectInput[],
   rules: ScheduleRules,
   teacherSubjects?: TeacherSubject[],
-  teachers?: Teacher[]
+  teachers?: Teacher[],
+  seed?: number
 ): ScheduleResult {
   const lessons: GeneratedLesson[] = [];
   const errors: string[] = [];
@@ -166,14 +169,15 @@ export function autoSchedule(
     subjectSlotCount.set(k, (subjectSlotCount.get(k) || 0) + 1);
   }
 
-  // Track per class+subject+day hours for the "max 2 per day" rule
   const classDaySubjectHours = new Map<string, number>();
   function getDaySubjectHours(
     classId: string,
     subjectId: string,
     day: number
   ): number {
-    return classDaySubjectHours.get(classSubjectDayKey(classId, subjectId, day)) || 0;
+    return (
+      classDaySubjectHours.get(classSubjectDayKey(classId, subjectId, day)) || 0
+    );
   }
   function addDaySubjectHours(
     classId: string,
@@ -185,14 +189,16 @@ export function autoSchedule(
     classDaySubjectHours.set(k, (classDaySubjectHours.get(k) || 0) + hours);
   }
 
-  // Track placed lesson times per class+subject+day for adjacency checks
   const classDaySubjectSlots = new Map<string, string[]>();
   function getDaySubjectSlots(
     classId: string,
     subjectId: string,
     day: number
   ): string[] {
-    return classDaySubjectSlots.get(classSubjectDayKey(classId, subjectId, day)) || [];
+    return (
+      classDaySubjectSlots.get(classSubjectDayKey(classId, subjectId, day)) ||
+      []
+    );
   }
   function addDaySubjectSlot(
     classId: string,
@@ -205,6 +211,9 @@ export function autoSchedule(
     arr.push(startTime);
     classDaySubjectSlots.set(k, arr);
   }
+
+  // Track pre-assigned teacher time slots
+  const preAssignedTeacherSlots = new Map<string, Set<string>>();
 
   const blocks: LessonBlock[] = [];
   for (const cs of classSubjects) {
@@ -220,11 +229,27 @@ export function autoSchedule(
         subjectId: cs.subjectId,
         subjectName: sub.name,
         blockSize,
+        preAssignedTeacherId: cs.teacherId || undefined,
       });
     }
   }
 
+  // Deterministic shuffle using seed for retry variations
+  if (seed !== undefined && seed > 0) {
+    let s = seed;
+    for (let i = blocks.length - 1; i > 0; i--) {
+      s = ((s * 1103515245 + 12345) & 0x7fffffff) >>> 0;
+      const j = s % (i + 1);
+      [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+    }
+  }
+
+  // Pre-assigned blocks first, then sort by scarcity
   blocks.sort((a, b) => {
+    const aPreAssigned = a.preAssignedTeacherId ? 1 : 0;
+    const bPreAssigned = b.preAssignedTeacherId ? 1 : 0;
+    if (aPreAssigned !== bPreAssigned) return bPreAssigned - aPreAssigned;
+
     const aTeachers = teacherCountBySubject.get(a.subjectId) || 999;
     const bTeachers = teacherCountBySubject.get(b.subjectId) || 999;
     if (aTeachers !== bTeachers) return aTeachers - bTeachers;
@@ -249,6 +274,26 @@ export function autoSchedule(
     classSlots.get(classId)!.add(key);
   }
 
+  function isPreAssignedTeacherFree(
+    teacherId: string,
+    day: number,
+    time: string
+  ): boolean {
+    const set = preAssignedTeacherSlots.get(teacherId);
+    if (!set) return true;
+    return !set.has(slotKey(day, time));
+  }
+
+  function occupyPreAssignedTeacherSlot(
+    teacherId: string,
+    day: number,
+    time: string
+  ) {
+    if (!preAssignedTeacherSlots.has(teacherId))
+      preAssignedTeacherSlots.set(teacherId, new Set());
+    preAssignedTeacherSlots.get(teacherId)!.add(slotKey(day, time));
+  }
+
   function canPlaceBlock(
     block: LessonBlock,
     day: number,
@@ -265,6 +310,19 @@ export function autoSchedule(
         const key = slotKey(day, slots[startIdx + i].start);
         const currentUsage = getSubjectSlotUsage(block.subjectId, key);
         if (currentUsage >= maxConcurrent) {
+          return false;
+        }
+      }
+
+      // Check pre-assigned teacher availability
+      if (block.preAssignedTeacherId) {
+        if (
+          !isPreAssignedTeacherFree(
+            block.preAssignedTeacherId,
+            day,
+            slots[startIdx + i].start
+          )
+        ) {
           return false;
         }
       }
@@ -309,7 +367,19 @@ export function autoSchedule(
     classDays: ClassScheduleDay[],
     allowExceedDayLimit: boolean
   ): boolean {
-    const dayOrder = [...classDays].sort((a, b) => {
+    // For pre-assigned teachers, filter out off_days
+    let availableDays = classDays;
+    if (block.preAssignedTeacherId) {
+      const teacher = teacherMap.get(block.preAssignedTeacherId);
+      if (teacher?.off_days && teacher.off_days.length > 0) {
+        availableDays = classDays.filter(
+          (d) => !teacher.off_days.includes(d.day_of_week)
+        );
+        if (availableDays.length === 0) availableDays = classDays;
+      }
+    }
+
+    const dayOrder = [...availableDays].sort((a, b) => {
       const aSubjectHours = getDaySubjectHours(
         block.classId,
         block.subjectId,
@@ -320,7 +390,8 @@ export function autoSchedule(
         block.subjectId,
         b.day_of_week
       );
-      if (aSubjectHours !== bSubjectHours) return aSubjectHours - bSubjectHours;
+      if (aSubjectHours !== bSubjectHours)
+        return aSubjectHours - bSubjectHours;
 
       const aUsed = classSlots.get(block.classId);
       const aCount = aUsed
@@ -339,10 +410,7 @@ export function autoSchedule(
         day.day_of_week
       );
 
-      if (
-        !allowExceedDayLimit &&
-        currentDayHours + block.blockSize > 2
-      ) {
+      if (!allowExceedDayLimit && currentDayHours + block.blockSize > 2) {
         continue;
       }
 
@@ -376,6 +444,13 @@ export function autoSchedule(
             day.day_of_week,
             slot.start
           );
+          if (block.preAssignedTeacherId) {
+            occupyPreAssignedTeacherSlot(
+              block.preAssignedTeacherId,
+              day.day_of_week,
+              slot.start
+            );
+          }
           lessons.push({
             classId: block.classId,
             className: block.className,
@@ -409,10 +484,8 @@ export function autoSchedule(
       continue;
     }
 
-    // First try with the 2-hour-per-day limit
     let placed = tryPlaceBlock(block, classDays, false);
 
-    // Fallback: allow exceeding the limit if no other option
     if (!placed) {
       placed = tryPlaceBlock(block, classDays, true);
       if (placed) {

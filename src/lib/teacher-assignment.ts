@@ -1,4 +1,4 @@
-import type { Teacher, Subject, TeacherSubject } from "./types";
+import type { Teacher, Subject, TeacherSubject, ClassSubject } from "./types";
 import type { GeneratedLesson } from "./scheduler";
 
 export interface AssignmentResult {
@@ -38,26 +38,37 @@ interface LessonGroup {
   lessons: GeneratedLesson[];
   days: number[];
   totalHours: number;
+  preAssignedTeacherId?: string;
 }
 
 export function assignTeachersToSchedule(
   inputLessons: GeneratedLesson[],
   teachers: Teacher[],
   teacherSubjects: TeacherSubject[],
-  subjects: Subject[]
+  subjects: Subject[],
+  classSubjects?: ClassSubject[]
 ): AssignmentResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const lessons = inputLessons.map((l) => ({ ...l }));
 
   const teacherMap = new Map(teachers.map((t) => [t.id, t]));
-  const subjectMap = new Map(subjects.map((s) => [s.id, s]));
 
   const teachersBySubject = new Map<string, string[]>();
   for (const ts of teacherSubjects) {
     const arr = teachersBySubject.get(ts.subject_id) || [];
     arr.push(ts.teacher_id);
     teachersBySubject.set(ts.subject_id, arr);
+  }
+
+  // Build pre-assignment map from class_subjects
+  const preAssignmentMap = new Map<string, string>();
+  if (classSubjects) {
+    for (const cs of classSubjects) {
+      if (cs.teacher_id) {
+        preAssignmentMap.set(`${cs.class_id}:${cs.subject_id}`, cs.teacher_id);
+      }
+    }
   }
 
   const groupMap = new Map<string, LessonGroup>();
@@ -72,6 +83,7 @@ export function assignTeachersToSchedule(
         lessons: [],
         days: [],
         totalHours: 0,
+        preAssignedTeacherId: preAssignmentMap.get(key) || undefined,
       });
     }
     const group = groupMap.get(key)!;
@@ -83,7 +95,12 @@ export function assignTeachersToSchedule(
   }
 
   const groups = [...groupMap.values()];
+  // Pre-assigned groups first, then by class name, then paired subjects first
   groups.sort((a, b) => {
+    const aPre = a.preAssignedTeacherId ? 1 : 0;
+    const bPre = b.preAssignedTeacherId ? 1 : 0;
+    if (aPre !== bPre) return bPre - aPre;
+
     if (a.className !== b.className)
       return a.className.localeCompare(b.className);
     const aIsPaired = a.subjectName in PAIRED_SUBJECTS;
@@ -101,6 +118,53 @@ export function assignTeachersToSchedule(
   let failed = 0;
 
   for (const group of groups) {
+    if (!classAssignments.has(group.classId)) {
+      classAssignments.set(group.classId, new Map());
+    }
+    const classAssign = classAssignments.get(group.classId)!;
+
+    // If pre-assigned, try that teacher first
+    if (group.preAssignedTeacherId) {
+      const teacher = teacherMap.get(group.preAssignedTeacherId);
+      if (teacher) {
+        const offDayConflict =
+          teacher.off_days &&
+          teacher.off_days.length > 0 &&
+          group.days.some((d) => teacher.off_days.includes(d));
+
+        const slots = teacherSlots.get(group.preAssignedTeacherId);
+        const timeConflict = slots
+          ? group.lessons.some((l) =>
+              slots.has(slotKey(l.dayOfWeek, l.startTime))
+            )
+          : false;
+
+        if (!offDayConflict && !timeConflict) {
+          classAssign.set(group.subjectName, group.preAssignedTeacherId);
+          teacherLoad.set(
+            group.preAssignedTeacherId,
+            (teacherLoad.get(group.preAssignedTeacherId) || 0) +
+              group.totalHours
+          );
+          if (!teacherSlots.has(group.preAssignedTeacherId)) {
+            teacherSlots.set(group.preAssignedTeacherId, new Set());
+          }
+          const tSlots = teacherSlots.get(group.preAssignedTeacherId)!;
+          for (const lesson of group.lessons) {
+            lesson.teacherId = group.preAssignedTeacherId;
+            lesson.teacherName = teacher.name;
+            tSlots.add(slotKey(lesson.dayOfWeek, lesson.startTime));
+          }
+          assigned++;
+          continue;
+        } else {
+          warnings.push(
+            `${group.className} - ${group.subjectName}: Atanmış öğretmen (${teacher.name}) ${offDayConflict ? "izin günü çakışması" : "saat çakışması"} nedeniyle kullanılamadı, başka öğretmen aranıyor.`
+          );
+        }
+      }
+    }
+
     const eligibleIds = teachersBySubject.get(group.subjectId) || [];
     if (eligibleIds.length === 0) {
       errors.push(
@@ -132,11 +196,6 @@ export function assignTeachersToSchedule(
       failed++;
       continue;
     }
-
-    if (!classAssignments.has(group.classId)) {
-      classAssignments.set(group.classId, new Map());
-    }
-    const classAssign = classAssignments.get(group.classId)!;
 
     const pairedSubjectName = PAIRED_SUBJECTS[group.subjectName];
     if (pairedSubjectName) {
@@ -172,9 +231,20 @@ export function assignTeachersToSchedule(
       continue;
     }
 
-    candidates.sort(
-      (a, b) => (teacherLoad.get(a) || 0) - (teacherLoad.get(b) || 0)
-    );
+    // Prefer pre-assigned teacher if in candidates
+    if (
+      group.preAssignedTeacherId &&
+      candidates.includes(group.preAssignedTeacherId)
+    ) {
+      candidates = [
+        group.preAssignedTeacherId,
+        ...candidates.filter((c) => c !== group.preAssignedTeacherId),
+      ];
+    } else {
+      candidates.sort(
+        (a, b) => (teacherLoad.get(a) || 0) - (teacherLoad.get(b) || 0)
+      );
+    }
 
     const teacherId = candidates[0];
     const teacher = teacherMap.get(teacherId)!;

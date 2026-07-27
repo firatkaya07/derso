@@ -244,19 +244,58 @@ export default function DagitimPage() {
           dbSubjects.find((s) => s.id === cs.subject_id)?.name ||
           "",
         weeklyHours: cs.weekly_hours,
+        teacherId: cs.teacher_id,
       }));
 
-      const result = autoSchedule(
-        dbClasses,
-        dbScheduleDays,
-        dbSubjects,
-        csInputs,
-        rules,
-        dbTeacherSubjects,
-        dbTeachers
-      );
+      let bestResult: {
+        schedule: typeof scheduleResult;
+        assignment: AssignmentResult;
+        totalFailed: number;
+      } | null = null;
 
-      setScheduleResult(result);
+      const MAX_RETRIES = 20;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const schedResult = autoSchedule(
+          dbClasses,
+          dbScheduleDays,
+          dbSubjects,
+          csInputs,
+          rules,
+          dbTeacherSubjects,
+          dbTeachers,
+          attempt
+        );
+
+        const assignResult = assignTeachersToSchedule(
+          schedResult.lessons,
+          dbTeachers,
+          dbTeacherSubjects,
+          dbSubjects,
+          dbClassSubjects
+        );
+
+        const totalFailed =
+          schedResult.errors.length + assignResult.stats.failed;
+
+        if (!bestResult || totalFailed < bestResult.totalFailed) {
+          bestResult = {
+            schedule: schedResult,
+            assignment: assignResult,
+            totalFailed,
+          };
+        }
+
+        if (totalFailed === 0) break;
+      }
+
+      if (bestResult) {
+        setScheduleResult({
+          ...bestResult.schedule!,
+          lessons: bestResult.assignment.lessons,
+        });
+        setAssignmentResult(bestResult.assignment);
+      }
+
       setGenerating(false);
       setTab("schedule");
     }, 100);
@@ -273,7 +312,8 @@ export default function DagitimPage() {
         scheduleResult.lessons,
         dbTeachers,
         dbTeacherSubjects,
-        dbSubjects
+        dbSubjects,
+        dbClassSubjects
       );
       setAssignmentResult(result);
       setScheduleResult({
