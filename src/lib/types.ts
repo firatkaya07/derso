@@ -22,16 +22,39 @@ export interface ClassSubject {
 export interface Subject {
   id: string;
   name: string;
+  short_name: string | null;
   color: string;
+  level: string | null;
   created_at: string;
+}
+
+export const LEVEL_PRESETS = [
+  { label: "İlkokul (1-4)", levels: "1,2,3,4" },
+  { label: "Ortaokul (5-8)", levels: "5,6,7,8" },
+  { label: "Lise (9-12)", levels: "9,10,11,12" },
+  { label: "Tümü (1-12)", levels: "1,2,3,4,5,6,7,8,9,10,11,12" },
+];
+
+export interface TeacherSubject {
+  id: string;
+  teacher_id: string;
+  subject_id: string;
+  created_at: string;
+  subject?: Subject;
+  teacher?: Teacher;
 }
 
 export interface ClassGroup {
   id: string;
   name: string;
   description: string | null;
+  level: string | null;
   created_at: string;
 }
+
+export const LEVELS = [
+  "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "Mezun",
+];
 
 export interface ClassScheduleDay {
   id: string;

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
 import type { ClassGroup, ClassScheduleDay } from "@/lib/types";
-import { DAY_NAMES } from "@/lib/types";
+import { DAY_NAMES, LEVELS } from "@/lib/types";
 
 export default function ClassesPage() {
   const supabase = createClient();
@@ -15,7 +15,7 @@ export default function ClassesPage() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", level: "" });
   const [dayConfigs, setDayConfigs] = useState<
     { day: number; enabled: boolean; startTime: string; endTime: string }[]
   >([]);
@@ -36,13 +36,13 @@ export default function ClassesPage() {
 
   const openCreate = () => {
     setEditingClass(null);
-    setForm({ name: "", description: "" });
+    setForm({ name: "", description: "", level: "" });
     setModalOpen(true);
   };
 
   const openEdit = (cls: ClassGroup) => {
     setEditingClass(cls);
-    setForm({ name: cls.name, description: cls.description || "" });
+    setForm({ name: cls.name, description: cls.description || "", level: cls.level || "" });
     setModalOpen(true);
   };
 
@@ -67,6 +67,7 @@ export default function ClassesPage() {
     const data = {
       name: form.name,
       description: form.description || null,
+      level: form.level || null,
     };
     if (editingClass) {
       await supabase.from("classes").update(data).eq("id", editingClass.id);
@@ -155,7 +156,14 @@ export default function ClassesPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900 text-lg">{cls.name}</h3>
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      {cls.name}
+                      {cls.level && (
+                        <span className="ml-2 text-xs font-normal bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                          {cls.level === "Mezun" ? "Mezun" : `${cls.level}. Sınıf`}
+                        </span>
+                      )}
+                    </h3>
                     {cls.description && (
                       <p className="text-sm text-gray-500 mt-0.5">{cls.description}</p>
                     )}
@@ -223,6 +231,21 @@ export default function ClassesPage() {
               placeholder="Ornek: 5. Sinif A Grubu"
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duzey</label>
+            <select
+              value={form.level}
+              onChange={(e) => setForm({ ...form, level: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+            >
+              <option value="">Secilmedi</option>
+              {LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Aciklama</label>

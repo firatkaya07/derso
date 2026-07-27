@@ -3,32 +3,49 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
-import type { Teacher } from "@/lib/types";
+import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
 
 export default function TeachersPage() {
   const supabase = createClient();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
-  const fetchTeachers = useCallback(async () => {
-    const { data } = await supabase
-      .from("teachers")
-      .select("*")
-      .order("name");
-    setTeachers(data || []);
+  const fetchData = useCallback(async () => {
+    const [{ data: teacherData }, { data: subjectData }, { data: tsData }] =
+      await Promise.all([
+        supabase.from("teachers").select("*").order("name"),
+        supabase.from("subjects").select("*").order("name"),
+        supabase
+          .from("teacher_subjects")
+          .select("*, subject:subjects(*)"),
+      ]);
+    setTeachers(teacherData || []);
+    setSubjects(subjectData || []);
+    setTeacherSubjects(tsData || []);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
-    fetchTeachers();
-  }, [fetchTeachers]);
+    fetchData();
+  }, [fetchData]);
+
+  const getTeacherSubjects = (teacherId: string) => {
+    return teacherSubjects
+      .filter((ts) => ts.teacher_id === teacherId)
+      .map((ts) => ts.subject as Subject)
+      .filter(Boolean);
+  };
 
   const openCreate = () => {
     setEditingTeacher(null);
     setForm({ name: "", phone: "", email: "" });
+    setSelectedSubjectIds([]);
     setModalOpen(true);
   };
 
@@ -39,7 +56,19 @@ export default function TeachersPage() {
       phone: teacher.phone || "",
       email: teacher.email || "",
     });
+    const currentSubjectIds = teacherSubjects
+      .filter((ts) => ts.teacher_id === teacher.id)
+      .map((ts) => ts.subject_id);
+    setSelectedSubjectIds(currentSubjectIds);
     setModalOpen(true);
+  };
+
+  const toggleSubject = (subjectId: string) => {
+    setSelectedSubjectIds((prev) =>
+      prev.includes(subjectId)
+        ? prev.filter((id) => id !== subjectId)
+        : [...prev, subjectId]
+    );
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -50,14 +79,40 @@ export default function TeachersPage() {
       email: form.email || null,
     };
 
+    let teacherId: string;
+
     if (editingTeacher) {
-      await supabase.from("teachers").update(data).eq("id", editingTeacher.id);
+      await supabase
+        .from("teachers")
+        .update(data)
+        .eq("id", editingTeacher.id);
+      teacherId = editingTeacher.id;
+
+      await supabase
+        .from("teacher_subjects")
+        .delete()
+        .eq("teacher_id", teacherId);
     } else {
-      await supabase.from("teachers").insert(data);
+      const { data: inserted } = await supabase
+        .from("teachers")
+        .insert(data)
+        .select("id")
+        .single();
+      if (!inserted) return;
+      teacherId = inserted.id;
+    }
+
+    if (selectedSubjectIds.length > 0) {
+      await supabase.from("teacher_subjects").insert(
+        selectedSubjectIds.map((sid) => ({
+          teacher_id: teacherId,
+          subject_id: sid,
+        }))
+      );
     }
 
     setModalOpen(false);
-    fetchTeachers();
+    fetchData();
   };
 
   const handleDelete = async (id: string) => {
@@ -67,7 +122,7 @@ export default function TeachersPage() {
       alert("Bu ogretmenin atandigi dersler var, once dersleri kaldirin.");
       return;
     }
-    fetchTeachers();
+    fetchData();
   };
 
   if (loading) {
@@ -86,8 +141,18 @@ export default function TeachersPage() {
           onClick={openCreate}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Ogretmen Ekle
         </button>
@@ -96,7 +161,10 @@ export default function TeachersPage() {
       {teachers.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <p className="text-gray-500">Henuz ogretmen eklenmemis.</p>
-          <button onClick={openCreate} className="text-blue-600 hover:underline mt-2 text-sm">
+          <button
+            onClick={openCreate}
+            className="text-blue-600 hover:underline mt-2 text-sm"
+          >
             Ilk ogretmeni ekleyin
           </button>
         </div>
@@ -105,34 +173,71 @@ export default function TeachersPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ad Soyad</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefon</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">E-posta</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Islemler</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Ad Soyad
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Verdigi Dersler
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Telefon
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  E-posta
+                </th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Islemler
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {teachers.map((teacher) => (
-                <tr key={teacher.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{teacher.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{teacher.phone || "-"}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{teacher.email || "-"}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openEdit(teacher)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4"
-                    >
-                      Duzenle
-                    </button>
-                    <button
-                      onClick={() => handleDelete(teacher.id)}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium"
-                    >
-                      Sil
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {teachers.map((teacher) => {
+                const tSubjects = getTeacherSubjects(teacher.id);
+                return (
+                  <tr key={teacher.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {teacher.name}
+                    </td>
+                    <td className="px-6 py-4">
+                      {tSubjects.length === 0 ? (
+                        <span className="text-sm text-gray-400">-</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {tSubjects.map((s) => (
+                            <span
+                              key={s.id}
+                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white"
+                              style={{ backgroundColor: s.color }}
+                            >
+                              {s.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {teacher.phone || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {teacher.email || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => openEdit(teacher)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4"
+                      >
+                        Duzenle
+                      </button>
+                      <button
+                        onClick={() => handleDelete(teacher.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Sil
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -145,7 +250,9 @@ export default function TeachersPage() {
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Ad Soyad *
+            </label>
             <input
               type="text"
               value={form.name}
@@ -155,7 +262,65 @@ export default function TeachersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Verdigi Dersler
+            </label>
+            {subjects.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                Henuz ders tanimlanmamis.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {subjects.map((subject) => {
+                  const isSelected = selectedSubjectIds.includes(subject.id);
+                  return (
+                    <button
+                      key={subject.id}
+                      type="button"
+                      onClick={() => toggleSubject(subject.id)}
+                      className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border-2 transition-all ${
+                        isSelected
+                          ? "text-white border-transparent"
+                          : "text-gray-600 border-gray-200 hover:border-gray-300 bg-white"
+                      }`}
+                      style={
+                        isSelected
+                          ? { backgroundColor: subject.color, borderColor: subject.color }
+                          : undefined
+                      }
+                    >
+                      {!isSelected && (
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: subject.color }}
+                        />
+                      )}
+                      {isSelected && (
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                      {subject.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Telefon
+            </label>
             <input
               type="tel"
               value={form.phone}
@@ -164,7 +329,9 @@ export default function TeachersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-posta</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              E-posta
+            </label>
             <input
               type="email"
               value={form.email}
