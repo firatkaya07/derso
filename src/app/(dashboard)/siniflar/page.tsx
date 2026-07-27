@@ -20,6 +20,7 @@ export default function ClassesPage() {
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [form, setForm] = useState({ name: "", description: "", level: "" });
+  const [levelFilter, setLevelFilter] = useState<string>("Tümü");
   const [classSubjectEdits, setClassSubjectEdits] = useState<
     { id: string; subject_id: string; weekly_hours: number; teacher_id: string | null; subject?: Subject }[]
   >([]);
@@ -206,9 +207,93 @@ export default function ClassesPage() {
 
   const totalEditHours = classSubjectEdits.reduce((sum, cs) => sum + cs.weekly_hours, 0);
 
+  const filterTabs = ["Tümü", ...LEVELS];
+
+  const filteredClasses =
+    levelFilter === "Tümü"
+      ? classes
+      : classes.filter((c) => c.level === levelFilter);
+
+  const groupedByLevel = filteredClasses.reduce<Record<string, ClassGroup[]>>((acc, cls) => {
+    const key = cls.level || "Belirsiz";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(cls);
+    return acc;
+  }, {});
+
+  const levelOrder = [...LEVELS, "Belirsiz"];
+  const sortedGroups = levelOrder
+    .filter((l) => groupedByLevel[l])
+    .map((l) => ({ level: l, classes: groupedByLevel[l] }));
+
+  const renderClassCard = (cls: ClassGroup) => {
+    const days = getClassDays(cls.id);
+    const summary = getClassSubjectSummary(cls.id);
+    return (
+      <div
+        key={cls.id}
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-lg">{cls.name}</h3>
+            {cls.description && (
+              <p className="text-sm text-gray-500 mt-0.5">{cls.description}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => openEdit(cls)}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Düzenle
+            </button>
+            <button
+              onClick={() => handleDelete(cls.id)}
+              className="text-red-600 hover:text-red-800 text-sm"
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-xs text-gray-500">
+            {summary.count} ders · {summary.totalHours} saat/hafta
+          </span>
+        </div>
+
+        {days.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Ders günü belirlenmemiş</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {days.map((d) => (
+              <span
+                key={d.id}
+                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full"
+              >
+                {DAY_NAMES[d.day_of_week]}
+                <span className="text-blue-500">
+                  {d.start_time.slice(0, 5)}-{d.end_time.slice(0, 5)}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={() => openSchedule(cls)}
+          className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Ders Günlerini Ayarla
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Sınıflar</h1>
         <button
           onClick={openCreate}
@@ -221,6 +306,28 @@ export default function ClassesPage() {
         </button>
       </div>
 
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+        <span className="text-sm text-gray-500 shrink-0 flex items-center gap-1.5">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Düzey:
+        </span>
+        {filterTabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setLevelFilter(tab)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+              levelFilter === tab
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {tab === "Tümü" ? `Tümü (${classes.length})` : tab === "Mezun" ? "Mezun" : `${tab}. Sınıf`}
+          </button>
+        ))}
+      </div>
+
       {classes.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <p className="text-gray-500">Henüz sınıf eklenmemiş.</p>
@@ -228,79 +335,27 @@ export default function ClassesPage() {
             İlk sınıfı ekleyin
           </button>
         </div>
+      ) : filteredClasses.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+          <p className="text-gray-500">Bu düzeyde sınıf bulunamadı.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {classes.map((cls) => {
-            const days = getClassDays(cls.id);
-            const summary = getClassSubjectSummary(cls.id);
-            return (
-              <div
-                key={cls.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      {cls.name}
-                      {cls.level && (
-                        <span className="ml-2 text-xs font-normal bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
-                          {cls.level === "Mezun" ? "Mezun" : `${cls.level}. Sınıf`}
-                        </span>
-                      )}
-                    </h3>
-                    {cls.description && (
-                      <p className="text-sm text-gray-500 mt-0.5">{cls.description}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openEdit(cls)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      Düzenle
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cls.id)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      Sil
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-xs text-gray-500">
-                    {summary.count} ders · {summary.totalHours} saat/hafta
-                  </span>
-                </div>
-
-                {days.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Ders günü belirlenmemiş</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {days.map((d) => (
-                      <span
-                        key={d.id}
-                        className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full"
-                      >
-                        {DAY_NAMES[d.day_of_week]}
-                        <span className="text-blue-500">
-                          {d.start_time.slice(0, 5)}-{d.end_time.slice(0, 5)}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => openSchedule(cls)}
-                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Ders Günlerini Ayarla
-                </button>
+        <div className="space-y-8">
+          {sortedGroups.map(({ level, classes: groupClasses }) => (
+            <div key={level}>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {level === "Belirsiz" ? "Düzey Belirlenmemiş" : level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
+                </h2>
+                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {groupClasses.length} şube
+                </span>
               </div>
-            );
-          })}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {groupClasses.map(renderClassCard)}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
