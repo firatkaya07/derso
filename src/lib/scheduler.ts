@@ -1,4 +1,10 @@
-import type { Teacher, Subject, ClassGroup, ClassScheduleDay } from "./types";
+import type {
+  Subject,
+  ClassGroup,
+  ClassScheduleDay,
+  TeacherSubject,
+  Teacher,
+} from "./types";
 import { generateTimeSlots } from "./types";
 
 export interface ClassSubjectInput {
@@ -10,8 +16,6 @@ export interface ClassSubjectInput {
 
 export interface ScheduleRules {
   splitRules: Record<number, number[]>;
-  respectOffDays: boolean;
-  noDoubleBooking: boolean;
 }
 
 export const DEFAULT_RULES: ScheduleRules = {
@@ -23,8 +27,6 @@ export const DEFAULT_RULES: ScheduleRules = {
     5: [2, 2, 1],
     6: [2, 2, 2],
   },
-  respectOffDays: true,
-  noDoubleBooking: true,
 };
 
 export interface GeneratedLesson {
@@ -43,30 +45,6 @@ export interface ScheduleResult {
   lessons: GeneratedLesson[];
   errors: string[];
   warnings: string[];
-}
-
-const SUBJECT_TEACHER_MAP: Record<string, string[]> = {
-  "MAT 1": ["matematik"],
-  "MAT 2": ["matematik"],
-  GEO: ["matematik"],
-  MATEMATİK: ["matematik"],
-  FİZİK: ["fizik"],
-  KİMYA: ["kimya"],
-  BİYOLOJİ: ["biyoloji"],
-  TÜRKÇE: ["türk dili", "edebiyat"],
-  EDEBİYAT: ["türk dili", "edebiyat"],
-  TARİH: ["tarih"],
-  COĞRAFYA: ["coğrafya"],
-  "FEN BİLGİSİ": ["fen bilim"],
-  SOSYAL: ["sosyal"],
-  İNGİLİZCE: ["ingilizce"],
-};
-
-function canTeach(teacher: Teacher, subjectName: string): boolean {
-  const keywords = SUBJECT_TEACHER_MAP[subjectName.toUpperCase()];
-  if (!keywords) return false;
-  const spec = (teacher.specialization || "").toLowerCase();
-  return keywords.some((kw) => spec.includes(kw));
 }
 
 function splitHours(hours: number, rules: Record<number, number[]>): number[] {
@@ -93,22 +71,26 @@ interface LessonBlock {
   blockSize: number;
 }
 
-interface SlotOccupancy {
-  classSlots: Map<string, Set<string>>;
-  teacherSlots: Map<string, Set<string>>;
-}
-
 function slotKey(dayOfWeek: number, startTime: string): string {
   return `${dayOfWeek}:${startTime}`;
+}
+
+function classSubjectDayKey(
+  classId: string,
+  subjectId: string,
+  day: number
+): string {
+  return `${classId}:${subjectId}:${day}`;
 }
 
 export function autoSchedule(
   classes: ClassGroup[],
   scheduleDays: ClassScheduleDay[],
   subjects: Subject[],
-  teachers: Teacher[],
   classSubjects: ClassSubjectInput[],
-  rules: ScheduleRules
+  rules: ScheduleRules,
+  teacherSubjects?: TeacherSubject[],
+  teachers?: Teacher[]
 ): ScheduleResult {
   const lessons: GeneratedLesson[] = [];
   const errors: string[] = [];
@@ -128,7 +110,101 @@ export function autoSchedule(
   for (const s of subjects) subjectMap.set(s.id, s);
 
   const teacherMap = new Map<string, Teacher>();
-  for (const t of teachers) teacherMap.set(t.id, t);
+  if (teachers) {
+    for (const t of teachers) teacherMap.set(t.id, t);
+  }
+
+  const teacherCountBySubject = new Map<string, number>();
+  const teacherCountBySubjectDay = new Map<string, number>();
+
+  if (teacherSubjects) {
+    const teacherSets = new Map<string, Set<string>>();
+    for (const ts of teacherSubjects) {
+      if (!teacherSets.has(ts.subject_id))
+        teacherSets.set(ts.subject_id, new Set());
+      teacherSets.get(ts.subject_id)!.add(ts.teacher_id);
+    }
+    for (const [subId, set] of teacherSets) {
+      teacherCountBySubject.set(subId, set.size);
+
+      if (teachers) {
+        for (let day = 0; day < 7; day++) {
+          let available = 0;
+          for (const tid of set) {
+            const teacher = teacherMap.get(tid);
+            if (
+              !teacher ||
+              !teacher.off_days ||
+              !teacher.off_days.includes(day)
+            ) {
+              available++;
+            }
+          }
+          teacherCountBySubjectDay.set(`${subId}:${day}`, available);
+        }
+      }
+    }
+  }
+
+  function getMaxConcurrent(subjectId: string, day: number): number {
+    if (teacherCountBySubjectDay.size > 0) {
+      const dayCount = teacherCountBySubjectDay.get(`${subjectId}:${day}`);
+      if (dayCount !== undefined) return dayCount;
+    }
+    const total = teacherCountBySubject.get(subjectId);
+    if (total !== undefined) return total;
+    return Infinity;
+  }
+
+  const subjectSlotCount = new Map<string, number>();
+  function getSubjectSlotUsage(subjectId: string, key: string): number {
+    const k = `${subjectId}:${key}`;
+    return subjectSlotCount.get(k) || 0;
+  }
+  function addSubjectSlotUsage(subjectId: string, key: string) {
+    const k = `${subjectId}:${key}`;
+    subjectSlotCount.set(k, (subjectSlotCount.get(k) || 0) + 1);
+  }
+
+  // Track per class+subject+day hours for the "max 2 per day" rule
+  const classDaySubjectHours = new Map<string, number>();
+  function getDaySubjectHours(
+    classId: string,
+    subjectId: string,
+    day: number
+  ): number {
+    return classDaySubjectHours.get(classSubjectDayKey(classId, subjectId, day)) || 0;
+  }
+  function addDaySubjectHours(
+    classId: string,
+    subjectId: string,
+    day: number,
+    hours: number
+  ) {
+    const k = classSubjectDayKey(classId, subjectId, day);
+    classDaySubjectHours.set(k, (classDaySubjectHours.get(k) || 0) + hours);
+  }
+
+  // Track placed lesson times per class+subject+day for adjacency checks
+  const classDaySubjectSlots = new Map<string, string[]>();
+  function getDaySubjectSlots(
+    classId: string,
+    subjectId: string,
+    day: number
+  ): string[] {
+    return classDaySubjectSlots.get(classSubjectDayKey(classId, subjectId, day)) || [];
+  }
+  function addDaySubjectSlot(
+    classId: string,
+    subjectId: string,
+    day: number,
+    startTime: string
+  ) {
+    const k = classSubjectDayKey(classId, subjectId, day);
+    const arr = classDaySubjectSlots.get(k) || [];
+    arr.push(startTime);
+    classDaySubjectSlots.set(k, arr);
+  }
 
   const blocks: LessonBlock[] = [];
   for (const cs of classSubjects) {
@@ -149,50 +225,180 @@ export function autoSchedule(
   }
 
   blocks.sort((a, b) => {
-    const aTeachers = teachers.filter((t) => canTeach(t, a.subjectName)).length;
-    const bTeachers = teachers.filter((t) => canTeach(t, b.subjectName)).length;
+    const aTeachers = teacherCountBySubject.get(a.subjectId) || 999;
+    const bTeachers = teacherCountBySubject.get(b.subjectId) || 999;
     if (aTeachers !== bTeachers) return aTeachers - bTeachers;
     return b.blockSize - a.blockSize;
   });
 
-  const occupancy: SlotOccupancy = {
-    classSlots: new Map(),
-    teacherSlots: new Map(),
-  };
+  const classSlots = new Map<string, Set<string>>();
 
-  function isClassSlotFree(classId: string, day: number, time: string): boolean {
-    const key = slotKey(day, time);
-    const set = occupancy.classSlots.get(classId);
-    return !set || !set.has(key);
-  }
-
-  function isTeacherSlotFree(
-    teacherId: string,
+  function isClassSlotFree(
+    classId: string,
     day: number,
     time: string
   ): boolean {
-    if (!rules.noDoubleBooking) return true;
     const key = slotKey(day, time);
-    const set = occupancy.teacherSlots.get(teacherId);
+    const set = classSlots.get(classId);
     return !set || !set.has(key);
   }
 
-  function occupySlot(
-    classId: string,
-    teacherId: string,
-    day: number,
-    time: string
-  ) {
+  function occupySlot(classId: string, day: number, time: string) {
     const key = slotKey(day, time);
-    if (!occupancy.classSlots.has(classId))
-      occupancy.classSlots.set(classId, new Set());
-    occupancy.classSlots.get(classId)!.add(key);
-    if (!occupancy.teacherSlots.has(teacherId))
-      occupancy.teacherSlots.set(teacherId, new Set());
-    occupancy.teacherSlots.get(teacherId)!.add(key);
+    if (!classSlots.has(classId)) classSlots.set(classId, new Set());
+    classSlots.get(classId)!.add(key);
   }
 
-  const teacherLoadMap = new Map<string, number>();
+  function canPlaceBlock(
+    block: LessonBlock,
+    day: number,
+    slots: { start: string; end: string }[],
+    startIdx: number
+  ): boolean {
+    const maxConcurrent = getMaxConcurrent(block.subjectId, day);
+    for (let i = 0; i < block.blockSize; i++) {
+      if (!isClassSlotFree(block.classId, day, slots[startIdx + i].start)) {
+        return false;
+      }
+
+      if (maxConcurrent !== Infinity) {
+        const key = slotKey(day, slots[startIdx + i].start);
+        const currentUsage = getSubjectSlotUsage(block.subjectId, key);
+        if (currentUsage >= maxConcurrent) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function isAdjacentToExisting(
+    block: LessonBlock,
+    day: number,
+    slots: { start: string; end: string }[],
+    startIdx: number
+  ): boolean {
+    const existing = getDaySubjectSlots(block.classId, block.subjectId, day);
+    if (existing.length === 0) return true;
+
+    const blockEnd = slots[startIdx + block.blockSize - 1].end;
+    const blockStart = slots[startIdx].start;
+
+    for (const existStart of existing) {
+      if (existStart === blockEnd || existStart === blockStart) return true;
+    }
+
+    const existingSorted = [...existing].sort();
+    const lastExistingStart = existingSorted[existingSorted.length - 1];
+    const lastExistingSlotIdx = slots.findIndex(
+      (s) => s.start === lastExistingStart
+    );
+    if (lastExistingSlotIdx >= 0) {
+      const lastExistingEnd = slots[lastExistingSlotIdx].end;
+      if (blockStart === lastExistingEnd) return true;
+    }
+
+    const firstExistingStart = existingSorted[0];
+    if (blockEnd === firstExistingStart) return true;
+
+    return false;
+  }
+
+  function tryPlaceBlock(
+    block: LessonBlock,
+    classDays: ClassScheduleDay[],
+    allowExceedDayLimit: boolean
+  ): boolean {
+    const dayOrder = [...classDays].sort((a, b) => {
+      const aSubjectHours = getDaySubjectHours(
+        block.classId,
+        block.subjectId,
+        a.day_of_week
+      );
+      const bSubjectHours = getDaySubjectHours(
+        block.classId,
+        block.subjectId,
+        b.day_of_week
+      );
+      if (aSubjectHours !== bSubjectHours) return aSubjectHours - bSubjectHours;
+
+      const aUsed = classSlots.get(block.classId);
+      const aCount = aUsed
+        ? [...aUsed].filter((k) => k.startsWith(`${a.day_of_week}:`)).length
+        : 0;
+      const bCount = aUsed
+        ? [...aUsed].filter((k) => k.startsWith(`${b.day_of_week}:`)).length
+        : 0;
+      return aCount - bCount;
+    });
+
+    for (const day of dayOrder) {
+      const currentDayHours = getDaySubjectHours(
+        block.classId,
+        block.subjectId,
+        day.day_of_week
+      );
+
+      if (
+        !allowExceedDayLimit &&
+        currentDayHours + block.blockSize > 2
+      ) {
+        continue;
+      }
+
+      const slots = generateTimeSlots(
+        day.start_time.slice(0, 5),
+        day.end_time.slice(0, 5)
+      );
+
+      for (
+        let startIdx = 0;
+        startIdx <= slots.length - block.blockSize;
+        startIdx++
+      ) {
+        if (!canPlaceBlock(block, day.day_of_week, slots, startIdx)) continue;
+
+        if (
+          currentDayHours > 0 &&
+          !isAdjacentToExisting(block, day.day_of_week, slots, startIdx)
+        ) {
+          continue;
+        }
+
+        for (let i = 0; i < block.blockSize; i++) {
+          const slot = slots[startIdx + i];
+          const key = slotKey(day.day_of_week, slot.start);
+          occupySlot(block.classId, day.day_of_week, slot.start);
+          addSubjectSlotUsage(block.subjectId, key);
+          addDaySubjectSlot(
+            block.classId,
+            block.subjectId,
+            day.day_of_week,
+            slot.start
+          );
+          lessons.push({
+            classId: block.classId,
+            className: block.className,
+            subjectId: block.subjectId,
+            subjectName: block.subjectName,
+            teacherId: "",
+            teacherName: "",
+            dayOfWeek: day.day_of_week,
+            startTime: slot.start,
+            endTime: slot.end,
+          });
+        }
+        addDaySubjectHours(
+          block.classId,
+          block.subjectId,
+          day.day_of_week,
+          block.blockSize
+        );
+        return true;
+      }
+    }
+    return false;
+  }
 
   for (const block of blocks) {
     const classDays = classDaysMap.get(block.classId) || [];
@@ -203,114 +409,16 @@ export function autoSchedule(
       continue;
     }
 
-    const capableTeachers = teachers.filter((t) =>
-      canTeach(t, block.subjectName)
-    );
-    if (capableTeachers.length === 0) {
-      errors.push(
-        `${block.subjectName}: Bu ders için uygun öğretmen bulunamadı.`
-      );
-      continue;
-    }
+    // First try with the 2-hour-per-day limit
+    let placed = tryPlaceBlock(block, classDays, false);
 
-    const sortedTeachers = [...capableTeachers].sort((a, b) => {
-      const loadA = teacherLoadMap.get(a.id) || 0;
-      const loadB = teacherLoadMap.get(b.id) || 0;
-      return loadA - loadB;
-    });
-
-    let placed = false;
-
-    const dayOrder = [...classDays].sort((a, b) => {
-      const aUsed = occupancy.classSlots.get(block.classId);
-      const bUsed = occupancy.classSlots.get(block.classId);
-      const aCount = aUsed
-        ? [...aUsed].filter((k) => k.startsWith(`${a.day_of_week}:`)).length
-        : 0;
-      const bCount = bUsed
-        ? [...bUsed].filter((k) => k.startsWith(`${b.day_of_week}:`)).length
-        : 0;
-      return aCount - bCount;
-    });
-
-    for (const day of dayOrder) {
-      if (placed) break;
-
-      const slots = generateTimeSlots(
-        day.start_time.slice(0, 5),
-        day.end_time.slice(0, 5)
-      );
-
-      for (let startIdx = 0; startIdx <= slots.length - block.blockSize; startIdx++) {
-        if (placed) break;
-
-        let slotsAvailable = true;
-        for (let i = 0; i < block.blockSize; i++) {
-          if (
-            !isClassSlotFree(
-              block.classId,
-              day.day_of_week,
-              slots[startIdx + i].start
-            )
-          ) {
-            slotsAvailable = false;
-            break;
-          }
-        }
-        if (!slotsAvailable) continue;
-
-        for (const teacher of sortedTeachers) {
-          if (placed) break;
-
-          if (
-            rules.respectOffDays &&
-            teacher.off_days &&
-            teacher.off_days.includes(day.day_of_week)
-          ) {
-            continue;
-          }
-
-          let teacherFree = true;
-          for (let i = 0; i < block.blockSize; i++) {
-            if (
-              !isTeacherSlotFree(
-                teacher.id,
-                day.day_of_week,
-                slots[startIdx + i].start
-              )
-            ) {
-              teacherFree = false;
-              break;
-            }
-          }
-          if (!teacherFree) continue;
-
-          for (let i = 0; i < block.blockSize; i++) {
-            const slot = slots[startIdx + i];
-            occupySlot(
-              block.classId,
-              teacher.id,
-              day.day_of_week,
-              slot.start
-            );
-            lessons.push({
-              classId: block.classId,
-              className: block.className,
-              subjectId: block.subjectId,
-              subjectName: block.subjectName,
-              teacherId: teacher.id,
-              teacherName: teacher.name,
-              dayOfWeek: day.day_of_week,
-              startTime: slot.start,
-              endTime: slot.end,
-            });
-          }
-          teacherLoadMap.set(
-            teacher.id,
-            (teacherLoadMap.get(teacher.id) || 0) + block.blockSize
-          );
-          placed = true;
-        }
+    // Fallback: allow exceeding the limit if no other option
+    if (!placed) {
+      placed = tryPlaceBlock(block, classDays, true);
+      if (placed) {
+        warnings.push(
+          `${block.className} - ${block.subjectName}: Aynı gün 2 saatten fazla verildi (başka gün bulunamadı).`
+        );
       }
     }
 

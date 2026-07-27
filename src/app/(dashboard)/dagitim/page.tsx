@@ -10,16 +10,21 @@ import {
   type GeneratedLesson,
   type ClassSubjectInput,
 } from "@/lib/scheduler";
+import {
+  assignTeachersToSchedule,
+  type AssignmentResult,
+} from "@/lib/teacher-assignment";
 import type {
   Teacher,
   Subject,
   ClassGroup,
   ClassScheduleDay,
   ClassSubject,
+  TeacherSubject,
 } from "@/lib/types";
 import { DAY_NAMES, SUBJECT_COLORS } from "@/lib/types";
 
-type Tab = "import" | "rules" | "schedule";
+type Tab = "import" | "rules" | "schedule" | "atama";
 
 export default function DagitimPage() {
   const supabase = createClient();
@@ -36,14 +41,21 @@ export default function DagitimPage() {
     warnings: string[];
   } | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  const [assignmentResult, setAssignmentResult] =
+    useState<AssignmentResult | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+  const [assignmentSaved, setAssignmentSaved] = useState(false);
 
   const [dbTeachers, setDbTeachers] = useState<Teacher[]>([]);
   const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
   const [dbClasses, setDbClasses] = useState<ClassGroup[]>([]);
   const [dbScheduleDays, setDbScheduleDays] = useState<ClassScheduleDay[]>([]);
   const [dbClassSubjects, setDbClassSubjects] = useState<ClassSubject[]>([]);
+  const [dbTeacherSubjects, setDbTeacherSubjects] = useState<TeacherSubject[]>(
+    []
+  );
 
   const fetchDbData = useCallback(async () => {
     const [
@@ -52,6 +64,7 @@ export default function DagitimPage() {
       { data: classes },
       { data: scheduleDays },
       { data: classSubjects },
+      { data: teacherSubjectsData },
     ] = await Promise.all([
       supabase.from("teachers").select("*").order("name"),
       supabase.from("subjects").select("*").order("name"),
@@ -60,12 +73,16 @@ export default function DagitimPage() {
       supabase
         .from("class_subjects")
         .select("*, subject:subjects(*), teacher:teachers(*)"),
+      supabase
+        .from("teacher_subjects")
+        .select("*, subject:subjects(*), teacher:teachers(*)"),
     ]);
     setDbTeachers(teachers || []);
     setDbSubjects(subjects || []);
     setDbClasses(classes || []);
     setDbScheduleDays(scheduleDays || []);
     setDbClassSubjects(classSubjects || []);
+    setDbTeacherSubjects(teacherSubjectsData || []);
   }, [supabase]);
 
   useEffect(() => {
@@ -214,36 +231,29 @@ export default function DagitimPage() {
 
   const handleGenerate = async () => {
     setGenerating(true);
-    setSaved(false);
+    setAssignmentResult(null);
 
     await fetchDbData();
 
     setTimeout(() => {
-      const { data: freshTeachers } = { data: dbTeachers };
-      const { data: freshSubjects } = { data: dbSubjects };
-      const { data: freshClasses } = { data: dbClasses };
-      const { data: freshScheduleDays } = { data: dbScheduleDays };
-      const { data: freshClassSubjects } = { data: dbClassSubjects };
-
-      const csInputs: ClassSubjectInput[] = (freshClassSubjects || []).map(
-        (cs) => ({
-          classId: cs.class_id,
-          subjectId: cs.subject_id,
-          subjectName:
-            (cs.subject as unknown as Subject)?.name ||
-            freshSubjects?.find((s) => s.id === cs.subject_id)?.name ||
-            "",
-          weeklyHours: cs.weekly_hours,
-        })
-      );
+      const csInputs: ClassSubjectInput[] = dbClassSubjects.map((cs) => ({
+        classId: cs.class_id,
+        subjectId: cs.subject_id,
+        subjectName:
+          (cs.subject as unknown as Subject)?.name ||
+          dbSubjects.find((s) => s.id === cs.subject_id)?.name ||
+          "",
+        weeklyHours: cs.weekly_hours,
+      }));
 
       const result = autoSchedule(
-        freshClasses || [],
-        freshScheduleDays || [],
-        freshSubjects || [],
-        freshTeachers || [],
+        dbClasses,
+        dbScheduleDays,
+        dbSubjects,
         csInputs,
-        rules
+        rules,
+        dbTeacherSubjects,
+        dbTeachers
       );
 
       setScheduleResult(result);
@@ -252,21 +262,46 @@ export default function DagitimPage() {
     }, 100);
   };
 
-  const handleSave = async () => {
+  const handleAssign = async () => {
     if (!scheduleResult) return;
-    setSaving(true);
+    setAssigning(true);
+    setAssignmentSaved(false);
+    await fetchDbData();
+
+    setTimeout(() => {
+      const result = assignTeachersToSchedule(
+        scheduleResult.lessons,
+        dbTeachers,
+        dbTeacherSubjects,
+        dbSubjects
+      );
+      setAssignmentResult(result);
+      setScheduleResult({
+        ...scheduleResult,
+        lessons: result.lessons,
+      });
+      setAssigning(false);
+    }, 50);
+  };
+
+  const handleSaveAll = async () => {
+    if (!assignmentResult) return;
+    setSavingAssignment(true);
 
     try {
       const classIds = [
-        ...new Set(scheduleResult.lessons.map((l) => l.classId)),
+        ...new Set(assignmentResult.lessons.map((l) => l.classId)),
       ];
       for (const classId of classIds) {
         await supabase.from("lessons").delete().eq("class_id", classId);
       }
 
+      const lessonsWithTeachers = assignmentResult.lessons.filter(
+        (l) => l.teacherId
+      );
       const batchSize = 50;
-      for (let i = 0; i < scheduleResult.lessons.length; i += batchSize) {
-        const batch = scheduleResult.lessons.slice(i, i + batchSize).map((l) => ({
+      for (let i = 0; i < lessonsWithTeachers.length; i += batchSize) {
+        const batch = lessonsWithTeachers.slice(i, i + batchSize).map((l) => ({
           class_id: l.classId,
           subject_id: l.subjectId,
           teacher_id: l.teacherId,
@@ -277,11 +312,11 @@ export default function DagitimPage() {
         await supabase.from("lessons").insert(batch);
       }
 
-      setSaved(true);
+      setAssignmentSaved(true);
     } catch (err) {
       alert("Kaydetme hatası: " + (err as Error).message);
     } finally {
-      setSaving(false);
+      setSavingAssignment(false);
     }
   };
 
@@ -309,7 +344,8 @@ export default function DagitimPage() {
           [
             ["import", "İçe Aktarma"],
             ["rules", "Kurallar"],
-            ["schedule", "Program"],
+            ["schedule", "Ders Programı"],
+            ["atama", "Öğretmen Atama"],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -560,6 +596,225 @@ export default function DagitimPage() {
         </div>
       )}
 
+      {tab === "atama" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Öğretmen Atama
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Oluşturulan ders programına göre öğretmen atar. İzin günlerini,
+                  saat çakışmalarını ve eşli ders kurallarını (MATEMATİK 1/2,
+                  TÜRKÇE/EDEBİYAT) kontrol eder.
+                </p>
+              </div>
+              <button
+                onClick={handleAssign}
+                disabled={assigning || !scheduleResult}
+                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                {assigning ? "Atanıyor..." : "Otomatik Ata"}
+              </button>
+            </div>
+            {!scheduleResult && (
+              <p className="text-sm text-amber-600">
+                Önce &quot;Ders Programı&quot; sekmesinden programı oluşturun.
+              </p>
+            )}
+          </div>
+
+          {assignmentResult && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {assignmentResult.stats.totalGroups}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Ders-Sınıf Grubu
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <div className="text-3xl font-bold text-green-600">
+                    {assignmentResult.stats.assigned}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">Atanan</div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <div className="text-3xl font-bold text-red-600">
+                    {assignmentResult.stats.failed}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">Atanamayan</div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {assignmentResult.stats.teacherLoads.length}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Aktif Öğretmen
+                  </div>
+                </div>
+              </div>
+
+              {assignmentResult.errors.length > 0 && (
+                <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+                  <h3 className="text-sm font-semibold text-red-800 mb-2">
+                    Hatalar ({assignmentResult.errors.length})
+                  </h3>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {assignmentResult.errors.map((err, i) => (
+                      <div key={i} className="text-xs text-red-700">
+                        {err}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {assignmentResult.warnings.length > 0 && (
+                <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
+                  <h3 className="text-sm font-semibold text-amber-800 mb-2">
+                    Uyarılar ({assignmentResult.warnings.length})
+                  </h3>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {assignmentResult.warnings.map((w, i) => (
+                      <div key={i} className="text-xs text-amber-700">
+                        {w}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Öğretmen Yük Dağılımı
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {assignmentResult.stats.teacherLoads.map((tl) => (
+                    <div
+                      key={tl.teacherId}
+                      className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5"
+                    >
+                      <span className="text-sm font-medium text-gray-900">
+                        {tl.teacherName}
+                      </span>
+                      <span className="text-sm font-bold text-purple-600">
+                        {tl.totalHours} saat
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Atama Sonuçları
+                </h3>
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 text-gray-500">
+                          Sınıf
+                        </th>
+                        <th className="text-left py-2 px-3 text-gray-500">
+                          Gün
+                        </th>
+                        <th className="text-left py-2 px-3 text-gray-500">
+                          Saat
+                        </th>
+                        <th className="text-left py-2 px-3 text-gray-500">
+                          Ders
+                        </th>
+                        <th className="text-left py-2 px-3 text-gray-500">
+                          Öğretmen
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...assignmentResult.lessons]
+                        .sort((a, b) => {
+                          if (a.className !== b.className)
+                            return a.className.localeCompare(b.className);
+                          if (a.dayOfWeek !== b.dayOfWeek)
+                            return a.dayOfWeek - b.dayOfWeek;
+                          return a.startTime.localeCompare(b.startTime);
+                        })
+                        .map((l, i) => (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="py-1.5 px-3 font-medium text-gray-900">
+                              {l.className}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded">
+                                {DAY_NAMES[l.dayOfWeek]}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-3 text-gray-600 font-mono text-xs">
+                              {l.startTime}-{l.endTime}
+                            </td>
+                            <td className="py-1.5 px-3 text-gray-900">
+                              {l.subjectName}
+                            </td>
+                            <td className="py-1.5 px-3 text-gray-600">
+                              {l.teacherName || (
+                                <span className="text-red-400 italic">
+                                  Atanamadı
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveAll}
+                  disabled={
+                    savingAssignment ||
+                    assignmentSaved ||
+                    assignmentResult.stats.assigned === 0
+                  }
+                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingAssignment
+                    ? "Kaydediliyor..."
+                    : assignmentSaved
+                      ? "Kaydedildi"
+                      : "Programı Kaydet"}
+                </button>
+                <button
+                  onClick={handleAssign}
+                  disabled={assigning}
+                  className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Yeniden Ata
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {tab === "rules" && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -589,57 +844,6 @@ export default function DagitimPage() {
                   </span>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Kısıtlamalar
-            </h2>
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rules.respectOffDays}
-                  onChange={(e) =>
-                    setRules((prev) => ({
-                      ...prev,
-                      respectOffDays: e.target.checked,
-                    }))
-                  }
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-900">
-                    Öğretmen izin günü kontrolü
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Öğretmenler izinli olduğu gün ders vermez
-                  </div>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rules.noDoubleBooking}
-                  onChange={(e) =>
-                    setRules((prev) => ({
-                      ...prev,
-                      noDoubleBooking: e.target.checked,
-                    }))
-                  }
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-900">
-                    Öğretmen çakışma kontrolü
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Aynı öğretmen aynı saatte birden fazla sınıfta ders vermez
-                  </div>
-                </div>
-              </label>
             </div>
           </div>
 
@@ -760,7 +964,11 @@ export default function DagitimPage() {
                               {l.subjectName}
                             </td>
                             <td className="py-1.5 px-3 text-gray-600">
-                              {l.teacherName}
+                              {l.teacherName || (
+                                <span className="text-gray-300 italic">
+                                  Henüz atanmadı
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -769,17 +977,25 @@ export default function DagitimPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
                 <button
-                  onClick={handleSave}
-                  disabled={saving || saved || scheduleResult.lessons.length === 0}
-                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setTab("atama")}
+                  className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
                 >
-                  {saving
-                    ? "Kaydediliyor..."
-                    : saved
-                      ? "Kaydedildi"
-                      : "Programı Kaydet"}
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
+                  </svg>
+                  Öğretmen Ata
                 </button>
                 <button
                   onClick={handleGenerate}
