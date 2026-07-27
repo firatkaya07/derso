@@ -543,11 +543,29 @@ export function autoSchedule(
     }
   }
 
-  // Pre-assigned first, then by scarcity
+  // Compute risk score: demand (total weekly hours for subject) / capacity (teacher count)
+  const subjectDemand = new Map<string, number>();
+  for (const cs of classSubjects) {
+    subjectDemand.set(
+      cs.subjectId,
+      (subjectDemand.get(cs.subjectId) || 0) + cs.weeklyHours
+    );
+  }
+
+  function getRiskScore(block: LessonBlock): number {
+    const demand = subjectDemand.get(block.subjectId) || 0;
+    const capacity = teacherCountBySubject.get(block.subjectId) || 999;
+    return demand / capacity;
+  }
+
+  // Pre-assigned first, then by risk (highest demand/capacity ratio first)
   blocks.sort((a, b) => {
     const aPre = a.preAssignedTeacherId ? 1 : 0;
     const bPre = b.preAssignedTeacherId ? 1 : 0;
     if (aPre !== bPre) return bPre - aPre;
+    const aRisk = getRiskScore(a);
+    const bRisk = getRiskScore(b);
+    if (aRisk !== bRisk) return bRisk - aRisk;
     const aT = teacherCountBySubject.get(a.subjectId) || 999;
     const bT = teacherCountBySubject.get(b.subjectId) || 999;
     if (aT !== bT) return aT - bT;

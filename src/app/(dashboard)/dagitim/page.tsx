@@ -41,6 +41,9 @@ export default function DagitimPage() {
     warnings: string[];
   } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [attemptLogs, setAttemptLogs] = useState<
+    { attempt: number; schedErrors: number; assignFailed: number; total: number; best: number }[]
+  >([]);
 
   const [assignmentResult, setAssignmentResult] =
     useState<AssignmentResult | null>(null);
@@ -232,75 +235,102 @@ export default function DagitimPage() {
   const handleGenerate = async () => {
     setGenerating(true);
     setAssignmentResult(null);
+    setAttemptLogs([]);
 
     await fetchDbData();
 
-    setTimeout(() => {
-      const csInputs: ClassSubjectInput[] = dbClassSubjects.map((cs) => ({
-        classId: cs.class_id,
-        subjectId: cs.subject_id,
-        subjectName:
-          (cs.subject as unknown as Subject)?.name ||
-          dbSubjects.find((s) => s.id === cs.subject_id)?.name ||
-          "",
-        weeklyHours: cs.weekly_hours,
-        teacherId: cs.teacher_id,
-      }));
+    const csInputs: ClassSubjectInput[] = dbClassSubjects.map((cs) => ({
+      classId: cs.class_id,
+      subjectId: cs.subject_id,
+      subjectName:
+        (cs.subject as unknown as Subject)?.name ||
+        dbSubjects.find((s) => s.id === cs.subject_id)?.name ||
+        "",
+      weeklyHours: cs.weekly_hours,
+      teacherId: cs.teacher_id,
+    }));
 
-      let bestResult: {
-        schedule: typeof scheduleResult;
-        assignment: AssignmentResult;
-        totalFailed: number;
-      } | null = null;
+    const MAX_RETRIES = 100;
+    const SWAP_DEPTH = 30;
+    let bestResult: {
+      schedule: typeof scheduleResult;
+      assignment: AssignmentResult;
+      totalFailed: number;
+    } | null = null;
 
-      const MAX_RETRIES = 100;
-      const SWAP_DEPTH = 30;
-      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        const schedResult = autoSchedule(
-          dbClasses,
-          dbScheduleDays,
-          dbSubjects,
-          csInputs,
-          rules,
-          dbTeacherSubjects,
-          dbTeachers,
-          attempt,
-          SWAP_DEPTH
-        );
+    const BATCH_SIZE = 2;
 
-        const assignResult = assignTeachersToSchedule(
-          schedResult.lessons,
-          dbTeachers,
-          dbTeacherSubjects,
-          dbSubjects,
-          dbClassSubjects
-        );
+    const runBatch = (startAttempt: number) => {
+      setTimeout(() => {
+        const batchLogs: typeof attemptLogs = [];
+        const end = Math.min(startAttempt + BATCH_SIZE, MAX_RETRIES);
+        let done = false;
 
-        const totalFailed =
-          schedResult.errors.length + assignResult.stats.failed;
+        for (let attempt = startAttempt; attempt < end; attempt++) {
+          const schedResult = autoSchedule(
+            dbClasses,
+            dbScheduleDays,
+            dbSubjects,
+            csInputs,
+            rules,
+            dbTeacherSubjects,
+            dbTeachers,
+            attempt,
+            SWAP_DEPTH
+          );
 
-        if (!bestResult || totalFailed < bestResult.totalFailed) {
-          bestResult = {
-            schedule: schedResult,
-            assignment: assignResult,
-            totalFailed,
-          };
+          const assignResult = assignTeachersToSchedule(
+            schedResult.lessons,
+            dbTeachers,
+            dbTeacherSubjects,
+            dbSubjects,
+            dbClassSubjects
+          );
+
+          const totalFailed =
+            schedResult.errors.length + assignResult.stats.failed;
+
+          if (!bestResult || totalFailed < bestResult.totalFailed) {
+            bestResult = {
+              schedule: schedResult,
+              assignment: assignResult,
+              totalFailed,
+            };
+          }
+
+          batchLogs.push({
+            attempt: attempt + 1,
+            schedErrors: schedResult.errors.length,
+            assignFailed: assignResult.stats.failed,
+            total: totalFailed,
+            best: bestResult!.totalFailed,
+          });
+
+          if (totalFailed === 0) {
+            done = true;
+            break;
+          }
         }
 
-        if (totalFailed === 0) break;
-      }
+        setAttemptLogs((prev) => [...prev, ...batchLogs]);
 
-      if (bestResult) {
-        setScheduleResult({
-          ...bestResult.schedule!,
-          lessons: bestResult.assignment.lessons,
-        });
-        setAssignmentResult(bestResult.assignment);
-      }
+        if (done || end >= MAX_RETRIES) {
+          if (bestResult) {
+            setScheduleResult({
+              ...bestResult.schedule!,
+              lessons: bestResult.assignment.lessons,
+            });
+            setAssignmentResult(bestResult.assignment);
+          }
+          setGenerating(false);
+          setTab("schedule");
+        } else {
+          runBatch(end);
+        }
+      }, 50);
+    };
 
-      setGenerating(false);
-      setTab("schedule");
-    }, 100);
+    runBatch(0);
   };
 
   const handleAssign = async () => {
@@ -403,6 +433,52 @@ export default function DagitimPage() {
           </button>
         ))}
       </div>
+
+      {(generating || attemptLogs.length > 0) && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">
+              {generating ? "Deneniyor..." : "Deneme Sonuçları"}
+            </h3>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-gray-500">
+                Deneme: {attemptLogs.length}/100
+              </span>
+              {attemptLogs.length > 0 && (
+                <span className="font-semibold text-green-600">
+                  En iyi: {attemptLogs[attemptLogs.length - 1].best} hata
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+            <div
+              className="bg-blue-600 h-1.5 rounded-full transition-all"
+              style={{ width: `${attemptLogs.length}%` }}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto text-xs font-mono space-y-0.5">
+            {[...attemptLogs].reverse().map((log) => (
+              <div
+                key={log.attempt}
+                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
+                  log.total === log.best
+                    ? "bg-green-50 text-green-700"
+                    : "text-gray-500"
+                }`}
+              >
+                <span className="w-12">#{log.attempt}</span>
+                <span className="w-28">Yerleştirme: {log.schedErrors}</span>
+                <span className="w-24">Atama: {log.assignFailed}</span>
+                <span className="w-20">Toplam: {log.total}</span>
+                {log.total === log.best && (
+                  <span className="text-green-600 font-semibold">★ En iyi</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {tab === "import" && (
         <div className="space-y-6">
@@ -901,6 +977,7 @@ export default function DagitimPage() {
               Önce Excel dosyasını içe aktarın.
             </p>
           )}
+
         </div>
       )}
 
