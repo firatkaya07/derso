@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
-import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher } from "@/lib/types";
+import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES, LEVELS } from "@/lib/types";
 
 export default function ClassesPage() {
@@ -13,6 +13,7 @@ export default function ClassesPage() {
   const [allClassSubjects, setAllClassSubjects] = useState<ClassSubject[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -27,19 +28,21 @@ export default function ClassesPage() {
   >([]);
 
   const fetchData = useCallback(async () => {
-    const [{ data: classData }, { data: scheduleData }, { data: csData }, { data: subjectData }, { data: teacherData }] =
+    const [{ data: classData }, { data: scheduleData }, { data: csData }, { data: subjectData }, { data: teacherData }, { data: tsData }] =
       await Promise.all([
         supabase.from("classes").select("*").order("name"),
         supabase.from("class_schedule_days").select("*"),
         supabase.from("class_subjects").select("*, subject:subjects(*), teacher:teachers(*)"),
         supabase.from("subjects").select("*").order("name"),
         supabase.from("teachers").select("*").order("name"),
+        supabase.from("teacher_subjects").select("*"),
       ]);
     setClasses(classData || []);
     setScheduleDays(scheduleData || []);
     setAllClassSubjects(csData || []);
     setSubjects(subjectData || []);
     setTeachers(teacherData || []);
+    setTeacherSubjects(tsData || []);
     setLoading(false);
   }, [supabase]);
 
@@ -164,6 +167,13 @@ export default function ClassesPage() {
       return;
     await supabase.from("classes").delete().eq("id", id);
     fetchData();
+  };
+
+  const getTeachersForSubject = (subjectId: string) => {
+    const teacherIds = teacherSubjects
+      .filter((ts) => ts.subject_id === subjectId)
+      .map((ts) => ts.teacher_id);
+    return teachers.filter((t) => teacherIds.includes(t.id));
   };
 
   const updateClassSubject = (index: number, field: "weekly_hours" | "teacher_id", value: number | string | null) => {
@@ -413,7 +423,7 @@ export default function ClassesPage() {
                               className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             >
                               <option value="">- Yok -</option>
-                              {teachers.map((t) => (
+                              {getTeachersForSubject(cs.subject_id).map((t) => (
                                 <option key={t.id} value={t.id}>
                                   {t.name}
                                 </option>
