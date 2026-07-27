@@ -58,20 +58,41 @@ export default function ClassesPage() {
     setModalOpen(true);
   };
 
+  const getMatchingSubjects = (level: string, subgroup: string) => {
+    if (!level) return [];
+    return subjects.filter((s) => {
+      if (!s.level) return false;
+      const subjectLevels = s.level.split(",").map((l) => l.trim());
+      if (!subjectLevels.includes(level)) return false;
+      if (subgroup && s.subgroups) {
+        const subjectSubgroups = s.subgroups.split(",").map((sg) => sg.trim());
+        return subjectSubgroups.includes(subgroup);
+      }
+      return true;
+    });
+  };
+
+  const buildClassSubjectEdits = (classId: string | null, level: string, subgroup: string) => {
+    const matching = getMatchingSubjects(level, subgroup);
+    const existingCS = classId ? allClassSubjects.filter((cs) => cs.class_id === classId) : [];
+    const edits = matching.map((sub) => {
+      const existing = existingCS.find((cs) => cs.subject_id === sub.id);
+      return {
+        id: existing?.id || "",
+        subject_id: sub.id,
+        weekly_hours: existing?.weekly_hours || 0,
+        teacher_id: existing?.teacher_id || null,
+        subject: sub,
+      };
+    });
+    edits.sort((a, b) => (a.subject?.name || "").localeCompare(b.subject?.name || ""));
+    return edits;
+  };
+
   const openEdit = (cls: ClassGroup) => {
     setEditingClass(cls);
     setForm({ name: cls.name, description: cls.description || "", level: cls.level || "", subgroup: cls.subgroup || "" });
-    const csForClass = allClassSubjects
-      .filter((cs) => cs.class_id === cls.id)
-      .map((cs) => ({
-        id: cs.id,
-        subject_id: cs.subject_id,
-        weekly_hours: cs.weekly_hours,
-        teacher_id: cs.teacher_id,
-        subject: cs.subject as Subject | undefined,
-      }));
-    csForClass.sort((a, b) => (a.subject?.name || "").localeCompare(b.subject?.name || ""));
-    setClassSubjectEdits(csForClass);
+    setClassSubjectEdits(buildClassSubjectEdits(cls.id, cls.level || "", cls.subgroup || ""));
     setModalOpen(true);
   };
 
@@ -105,13 +126,6 @@ export default function ClassesPage() {
     if (editingClass) {
       await supabase.from("classes").update(data).eq("id", editingClass.id);
       classId = editingClass.id;
-
-      for (const cs of classSubjectEdits) {
-        await supabase
-          .from("class_subjects")
-          .update({ weekly_hours: cs.weekly_hours, teacher_id: cs.teacher_id })
-          .eq("id", cs.id);
-      }
     } else {
       const { data: inserted } = await supabase
         .from("classes")
@@ -122,25 +136,13 @@ export default function ClassesPage() {
       classId = inserted.id;
     }
 
-    if (form.level) {
-      const matchingSubjects = subjects.filter((s) => {
-        if (!s.level) return false;
-        const subjectLevels = s.level.split(",").map((l) => l.trim());
-        if (!subjectLevels.includes(form.level)) return false;
-        if (form.subgroup && s.subgroups) {
-          const subjectSubgroups = s.subgroups.split(",").map((sg) => sg.trim());
-          return subjectSubgroups.includes(form.subgroup);
-        }
-        return true;
-      });
-      for (const sub of matchingSubjects) {
-        await supabase
-          .from("class_subjects")
-          .upsert(
-            { class_id: classId, subject_id: sub.id, weekly_hours: 0 },
-            { onConflict: "class_id,subject_id", ignoreDuplicates: true }
-          );
-      }
+    for (const cs of classSubjectEdits) {
+      await supabase
+        .from("class_subjects")
+        .upsert(
+          { class_id: classId, subject_id: cs.subject_id, weekly_hours: cs.weekly_hours, teacher_id: cs.teacher_id },
+          { onConflict: "class_id,subject_id" }
+        );
     }
 
     setModalOpen(false);
@@ -392,7 +394,7 @@ export default function ClassesPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingClass ? "Sınıf Düzenle" : "Yeni Sınıf"}
-        size={editingClass && classSubjectEdits.length > 0 ? "lg" : "md"}
+        size={classSubjectEdits.length > 0 ? "lg" : "md"}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -400,7 +402,11 @@ export default function ClassesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
               <select
                 value={form.level}
-                onChange={(e) => setForm({ ...form, level: e.target.value })}
+                onChange={(e) => {
+                  const newLevel = e.target.value;
+                  setForm((f) => ({ ...f, level: newLevel }));
+                  setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, newLevel, form.subgroup));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
               >
                 <option value="">Seçilmedi</option>
@@ -415,7 +421,11 @@ export default function ClassesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Alt Grup</label>
               <select
                 value={form.subgroup}
-                onChange={(e) => setForm({ ...form, subgroup: e.target.value })}
+                onChange={(e) => {
+                  const newSubgroup = e.target.value;
+                  setForm((f) => ({ ...f, subgroup: newSubgroup }));
+                  setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, form.level, newSubgroup));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
               >
                 <option value="">Seçilmedi</option>
@@ -447,7 +457,7 @@ export default function ClassesPage() {
             </div>
           </div>
 
-          {editingClass && classSubjectEdits.length > 0 && (
+          {classSubjectEdits.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900">Sınıf Dersleri</h3>
@@ -536,9 +546,14 @@ export default function ClassesPage() {
             </div>
           )}
 
-          {editingClass && classSubjectEdits.length === 0 && (
+          {classSubjectEdits.length === 0 && form.level && (
             <p className="text-sm text-gray-400 italic">
-              Bu sınıfa henüz ders atanmamış. Düzey seçerek otomatik atama yapabilirsiniz.
+              Bu düzeyde tanımlı ders bulunamadı. Dersler sayfasından düzey atayın.
+            </p>
+          )}
+          {classSubjectEdits.length === 0 && !form.level && (
+            <p className="text-sm text-gray-400 italic">
+              Düzey seçerek eşleşen dersleri görebilirsiniz.
             </p>
           )}
 
