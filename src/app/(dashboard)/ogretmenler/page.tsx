@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
 import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
+import { DAY_NAMES } from "@/lib/types";
 
 export default function TeachersPage() {
   const supabase = createClient();
@@ -13,7 +14,7 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", off_days: [] as number[] });
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
@@ -44,7 +45,7 @@ export default function TeachersPage() {
 
   const openCreate = () => {
     setEditingTeacher(null);
-    setForm({ name: "", phone: "", email: "" });
+    setForm({ name: "", phone: "", email: "", off_days: [] });
     setSelectedSubjectIds([]);
     setModalOpen(true);
   };
@@ -55,6 +56,7 @@ export default function TeachersPage() {
       name: teacher.name,
       phone: teacher.phone || "",
       email: teacher.email || "",
+      off_days: teacher.off_days || [],
     });
     const currentSubjectIds = teacherSubjects
       .filter((ts) => ts.teacher_id === teacher.id)
@@ -77,6 +79,7 @@ export default function TeachersPage() {
       name: form.name,
       phone: form.phone || null,
       email: form.email || null,
+      off_days: form.off_days,
     };
 
     let teacherId: string;
@@ -180,6 +183,9 @@ export default function TeachersPage() {
                   Verdiği Dersler
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  İzin Günleri
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Telefon
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -213,6 +219,24 @@ export default function TeachersPage() {
                             </span>
                           ))}
                         </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {teacher.off_days && teacher.off_days.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {teacher.off_days
+                            .sort((a, b) => a - b)
+                            .map((d) => (
+                              <span
+                                key={d}
+                                className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600"
+                              >
+                                {DAY_NAMES[d]}
+                              </span>
+                            ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -316,6 +340,40 @@ export default function TeachersPage() {
                 })}
               </div>
             )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              İzin Günleri
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {DAY_NAMES.map((day, idx) => {
+                const isOff = form.off_days.includes(idx);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        off_days: isOff
+                          ? form.off_days.filter((d) => d !== idx)
+                          : [...form.off_days, idx],
+                      })
+                    }
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      isOff
+                        ? "bg-red-100 text-red-700 border-2 border-red-300"
+                        : "bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Öğretmenin ders veremeyeceği günleri seçin
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
