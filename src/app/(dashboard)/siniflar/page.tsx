@@ -116,14 +116,14 @@ export default function ClassesPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yukleniyor...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Siniflar</h1>
         <button

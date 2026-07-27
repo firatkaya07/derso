@@ -1,60 +1,112 @@
-import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+const cards = [
+  {
+    href: "/dersler",
+    title: "Dersler",
+    description: "Ders tanimlamalari",
+    icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-600",
+    borderColor: "border-l-teal-400",
+  },
+  {
+    href: "/ogretmenler",
+    title: "Ogretmenler",
+    description: "Ogretmen tanimlamalari",
+    icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-500",
+    borderColor: "border-l-orange-400",
+  },
+  {
+    href: "/siniflar",
+    title: "Siniflar",
+    description: "Sinif ve ders atamalari",
+    icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    iconBg: "bg-green-50",
+    iconColor: "text-green-600",
+    borderColor: "border-l-green-400",
+  },
+  {
+    href: "/dagitim",
+    title: "Excel Ice Aktar",
+    description: "Excel dosyasindan veri aktar",
+    icon: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12",
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+    borderColor: "border-l-blue-400",
+  },
+  {
+    href: "/dagitim",
+    title: "Program Olustur",
+    description: "Otomatik program olustur",
+    icon: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+    iconBg: "bg-purple-50",
+    iconColor: "text-purple-600",
+    borderColor: "border-l-purple-400",
+  },
+  {
+    href: "/program",
+    title: "Sinif Programlari",
+    description: "Siniflarin haftalik programi",
+    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-600",
+    borderColor: "border-l-teal-400",
+  },
+  {
+    href: "/ogretmen-programlari",
+    title: "Ogretmen Programlari",
+    description: "Ogretmenlerin haftalik programi",
+    icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    iconBg: "bg-pink-50",
+    iconColor: "text-pink-600",
+    borderColor: "border-l-pink-400",
+  },
+  {
+    href: "#",
+    title: "Disa Aktar",
+    description: "Excel ve PDF ciktisi",
+    icon: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-600",
+    borderColor: "border-l-emerald-400",
+  },
+];
 
-  const [
-    { count: classCount },
-    { count: teacherCount },
-    { count: subjectCount },
-    { count: lessonCount },
-  ] = await Promise.all([
-    supabase.from("classes").select("*", { count: "exact", head: true }),
-    supabase.from("teachers").select("*", { count: "exact", head: true }),
-    supabase.from("subjects").select("*", { count: "exact", head: true }),
-    supabase.from("lessons").select("*", { count: "exact", head: true }),
-  ]);
-
-  const stats = [
-    { label: "Sinif", count: classCount ?? 0, color: "bg-blue-500", href: "/siniflar" },
-    { label: "Ogretmen", count: teacherCount ?? 0, color: "bg-green-500", href: "/ogretmenler" },
-    { label: "Ders", count: subjectCount ?? 0, color: "bg-purple-500", href: "/dersler" },
-    { label: "Program Girisi", count: lessonCount ?? 0, color: "bg-orange-500", href: "/program" },
-  ];
-
+export default function DashboardPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Ana Sayfa</h1>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat) => (
-          <a
-            key={stat.label}
-            href={stat.href}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {cards.map((card, i) => (
+        <Link
+          key={i}
+          href={card.href}
+          className={`bg-white rounded-xl border border-gray-200 border-l-4 ${card.borderColor} p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group`}
+        >
+          <div
+            className={`w-12 h-12 ${card.iconBg} rounded-xl flex items-center justify-center mb-5`}
           >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white text-xl font-bold`}>
-                {stat.count}
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Toplam</p>
-                <p className="text-lg font-semibold text-gray-900">{stat.label}</p>
-              </div>
-            </div>
-          </a>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Hizli Baslangic</h2>
-        <div className="space-y-3 text-sm text-gray-600">
-          <p>1. Oncelikle <a href="/ogretmenler" className="text-blue-600 hover:underline font-medium">Ogretmenler</a> sayfasindan ogretmenlerinizi ekleyin.</p>
-          <p>2. <a href="/dersler" className="text-blue-600 hover:underline font-medium">Dersler</a> sayfasindan ders/konu tanimlayamalari yapin.</p>
-          <p>3. <a href="/siniflar" className="text-blue-600 hover:underline font-medium">Siniflar</a> sayfasindan siniflarinizi olusturun ve ders gunlerini/saatlerini belirleyin.</p>
-          <p>4. <a href="/program" className="text-blue-600 hover:underline font-medium">Ders Programi</a> sayfasindan her sinif icin haftalik programi duzleyin.</p>
-        </div>
-      </div>
+            <svg
+              className={`w-6 h-6 ${card.iconColor}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d={card.icon}
+              />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+            {card.title}
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">{card.description}</p>
+        </Link>
+      ))}
     </div>
   );
 }

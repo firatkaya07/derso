@@ -128,7 +128,7 @@ export default function ClassSchedulePage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yukleniyor...</div>
       </div>
     );
@@ -136,7 +136,7 @@ export default function ClassSchedulePage() {
 
   if (!classGroup) {
     return (
-      <div className="p-8">
+      <div>
         <p className="text-gray-500">Sinif bulunamadi.</p>
         <Link href="/program" className="text-blue-600 hover:underline text-sm">
           Geri don
@@ -146,7 +146,7 @@ export default function ClassSchedulePage() {
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center gap-3 mb-6">
         <Link
           href="/program"

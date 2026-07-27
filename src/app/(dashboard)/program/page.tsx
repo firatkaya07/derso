@@ -28,14 +28,14 @@ export default function ProgramListPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yukleniyor...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Ders Programi</h1>
 
       {classes.length === 0 ? (

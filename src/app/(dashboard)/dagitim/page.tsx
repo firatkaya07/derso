@@ -299,7 +299,7 @@ export default function DagitimPage() {
   };
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         Otomatik Ders Dagitimi
       </h1>
