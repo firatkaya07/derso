@@ -3,7 +3,20 @@ export interface Teacher {
   name: string;
   phone: string | null;
   email: string | null;
+  off_days: number[];
+  specialization: string | null;
   created_at: string;
+}
+
+export interface ClassSubject {
+  id: string;
+  class_id: string;
+  subject_id: string;
+  weekly_hours: number;
+  teacher_id: string | null;
+  created_at: string;
+  subject?: Subject;
+  teacher?: Teacher;
 }
 
 export interface Subject {
