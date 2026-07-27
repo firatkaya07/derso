@@ -39,6 +39,29 @@ interface LessonGroup {
   days: number[];
   totalHours: number;
   preAssignedTeacherId?: string;
+  isPartial?: boolean;
+}
+
+function getCoverage(
+  teacherId: string,
+  teacher: Teacher,
+  lessons: GeneratedLesson[],
+  teacherSlots: Map<string, Set<string>>
+): { covered: GeneratedLesson[]; uncovered: GeneratedLesson[] } {
+  const covered: GeneratedLesson[] = [];
+  const uncovered: GeneratedLesson[] = [];
+  const slots = teacherSlots.get(teacherId);
+
+  for (const lesson of lessons) {
+    if (teacher.off_days?.includes(lesson.dayOfWeek)) {
+      uncovered.push(lesson);
+    } else if (slots?.has(slotKey(lesson.dayOfWeek, lesson.startTime))) {
+      uncovered.push(lesson);
+    } else {
+      covered.push(lesson);
+    }
+  }
+  return { covered, uncovered };
 }
 
 export function assignTeachersToSchedule(
@@ -61,7 +84,6 @@ export function assignTeachersToSchedule(
     teachersBySubject.set(ts.subject_id, arr);
   }
 
-  // Build pre-assignment map from class_subjects
   const preAssignmentMap = new Map<string, string>();
   if (classSubjects) {
     for (const cs of classSubjects) {
@@ -95,19 +117,25 @@ export function assignTeachersToSchedule(
   }
 
   const groups = [...groupMap.values()];
-  // Pre-assigned groups first, then by class name, then paired subjects first
+
+  // Scarcity-based sorting: fewer eligible teachers → higher priority
   groups.sort((a, b) => {
     const aPre = a.preAssignedTeacherId ? 1 : 0;
     const bPre = b.preAssignedTeacherId ? 1 : 0;
     if (aPre !== bPre) return bPre - aPre;
 
-    if (a.className !== b.className)
-      return a.className.localeCompare(b.className);
+    const aEligible = (teachersBySubject.get(a.subjectId) || []).length;
+    const bEligible = (teachersBySubject.get(b.subjectId) || []).length;
+    if (aEligible !== bEligible) return aEligible - bEligible;
+
+    if (a.totalHours !== b.totalHours) return b.totalHours - a.totalHours;
+
     const aIsPaired = a.subjectName in PAIRED_SUBJECTS;
     const bIsPaired = b.subjectName in PAIRED_SUBJECTS;
     if (aIsPaired && !bIsPaired) return -1;
     if (!aIsPaired && bIsPaired) return 1;
-    return a.subjectName.localeCompare(b.subjectName);
+
+    return a.className.localeCompare(b.className);
   });
 
   const teacherLoad = new Map<string, number>();
@@ -117,51 +145,91 @@ export function assignTeachersToSchedule(
   let assigned = 0;
   let failed = 0;
 
-  for (const group of groups) {
-    if (!classAssignments.has(group.classId)) {
+  const remainderQueue: LessonGroup[] = [];
+
+  function assignTeacherToLessons(
+    teacherId: string,
+    teacher: Teacher,
+    targetLessons: GeneratedLesson[],
+    group: LessonGroup
+  ) {
+    if (!classAssignments.has(group.classId))
       classAssignments.set(group.classId, new Map());
+    const classAssign = classAssignments.get(group.classId)!;
+    classAssign.set(group.subjectName, teacherId);
+
+    teacherLoad.set(
+      teacherId,
+      (teacherLoad.get(teacherId) || 0) + targetLessons.length
+    );
+    if (!teacherSlots.has(teacherId))
+      teacherSlots.set(teacherId, new Set());
+    const tSlots = teacherSlots.get(teacherId)!;
+
+    for (const lesson of targetLessons) {
+      lesson.teacherId = teacherId;
+      lesson.teacherName = teacher.name;
+      tSlots.add(slotKey(lesson.dayOfWeek, lesson.startTime));
     }
+  }
+
+  function processGroup(group: LessonGroup): boolean {
+    if (!classAssignments.has(group.classId))
+      classAssignments.set(group.classId, new Map());
     const classAssign = classAssignments.get(group.classId)!;
 
-    // If pre-assigned, try that teacher first
+    // Pre-assigned teacher: try full coverage, then partial
     if (group.preAssignedTeacherId) {
       const teacher = teacherMap.get(group.preAssignedTeacherId);
       if (teacher) {
-        const offDayConflict =
-          teacher.off_days &&
-          teacher.off_days.length > 0 &&
-          group.days.some((d) => teacher.off_days.includes(d));
+        const { covered, uncovered } = getCoverage(
+          group.preAssignedTeacherId,
+          teacher,
+          group.lessons,
+          teacherSlots
+        );
 
-        const slots = teacherSlots.get(group.preAssignedTeacherId);
-        const timeConflict = slots
-          ? group.lessons.some((l) =>
-              slots.has(slotKey(l.dayOfWeek, l.startTime))
-            )
-          : false;
-
-        if (!offDayConflict && !timeConflict) {
-          classAssign.set(group.subjectName, group.preAssignedTeacherId);
-          teacherLoad.set(
+        if (uncovered.length === 0) {
+          assignTeacherToLessons(
             group.preAssignedTeacherId,
-            (teacherLoad.get(group.preAssignedTeacherId) || 0) +
-              group.totalHours
+            teacher,
+            group.lessons,
+            group
           );
-          if (!teacherSlots.has(group.preAssignedTeacherId)) {
-            teacherSlots.set(group.preAssignedTeacherId, new Set());
-          }
-          const tSlots = teacherSlots.get(group.preAssignedTeacherId)!;
-          for (const lesson of group.lessons) {
-            lesson.teacherId = group.preAssignedTeacherId;
-            lesson.teacherName = teacher.name;
-            tSlots.add(slotKey(lesson.dayOfWeek, lesson.startTime));
-          }
-          assigned++;
-          continue;
-        } else {
-          warnings.push(
-            `${group.className} - ${group.subjectName}: Atanmış öğretmen (${teacher.name}) ${offDayConflict ? "izin günü çakışması" : "saat çakışması"} nedeniyle kullanılamadı, başka öğretmen aranıyor.`
-          );
+          return true;
         }
+
+        if (covered.length > 0 && !(group.subjectName in PAIRED_SUBJECTS)) {
+          const reason = teacher.off_days?.some((d) =>
+            uncovered.some((l) => l.dayOfWeek === d)
+          )
+            ? "izin günü"
+            : "saat çakışması";
+          warnings.push(
+            `${group.className} - ${group.subjectName}: ${teacher.name} ${uncovered.length} ders ${reason} nedeniyle verilemedi, kısmi atama yapıldı.`
+          );
+          assignTeacherToLessons(
+            group.preAssignedTeacherId,
+            teacher,
+            covered,
+            group
+          );
+          remainderQueue.push({
+            classId: group.classId,
+            className: group.className,
+            subjectId: group.subjectId,
+            subjectName: group.subjectName,
+            lessons: uncovered,
+            days: [...new Set(uncovered.map((l) => l.dayOfWeek))],
+            totalHours: uncovered.length,
+            isPartial: true,
+          });
+          return true;
+        }
+
+        warnings.push(
+          `${group.className} - ${group.subjectName}: Atanmış öğretmen (${teacher.name}) kullanılamadı, başka öğretmen aranıyor.`
+        );
       }
     }
 
@@ -170,103 +238,131 @@ export function assignTeachersToSchedule(
       errors.push(
         `${group.className} - ${group.subjectName}: Bu dersi verebilecek öğretmen tanımlı değil.`
       );
-      failed++;
-      continue;
+      return false;
     }
 
-    let candidates = eligibleIds.filter((tid) => {
-      const teacher = teacherMap.get(tid);
-      if (!teacher) return false;
-      if (teacher.off_days && teacher.off_days.length > 0) {
-        for (const day of group.days) {
-          if (teacher.off_days.includes(day)) return false;
-        }
-      }
-      return true;
-    });
-
-    if (candidates.length === 0) {
-      const offDayTeachers = eligibleIds
-        .map((tid) => teacherMap.get(tid)?.name)
-        .filter(Boolean)
-        .join(", ");
-      errors.push(
-        `${group.className} - ${group.subjectName}: Uygun öğretmenlerin (${offDayTeachers}) tümü dersin olduğu günlerde izinli.`
+    // Compute coverage for each eligible teacher
+    const candidateCoverage = eligibleIds
+      .map((tid) => {
+        const teacher = teacherMap.get(tid);
+        if (!teacher) return null;
+        const { covered, uncovered } = getCoverage(
+          tid,
+          teacher,
+          group.lessons,
+          teacherSlots
+        );
+        return { tid, teacher, covered, uncovered };
+      })
+      .filter(
+        (c): c is NonNullable<typeof c> => c !== null && c.covered.length > 0
       );
-      failed++;
-      continue;
-    }
 
+    // Apply paired subject filter
     const pairedSubjectName = PAIRED_SUBJECTS[group.subjectName];
+    let filteredCandidates = candidateCoverage;
     if (pairedSubjectName) {
       const pairedTeacherId = classAssign.get(pairedSubjectName);
       if (pairedTeacherId) {
-        const filtered = candidates.filter((id) => id !== pairedTeacherId);
-        if (filtered.length > 0) {
-          candidates = filtered;
+        const withoutPaired = filteredCandidates.filter(
+          (c) => c.tid !== pairedTeacherId
+        );
+        if (withoutPaired.length > 0) {
+          filteredCandidates = withoutPaired;
         } else {
           warnings.push(
-            `${group.className}: ${group.subjectName} ve ${pairedSubjectName} için yeterli farklı öğretmen yok, aynı öğretmen atandı.`
+            `${group.className}: ${group.subjectName} ve ${pairedSubjectName} için yeterli farklı öğretmen yok.`
           );
         }
       }
     }
 
-    candidates = candidates.filter((tid) => {
-      const slots = teacherSlots.get(tid);
-      if (!slots) return true;
-      for (const lesson of group.lessons) {
-        if (slots.has(slotKey(lesson.dayOfWeek, lesson.startTime))) {
-          return false;
-        }
+    if (filteredCandidates.length === 0) {
+      if (candidateCoverage.length === 0) {
+        const teacherNames = eligibleIds
+          .map((tid) => teacherMap.get(tid)?.name)
+          .filter(Boolean)
+          .join(", ");
+        errors.push(
+          `${group.className} - ${group.subjectName}: Uygun öğretmenler (${teacherNames}) müsait değil.`
+        );
+      } else {
+        errors.push(
+          `${group.className} - ${group.subjectName}: Eşli ders kısıtı nedeniyle uygun öğretmen bulunamadı.`
+        );
       }
-      return true;
+      return false;
+    }
+
+    // Sort: full coverage first, then by coverage count, then by workload
+    filteredCandidates.sort((a, b) => {
+      const aFull = a.uncovered.length === 0 ? 1 : 0;
+      const bFull = b.uncovered.length === 0 ? 1 : 0;
+      if (aFull !== bFull) return bFull - aFull;
+
+      if (a.covered.length !== b.covered.length)
+        return b.covered.length - a.covered.length;
+
+      // Prefer pre-assigned teacher
+      if (group.preAssignedTeacherId) {
+        if (a.tid === group.preAssignedTeacherId) return -1;
+        if (b.tid === group.preAssignedTeacherId) return 1;
+      }
+
+      return (teacherLoad.get(a.tid) || 0) - (teacherLoad.get(b.tid) || 0);
     });
 
-    if (candidates.length === 0) {
+    const best = filteredCandidates[0];
+
+    if (best.uncovered.length === 0) {
+      // Full coverage
+      assignTeacherToLessons(best.tid, best.teacher, best.covered, group);
+      return true;
+    }
+
+    // Partial coverage — only for non-paired subjects
+    if (group.subjectName in PAIRED_SUBJECTS) {
       errors.push(
         `${group.className} - ${group.subjectName}: Uygun öğretmenler bu saatlerde başka sınıflarda dolu.`
       );
-      failed++;
-      continue;
+      return false;
     }
 
-    // Prefer pre-assigned teacher if in candidates
-    if (
-      group.preAssignedTeacherId &&
-      candidates.includes(group.preAssignedTeacherId)
-    ) {
-      candidates = [
-        group.preAssignedTeacherId,
-        ...candidates.filter((c) => c !== group.preAssignedTeacherId),
-      ];
-    } else {
-      candidates.sort(
-        (a, b) => (teacherLoad.get(a) || 0) - (teacherLoad.get(b) || 0)
-      );
-    }
-
-    const teacherId = candidates[0];
-    const teacher = teacherMap.get(teacherId)!;
-
-    classAssign.set(group.subjectName, teacherId);
-    teacherLoad.set(
-      teacherId,
-      (teacherLoad.get(teacherId) || 0) + group.totalHours
+    warnings.push(
+      `${group.className} - ${group.subjectName}: ${best.teacher.name} ${best.uncovered.length} ders için müsait değil, kısmi atama yapıldı.`
     );
+    assignTeacherToLessons(best.tid, best.teacher, best.covered, group);
 
-    if (!teacherSlots.has(teacherId)) {
-      teacherSlots.set(teacherId, new Set());
+    remainderQueue.push({
+      classId: group.classId,
+      className: group.className,
+      subjectId: group.subjectId,
+      subjectName: group.subjectName,
+      lessons: best.uncovered,
+      days: [...new Set(best.uncovered.map((l) => l.dayOfWeek))],
+      totalHours: best.uncovered.length,
+      isPartial: true,
+    });
+
+    return true;
+  }
+
+  // First pass: all groups
+  for (const group of groups) {
+    if (processGroup(group)) {
+      assigned++;
+    } else {
+      failed++;
     }
-    const slots = teacherSlots.get(teacherId)!;
+  }
 
-    for (const lesson of group.lessons) {
-      lesson.teacherId = teacherId;
-      lesson.teacherName = teacher.name;
-      slots.add(slotKey(lesson.dayOfWeek, lesson.startTime));
+  // Second pass: remainder groups from partial assignments
+  for (const group of remainderQueue) {
+    if (processGroup(group)) {
+      // Don't increment assigned — already counted in first pass
+    } else {
+      failed++;
     }
-
-    assigned++;
   }
 
   const teacherLoads = [...teacherLoad.entries()]

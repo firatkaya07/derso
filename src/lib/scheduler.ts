@@ -605,245 +605,240 @@ export function autoSchedule(
 
   // --- Swap optimization ---
   const depth = swapDepth ?? 30;
+
+  function restoreBlock(
+    blockerBlock: LessonBlock,
+    blockerKey: string,
+    removedLessons: GeneratedLesson[]
+  ) {
+    for (const rl of removedLessons) {
+      state.occupyClassSlot(rl.classId, rl.dayOfWeek, rl.startTime);
+      state.addSubjectSlotUsage(rl.subjectId, rl.dayOfWeek, rl.startTime);
+      state.addDaySubjectSlot(
+        rl.classId,
+        rl.subjectId,
+        rl.dayOfWeek,
+        rl.startTime
+      );
+      if (blockerBlock.preAssignedTeacherId) {
+        state.occupyPreAssignedTeacher(
+          blockerBlock.preAssignedTeacherId,
+          rl.dayOfWeek,
+          rl.startTime
+        );
+      }
+      state.addLesson(rl, blockerKey);
+    }
+    const daySet = new Set(removedLessons.map((l) => l.dayOfWeek));
+    for (const d of daySet) {
+      const cnt = removedLessons.filter((l) => l.dayOfWeek === d).length;
+      state.addDaySubjectHours(
+        blockerBlock.classId,
+        blockerBlock.subjectId,
+        d,
+        cnt
+      );
+    }
+  }
+
+  function trySwap(
+    failedBlock: LessonBlock,
+    failedKey: string,
+    blockerKey: string
+  ): boolean {
+    const blockerBlock = blocks.find(
+      (b) => blockKeyMap.get(b) === blockerKey
+    );
+    if (!blockerBlock) return false;
+
+    const removedLessons = state.removeBlockLessons(blockerKey);
+    if (removedLessons.length === 0) return false;
+
+    if (blockerBlock.preAssignedTeacherId) {
+      for (const rl of removedLessons) {
+        state.freePreAssignedTeacher(
+          blockerBlock.preAssignedTeacherId,
+          rl.dayOfWeek,
+          rl.startTime
+        );
+      }
+    }
+
+    const fClassDays = classDaysMap.get(failedBlock.classId) || [];
+    const failedPlaced = tryPlaceBlock(
+      state,
+      failedBlock,
+      failedKey,
+      fClassDays,
+      false
+    );
+
+    if (failedPlaced) {
+      const blockerDays = classDaysMap.get(blockerBlock.classId) || [];
+      const blockerPlaced = tryPlaceBlock(
+        state,
+        blockerBlock,
+        blockerKey,
+        blockerDays,
+        false
+      );
+
+      if (blockerPlaced) return true;
+
+      // Blocker couldn't be re-placed: undo
+      state.removeBlockLessons(failedKey);
+      const bDays = classDaysMap.get(blockerBlock.classId) || [];
+      if (!tryPlaceBlock(state, blockerBlock, blockerKey, bDays, true)) {
+        restoreBlock(blockerBlock, blockerKey, removedLessons);
+      }
+    } else {
+      restoreBlock(blockerBlock, blockerKey, removedLessons);
+    }
+    return false;
+  }
+
+  function findBlockerKeys(
+    failedBlock: LessonBlock,
+    dayOfWeek: number,
+    slots: { start: string; end: string }[],
+    startIdx: number,
+    mode: "class" | "capacity"
+  ): Set<string> {
+    const result = new Set<string>();
+    for (const [bk, indices] of state.blockLessons) {
+      for (const idx of indices) {
+        const l = state.lessons[idx];
+        if (!l) continue;
+        if (mode === "class" && l.classId !== failedBlock.classId) continue;
+        if (
+          mode === "capacity" &&
+          (l.subjectId !== failedBlock.subjectId ||
+            l.classId === failedBlock.classId)
+        )
+          continue;
+        for (let i = 0; i < failedBlock.blockSize; i++) {
+          if (
+            l.dayOfWeek === dayOfWeek &&
+            l.startTime === slots[startIdx + i].start
+          ) {
+            result.add(bk);
+          }
+        }
+      }
+    }
+    return result;
+  }
+
   if (failedBlocks.length > 0 && depth > 0) {
     for (let iter = 0; iter < depth && failedBlocks.length > 0; iter++) {
-      const { block: failedBlock, key: failedKey } =
-        failedBlocks[iter % failedBlocks.length];
-      const classDays = classDaysMap.get(failedBlock.classId) || [];
-      if (classDays.length === 0) continue;
+      let anyResolved = false;
 
-      let resolved = false;
+      for (let fi = failedBlocks.length - 1; fi >= 0; fi--) {
+        const { block: failedBlock, key: failedKey } = failedBlocks[fi];
+        const fClassDays = classDaysMap.get(failedBlock.classId) || [];
+        if (fClassDays.length === 0) continue;
 
-      for (const day of classDays) {
-        if (resolved) break;
+        let resolved = false;
 
-        const slots = generateTimeSlots(
-          day.start_time.slice(0, 5),
-          day.end_time.slice(0, 5)
-        );
-
-        for (
-          let startIdx = 0;
-          startIdx <= slots.length - failedBlock.blockSize;
-          startIdx++
-        ) {
+        for (const day of fClassDays) {
           if (resolved) break;
+          const slots = generateTimeSlots(
+            day.start_time.slice(0, 5),
+            day.end_time.slice(0, 5)
+          );
 
-          // Check which constraints are violated
-          let capacityBlocked = false;
-          let classBlocked = false;
-          let preTeacherBlocked = false;
+          for (
+            let startIdx = 0;
+            startIdx <= slots.length - failedBlock.blockSize;
+            startIdx++
+          ) {
+            if (resolved) break;
 
-          for (let i = 0; i < failedBlock.blockSize; i++) {
-            const s = slots[startIdx + i].start;
-            if (!state.isClassSlotFree(failedBlock.classId, day.day_of_week, s))
-              classBlocked = true;
-            const maxC = getMaxConcurrent(failedBlock.subjectId, day.day_of_week);
-            if (
-              maxC !== Infinity &&
-              state.getSubjectSlotUsage(
-                failedBlock.subjectId,
-                day.day_of_week,
-                s
-              ) >= maxC
-            )
-              capacityBlocked = true;
-            if (
-              failedBlock.preAssignedTeacherId &&
-              !state.isPreAssignedTeacherFree(
-                failedBlock.preAssignedTeacherId,
-                day.day_of_week,
-                s
+            let capacityBlocked = false;
+            let classBlocked = false;
+            let preTeacherBlocked = false;
+
+            for (let i = 0; i < failedBlock.blockSize; i++) {
+              const s = slots[startIdx + i].start;
+              if (
+                !state.isClassSlotFree(
+                  failedBlock.classId,
+                  day.day_of_week,
+                  s
+                )
               )
-            )
-              preTeacherBlocked = true;
-          }
+                classBlocked = true;
+              const maxC = getMaxConcurrent(
+                failedBlock.subjectId,
+                day.day_of_week
+              );
+              if (
+                maxC !== Infinity &&
+                state.getSubjectSlotUsage(
+                  failedBlock.subjectId,
+                  day.day_of_week,
+                  s
+                ) >= maxC
+              )
+                capacityBlocked = true;
+              if (
+                failedBlock.preAssignedTeacherId &&
+                !state.isPreAssignedTeacherFree(
+                  failedBlock.preAssignedTeacherId,
+                  day.day_of_week,
+                  s
+                )
+              )
+                preTeacherBlocked = true;
+            }
 
-          // Only try swap if the issue is class slot or capacity conflict
-          if (!classBlocked && !capacityBlocked && !preTeacherBlocked) continue;
-          if (preTeacherBlocked) continue; // can't swap pre-assigned teacher conflicts
+            if (!classBlocked && !capacityBlocked && !preTeacherBlocked)
+              continue;
+            if (preTeacherBlocked) continue;
 
-          // Find blocking lesson blocks at these slots for this class
-          if (classBlocked) {
-            // Find which blockKeys occupy these class slots
-            const blockerKeys = new Set<string>();
-            for (const [bk, indices] of state.blockLessons) {
-              for (const idx of indices) {
-                const l = state.lessons[idx];
-                if (!l || l.classId !== failedBlock.classId) continue;
-                for (let i = 0; i < failedBlock.blockSize; i++) {
-                  if (
-                    l.dayOfWeek === day.day_of_week &&
-                    l.startTime === slots[startIdx + i].start
-                  ) {
-                    blockerKeys.add(bk);
-                  }
+            // Try class-slot swap
+            if (classBlocked) {
+              const blockerKeys = findBlockerKeys(
+                failedBlock,
+                day.day_of_week,
+                slots,
+                startIdx,
+                "class"
+              );
+              for (const bk of blockerKeys) {
+                if (trySwap(failedBlock, failedKey, bk)) {
+                  resolved = true;
+                  break;
                 }
               }
             }
 
-            for (const blockerKey of blockerKeys) {
-              if (resolved) break;
-              // Find the block info for the blocker
-              const blockerBlock = blocks.find(
-                (b) => blockKeyMap.get(b) === blockerKey
-              );
-              if (!blockerBlock) continue;
-
-              // Remove the blocker
-              const removedLessons = state.removeBlockLessons(blockerKey);
-              if (removedLessons.length === 0) continue;
-
-              // Remove pre-assigned teacher slots for the removed blocker
-              if (blockerBlock.preAssignedTeacherId) {
-                for (const rl of removedLessons) {
-                  state.freePreAssignedTeacher(
-                    blockerBlock.preAssignedTeacherId,
-                    rl.dayOfWeek,
-                    rl.startTime
-                  );
-                }
-              }
-
-              // Try placing the failed block
-              const failedPlaced = tryPlaceBlock(
-                state,
+            // Try capacity swap (move same-subject block from another class)
+            if (!resolved && capacityBlocked) {
+              const blockerKeys = findBlockerKeys(
                 failedBlock,
-                failedKey,
-                classDays,
-                false
+                day.day_of_week,
+                slots,
+                startIdx,
+                "capacity"
               );
-
-              if (failedPlaced) {
-                // Try re-placing the blocker elsewhere
-                const blockerDays =
-                  classDaysMap.get(blockerBlock.classId) || [];
-                const blockerPlaced = tryPlaceBlock(
-                  state,
-                  blockerBlock,
-                  blockerKey,
-                  blockerDays,
-                  false
-                );
-
-                if (blockerPlaced) {
-                  // Swap successful
-                  const idx = failedBlocks.findIndex(
-                    (fb) => fb.key === failedKey
-                  );
-                  if (idx >= 0) failedBlocks.splice(idx, 1);
+              for (const bk of blockerKeys) {
+                if (trySwap(failedBlock, failedKey, bk)) {
                   resolved = true;
-                } else {
-                  // Blocker can't be re-placed: undo failed block placement
-                  state.removeBlockLessons(failedKey);
-                  // Restore blocker
-                  const bDays = classDaysMap.get(blockerBlock.classId) || [];
-                  const restored = tryPlaceBlock(
-                    state,
-                    blockerBlock,
-                    blockerKey,
-                    bDays,
-                    true
-                  );
-                  if (!restored) {
-                    // Restore manually at original position
-                    for (const rl of removedLessons) {
-                      const rSlots = generateTimeSlots(
-                        bDays
-                          .find((d) => d.day_of_week === rl.dayOfWeek)
-                          ?.start_time.slice(0, 5) || "08:00",
-                        bDays
-                          .find((d) => d.day_of_week === rl.dayOfWeek)
-                          ?.end_time.slice(0, 5) || "20:00"
-                      );
-                      state.occupyClassSlot(
-                        rl.classId,
-                        rl.dayOfWeek,
-                        rl.startTime
-                      );
-                      state.addSubjectSlotUsage(
-                        rl.subjectId,
-                        rl.dayOfWeek,
-                        rl.startTime
-                      );
-                      state.addDaySubjectSlot(
-                        rl.classId,
-                        rl.subjectId,
-                        rl.dayOfWeek,
-                        rl.startTime
-                      );
-                      if (blockerBlock.preAssignedTeacherId) {
-                        state.occupyPreAssignedTeacher(
-                          blockerBlock.preAssignedTeacherId,
-                          rl.dayOfWeek,
-                          rl.startTime
-                        );
-                      }
-                      state.addLesson(rl, blockerKey);
-                    }
-                    const daySet = new Set(
-                      removedLessons.map((l) => l.dayOfWeek)
-                    );
-                    for (const d of daySet) {
-                      const cnt = removedLessons.filter(
-                        (l) => l.dayOfWeek === d
-                      ).length;
-                      state.addDaySubjectHours(
-                        blockerBlock.classId,
-                        blockerBlock.subjectId,
-                        d,
-                        cnt
-                      );
-                    }
-                  }
-                }
-              } else {
-                // Failed block couldn't be placed either — restore blocker
-                for (const rl of removedLessons) {
-                  state.occupyClassSlot(
-                    rl.classId,
-                    rl.dayOfWeek,
-                    rl.startTime
-                  );
-                  state.addSubjectSlotUsage(
-                    rl.subjectId,
-                    rl.dayOfWeek,
-                    rl.startTime
-                  );
-                  state.addDaySubjectSlot(
-                    rl.classId,
-                    rl.subjectId,
-                    rl.dayOfWeek,
-                    rl.startTime
-                  );
-                  if (blockerBlock.preAssignedTeacherId) {
-                    state.occupyPreAssignedTeacher(
-                      blockerBlock.preAssignedTeacherId,
-                      rl.dayOfWeek,
-                      rl.startTime
-                    );
-                  }
-                  state.addLesson(rl, blockerKey);
-                }
-                const daySet = new Set(
-                  removedLessons.map((l) => l.dayOfWeek)
-                );
-                for (const d of daySet) {
-                  const cnt = removedLessons.filter(
-                    (l) => l.dayOfWeek === d
-                  ).length;
-                  state.addDaySubjectHours(
-                    blockerBlock.classId,
-                    blockerBlock.subjectId,
-                    d,
-                    cnt
-                  );
+                  break;
                 }
               }
             }
           }
         }
+
+        if (resolved) {
+          failedBlocks.splice(fi, 1);
+          anyResolved = true;
+        }
       }
+
+      if (!anyResolved) break;
     }
   }
 
