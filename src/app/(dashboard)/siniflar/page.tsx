@@ -3,30 +3,43 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
-import type { ClassGroup, ClassScheduleDay } from "@/lib/types";
+import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher } from "@/lib/types";
 import { DAY_NAMES, LEVELS } from "@/lib/types";
 
 export default function ClassesPage() {
   const supabase = createClient();
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [scheduleDays, setScheduleDays] = useState<ClassScheduleDay[]>([]);
+  const [allClassSubjects, setAllClassSubjects] = useState<ClassSubject[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [form, setForm] = useState({ name: "", description: "", level: "" });
+  const [classSubjectEdits, setClassSubjectEdits] = useState<
+    { id: string; subject_id: string; weekly_hours: number; teacher_id: string | null; subject?: Subject }[]
+  >([]);
   const [dayConfigs, setDayConfigs] = useState<
     { day: number; enabled: boolean; startTime: string; endTime: string }[]
   >([]);
 
   const fetchData = useCallback(async () => {
-    const [{ data: classData }, { data: scheduleData }] = await Promise.all([
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("class_schedule_days").select("*"),
-    ]);
+    const [{ data: classData }, { data: scheduleData }, { data: csData }, { data: subjectData }, { data: teacherData }] =
+      await Promise.all([
+        supabase.from("classes").select("*").order("name"),
+        supabase.from("class_schedule_days").select("*"),
+        supabase.from("class_subjects").select("*, subject:subjects(*), teacher:teachers(*)"),
+        supabase.from("subjects").select("*").order("name"),
+        supabase.from("teachers").select("*").order("name"),
+      ]);
     setClasses(classData || []);
     setScheduleDays(scheduleData || []);
+    setAllClassSubjects(csData || []);
+    setSubjects(subjectData || []);
+    setTeachers(teacherData || []);
     setLoading(false);
   }, [supabase]);
 
@@ -37,12 +50,24 @@ export default function ClassesPage() {
   const openCreate = () => {
     setEditingClass(null);
     setForm({ name: "", description: "", level: "" });
+    setClassSubjectEdits([]);
     setModalOpen(true);
   };
 
   const openEdit = (cls: ClassGroup) => {
     setEditingClass(cls);
     setForm({ name: cls.name, description: cls.description || "", level: cls.level || "" });
+    const csForClass = allClassSubjects
+      .filter((cs) => cs.class_id === cls.id)
+      .map((cs) => ({
+        id: cs.id,
+        subject_id: cs.subject_id,
+        weekly_hours: cs.weekly_hours,
+        teacher_id: cs.teacher_id,
+        subject: cs.subject as Subject | undefined,
+      }));
+    csForClass.sort((a, b) => (a.subject?.name || "").localeCompare(b.subject?.name || ""));
+    setClassSubjectEdits(csForClass);
     setModalOpen(true);
   };
 
@@ -75,6 +100,13 @@ export default function ClassesPage() {
     if (editingClass) {
       await supabase.from("classes").update(data).eq("id", editingClass.id);
       classId = editingClass.id;
+
+      for (const cs of classSubjectEdits) {
+        await supabase
+          .from("class_subjects")
+          .update({ weekly_hours: cs.weekly_hours, teacher_id: cs.teacher_id })
+          .eq("id", cs.id);
+      }
     } else {
       const { data: inserted } = await supabase
         .from("classes")
@@ -86,9 +118,8 @@ export default function ClassesPage() {
     }
 
     if (form.level) {
-      const { data: subjects } = await supabase.from("subjects").select("id, level");
-      const matchingSubjects = (subjects || []).filter(
-        (s) => s.level && s.level.split(",").map((l: string) => l.trim()).includes(form.level)
+      const matchingSubjects = subjects.filter(
+        (s) => s.level && s.level.split(",").map((l) => l.trim()).includes(form.level)
       );
       for (const sub of matchingSubjects) {
         await supabase
@@ -135,10 +166,24 @@ export default function ClassesPage() {
     fetchData();
   };
 
+  const updateClassSubject = (index: number, field: "weekly_hours" | "teacher_id", value: number | string | null) => {
+    setClassSubjectEdits((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
   const getClassDays = (classId: string) => {
     return scheduleDays
       .filter((d) => d.class_id === classId)
       .sort((a, b) => a.day_of_week - b.day_of_week);
+  };
+
+  const getClassSubjectSummary = (classId: string) => {
+    const cs = allClassSubjects.filter((c) => c.class_id === classId);
+    const totalHours = cs.reduce((sum, c) => sum + c.weekly_hours, 0);
+    return { count: cs.length, totalHours };
   };
 
   if (loading) {
@@ -148,6 +193,8 @@ export default function ClassesPage() {
       </div>
     );
   }
+
+  const totalEditHours = classSubjectEdits.reduce((sum, cs) => sum + cs.weekly_hours, 0);
 
   return (
     <div>
@@ -175,6 +222,7 @@ export default function ClassesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {classes.map((cls) => {
             const days = getClassDays(cls.id);
+            const summary = getClassSubjectSummary(cls.id);
             return (
               <div
                 key={cls.id}
@@ -210,6 +258,12 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-xs text-gray-500">
+                    {summary.count} ders · {summary.totalHours} saat/hafta
+                  </span>
+                </div>
+
                 {days.length === 0 ? (
                   <p className="text-sm text-gray-400 italic">Ders günü belirlenmemiş</p>
                 ) : (
@@ -240,55 +294,153 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Sınıf Ekleme/Düzenleme Modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingClass ? "Sınıf Düzenle" : "Yeni Sınıf"}
+        size={editingClass && classSubjectEdits.length > 0 ? "lg" : "md"}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sınıf Adı *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              placeholder="Örnek: 5. Sınıf A Grubu"
-              required
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
+              <select
+                value={form.level}
+                onChange={(e) => setForm({ ...form, level: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              >
+                <option value="">Seçilmedi</option>
+                {LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Şube Adı *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                placeholder="Örnek: 12-A"
+                required
+              />
+            </div>
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                placeholder="Sabah grubu"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
-            <select
-              value={form.level}
-              onChange={(e) => setForm({ ...form, level: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-            >
-              <option value="">Seçilmedi</option>
-              {LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              placeholder="Örnek: Hafta içi sabah grubu"
-            />
-          </div>
+
+          {editingClass && classSubjectEdits.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Sınıf Dersleri</h3>
+                <span className="text-xs font-medium bg-green-50 text-green-700 px-3 py-1 rounded-full">
+                  Toplam: {totalEditHours} saat
+                </span>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-2.5 font-medium text-gray-600">Ders</th>
+                      <th className="text-center px-4 py-2.5 font-medium text-gray-600 w-28">Saat</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-gray-600">Öğretmen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classSubjectEdits.map((cs, idx) => {
+                      const subject = cs.subject;
+                      return (
+                        <tr key={cs.id} className="border-b border-gray-100 last:border-b-0">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-1 h-8 rounded-full shrink-0"
+                                style={{ backgroundColor: subject?.color || "#3B82F6" }}
+                              />
+                              <div>
+                                <div className="font-medium text-gray-900">{subject?.name}</div>
+                                {subject?.short_name && (
+                                  <div className="text-xs text-gray-400">{subject.short_name}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateClassSubject(idx, "weekly_hours", Math.max(0, cs.weekly_hours - 1))
+                                }
+                                className="w-7 h-7 rounded-full border border-red-200 text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <span className="w-8 text-center font-semibold text-gray-900">{cs.weekly_hours}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateClassSubject(idx, "weekly_hours", cs.weekly_hours + 1)
+                                }
+                                className="w-7 h-7 rounded-full border border-green-200 text-green-600 hover:bg-green-50 flex items-center justify-center transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={cs.teacher_id || ""}
+                              onChange={(e) =>
+                                updateClassSubject(idx, "teacher_id", e.target.value || null)
+                              }
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            >
+                              <option value="">- Yok -</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {editingClass && classSubjectEdits.length === 0 && (
+            <p className="text-sm text-gray-400 italic">
+              Bu sınıfa henüz ders atanmamış. Düzey seçerek otomatik atama yapabilirsiniz.
+            </p>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
               className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
-              {editingClass ? "Kaydet" : "Ekle"}
+              {editingClass ? "Güncelle" : "Ekle"}
             </button>
             <button
               type="button"
@@ -301,7 +453,6 @@ export default function ClassesPage() {
         </form>
       </Modal>
 
-      {/* Ders Günleri Modal */}
       <Modal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
