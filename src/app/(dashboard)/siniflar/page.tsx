@@ -69,11 +69,37 @@ export default function ClassesPage() {
       description: form.description || null,
       level: form.level || null,
     };
+
+    let classId: string;
+
     if (editingClass) {
       await supabase.from("classes").update(data).eq("id", editingClass.id);
+      classId = editingClass.id;
     } else {
-      await supabase.from("classes").insert(data);
+      const { data: inserted } = await supabase
+        .from("classes")
+        .insert(data)
+        .select("id")
+        .single();
+      if (!inserted) return;
+      classId = inserted.id;
     }
+
+    if (form.level) {
+      const { data: subjects } = await supabase.from("subjects").select("id, level");
+      const matchingSubjects = (subjects || []).filter(
+        (s) => s.level && s.level.split(",").map((l: string) => l.trim()).includes(form.level)
+      );
+      for (const sub of matchingSubjects) {
+        await supabase
+          .from("class_subjects")
+          .upsert(
+            { class_id: classId, subject_id: sub.id, weekly_hours: 0 },
+            { onConflict: "class_id,subject_id", ignoreDuplicates: true }
+          );
+      }
+    }
+
     setModalOpen(false);
     fetchData();
   };

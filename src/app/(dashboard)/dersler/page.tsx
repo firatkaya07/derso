@@ -61,11 +61,38 @@ export default function SubjectsPage() {
       color: form.color,
       level: form.level || null,
     };
+
+    let subjectId: string;
+
     if (editingSubject) {
       await supabase.from("subjects").update(data).eq("id", editingSubject.id);
+      subjectId = editingSubject.id;
     } else {
-      await supabase.from("subjects").insert(data);
+      const { data: inserted } = await supabase
+        .from("subjects")
+        .insert(data)
+        .select("id")
+        .single();
+      if (!inserted) return;
+      subjectId = inserted.id;
     }
+
+    if (form.level) {
+      const subjectLevels = form.level.split(",").map((l) => l.trim());
+      const { data: classes } = await supabase.from("classes").select("id, level");
+      const matchingClasses = (classes || []).filter(
+        (c) => c.level && subjectLevels.includes(c.level)
+      );
+      for (const cls of matchingClasses) {
+        await supabase
+          .from("class_subjects")
+          .upsert(
+            { class_id: cls.id, subject_id: subjectId, weekly_hours: 0 },
+            { onConflict: "class_id,subject_id", ignoreDuplicates: true }
+          );
+      }
+    }
+
     setModalOpen(false);
     fetchSubjects();
   };
