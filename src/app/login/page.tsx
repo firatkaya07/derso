@@ -23,7 +23,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError("E-posta veya sifre hatali");
+      setError("E-posta veya şifre hatalı");
       setLoading(false);
       return;
     }
@@ -53,7 +53,7 @@ export default function LoginPage() {
     });
 
     if (loginError) {
-      setError("Kayit basarili! Lutfen giris yapin.");
+      setError("Kayıt başarılı! Lütfen giriş yapın.");
       setLoading(false);
       return;
     }
@@ -67,7 +67,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Derso</h1>
-          <p className="text-gray-500 mt-2">Kurs Merkezi Ders Programi Yonetimi</p>
+          <p className="text-gray-500 mt-2">Kurs Merkezi Ders Programı Yönetimi</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
@@ -87,14 +87,14 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Sifre
+              Şifre
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900"
-              placeholder="Sifrenizi girin"
+              placeholder="Şifrenizi girin"
               required
               minLength={6}
             />
@@ -111,7 +111,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Giris yapiliyor..." : "Giris Yap"}
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
 
           <button
@@ -120,7 +120,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Yeni Hesap Olustur
+            Yeni Hesap Oluştur
           </button>
         </form>
       </div>

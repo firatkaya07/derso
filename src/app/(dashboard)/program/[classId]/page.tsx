@@ -129,7 +129,7 @@ export default function ClassSchedulePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Yukleniyor...</div>
+        <div className="text-gray-500">Yükleniyor...</div>
       </div>
     );
   }
@@ -137,9 +137,9 @@ export default function ClassSchedulePage() {
   if (!classGroup) {
     return (
       <div>
-        <p className="text-gray-500">Sinif bulunamadi.</p>
+        <p className="text-gray-500">Sınıf bulunamadı.</p>
         <Link href="/program" className="text-blue-600 hover:underline text-sm">
-          Geri don
+          Geri dön
         </Link>
       </div>
     );
@@ -158,15 +158,15 @@ export default function ClassSchedulePage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{classGroup.name}</h1>
-          <p className="text-sm text-gray-500">Haftalik Ders Programi</p>
+          <p className="text-sm text-gray-500">Haftalık Ders Programı</p>
         </div>
       </div>
 
       {scheduleDays.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Bu sinif icin ders gunu belirlenmemis.</p>
+          <p className="text-gray-500">Bu sınıf için ders günü belirlenmemiş.</p>
           <Link href="/siniflar" className="text-blue-600 hover:underline mt-2 text-sm inline-block">
-            Sinif ayarlarindan ders gunlerini belirleyin
+            Sınıf ayarlarından ders günlerini belirleyin
           </Link>
         </div>
       ) : (
@@ -310,7 +310,7 @@ export default function ClassSchedulePage() {
         onClose={() => setModalOpen(false)}
         title={
           editingLesson
-            ? "Ders Duzenle"
+            ? "Ders Düzenle"
             : `Ders Ekle - ${selectedSlot ? DAY_NAMES[selectedSlot.day] : ""} ${selectedSlot?.start || ""}`
         }
       >
@@ -332,7 +332,7 @@ export default function ClassSchedulePage() {
             </label>
             {subjects.length === 0 ? (
               <p className="text-sm text-red-500">
-                Henuz ders tanimlanmamis.{" "}
+                Henüz ders tanımlanmamış.{" "}
                 <Link href="/dersler" className="underline">
                   Ders ekleyin
                 </Link>
@@ -357,13 +357,13 @@ export default function ClassSchedulePage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ogretmen *
+              Öğretmen *
             </label>
             {teachers.length === 0 ? (
               <p className="text-sm text-red-500">
-                Henuz ogretmen eklenmemis.{" "}
+                Henüz öğretmen eklenmemiş.{" "}
                 <Link href="/ogretmenler" className="underline">
-                  Ogretmen ekleyin
+                  Öğretmen ekleyin
                 </Link>
               </p>
             ) : (
@@ -406,7 +406,7 @@ export default function ClassSchedulePage() {
               onClick={() => setModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Iptal
+              İptal
             </button>
           </div>
         </form>

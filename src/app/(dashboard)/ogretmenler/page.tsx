@@ -116,10 +116,10 @@ export default function TeachersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu ogretmeni silmek istediginize emin misiniz?")) return;
+    if (!confirm("Bu öğretmeni silmek istediğinize emin misiniz?")) return;
     const { error } = await supabase.from("teachers").delete().eq("id", id);
     if (error) {
-      alert("Bu ogretmenin atandigi dersler var, once dersleri kaldirin.");
+      alert("Bu öğretmenin atandığı dersler var, önce dersleri kaldırın.");
       return;
     }
     fetchData();
@@ -128,7 +128,7 @@ export default function TeachersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Yukleniyor...</div>
+        <div className="text-gray-500">Yükleniyor...</div>
       </div>
     );
   }
@@ -136,7 +136,7 @@ export default function TeachersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ogretmenler</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Öğretmenler</h1>
         <button
           onClick={openCreate}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -154,18 +154,18 @@ export default function TeachersPage() {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Ogretmen Ekle
+          Öğretmen Ekle
         </button>
       </div>
 
       {teachers.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henuz ogretmen eklenmemis.</p>
+          <p className="text-gray-500">Henüz öğretmen eklenmemiş.</p>
           <button
             onClick={openCreate}
             className="text-blue-600 hover:underline mt-2 text-sm"
           >
-            Ilk ogretmeni ekleyin
+            İlk öğretmeni ekleyin
           </button>
         </div>
       ) : (
@@ -177,7 +177,7 @@ export default function TeachersPage() {
                   Ad Soyad
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Verdigi Dersler
+                  Verdiği Dersler
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Telefon
@@ -186,7 +186,7 @@ export default function TeachersPage() {
                   E-posta
                 </th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Islemler
+                  İşlemler
                 </th>
               </tr>
             </thead>
@@ -226,7 +226,7 @@ export default function TeachersPage() {
                         onClick={() => openEdit(teacher)}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4"
                       >
-                        Duzenle
+                        Düzenle
                       </button>
                       <button
                         onClick={() => handleDelete(teacher.id)}
@@ -246,7 +246,7 @@ export default function TeachersPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingTeacher ? "Ogretmen Duzenle" : "Yeni Ogretmen"}
+        title={editingTeacher ? "Öğretmen Düzenle" : "Yeni Öğretmen"}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
@@ -263,11 +263,11 @@ export default function TeachersPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Verdigi Dersler
+              Verdiği Dersler
             </label>
             {subjects.length === 0 ? (
               <p className="text-sm text-gray-400">
-                Henuz ders tanimlanmamis.
+                Henüz ders tanımlanmamış.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -351,7 +351,7 @@ export default function TeachersPage() {
               onClick={() => setModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Iptal
+              İptal
             </button>
           </div>
         </form>

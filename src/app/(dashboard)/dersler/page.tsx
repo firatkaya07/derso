@@ -71,10 +71,10 @@ export default function SubjectsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu dersi silmek istediginize emin misiniz?")) return;
+    if (!confirm("Bu dersi silmek istediğinize emin misiniz?")) return;
     const { error } = await supabase.from("subjects").delete().eq("id", id);
     if (error) {
-      alert("Bu ders programa atanmis, once programdan kaldirin.");
+      alert("Bu ders programa atanmış, önce programdan kaldırın.");
       return;
     }
     fetchSubjects();
@@ -94,7 +94,7 @@ export default function SubjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Yukleniyor...</div>
+        <div className="text-gray-500">Yükleniyor...</div>
       </div>
     );
   }
@@ -140,7 +140,7 @@ export default function SubjectsPage() {
               d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
             />
           </svg>
-          Sınıf Filtresi:
+          Seviye Filtresi:
         </span>
         {filterTabs.map((tab) => (
           <button
@@ -163,18 +163,18 @@ export default function SubjectsPage() {
 
       {subjects.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henuz ders eklenmemis.</p>
+          <p className="text-gray-500">Henüz ders eklenmemiş.</p>
           <button
             onClick={openCreate}
             className="text-blue-600 hover:underline mt-2 text-sm"
           >
-            Ilk dersi ekleyin
+            İlk dersi ekleyin
           </button>
         </div>
       ) : filteredSubjects.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
           <p className="text-gray-500">
-            Bu seviyede ders bulunamadi.
+            Bu seviyede ders bulunamadı.
           </p>
         </div>
       ) : (
@@ -206,7 +206,7 @@ export default function SubjectsPage() {
                     onClick={() => openEdit(subject)}
                     className="text-blue-600 hover:text-blue-800 text-sm"
                   >
-                    Duzenle
+                    Düzenle
                   </button>
                   <button
                     onClick={() => handleDelete(subject.id)}
@@ -238,25 +238,25 @@ export default function SubjectsPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingSubject ? "Ders Duzenle" : "Yeni Ders Ekle"}
+        title={editingSubject ? "Ders Düzenle" : "Yeni Ders Ekle"}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ders Adi *
+              Ders Adı *
             </label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              placeholder="Ornek: Matematik"
+              placeholder="Örnek: Matematik"
               required
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Kisa Adi
+              Kısa Adı
             </label>
             <div className="relative">
               <input
@@ -269,7 +269,7 @@ export default function SubjectsPage() {
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-                placeholder="Ornek: Mat"
+                placeholder="Örnek: Mat"
                 maxLength={5}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -279,7 +279,7 @@ export default function SubjectsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sinif Seviyeleri
+              Sınıf Seviyeleri
             </label>
             <input
               type="text"
@@ -350,7 +350,7 @@ export default function SubjectsPage() {
               onClick={() => setModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Iptal
+              İptal
             </button>
           </div>
         </form>

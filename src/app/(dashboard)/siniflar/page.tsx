@@ -103,7 +103,7 @@ export default function ClassesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu sinifi ve tum programini silmek istediginize emin misiniz?"))
+    if (!confirm("Bu sınıfı ve tüm programını silmek istediğinize emin misiniz?"))
       return;
     await supabase.from("classes").delete().eq("id", id);
     fetchData();
@@ -118,7 +118,7 @@ export default function ClassesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Yukleniyor...</div>
+        <div className="text-gray-500">Yükleniyor...</div>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export default function ClassesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Siniflar</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Sınıflar</h1>
         <button
           onClick={openCreate}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -134,15 +134,15 @@ export default function ClassesPage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Sinif Ekle
+          Sınıf Ekle
         </button>
       </div>
 
       {classes.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henuz sinif eklenmemis.</p>
+          <p className="text-gray-500">Henüz sınıf eklenmemiş.</p>
           <button onClick={openCreate} className="text-blue-600 hover:underline mt-2 text-sm">
-            Ilk sinifi ekleyin
+            İlk sınıfı ekleyin
           </button>
         </div>
       ) : (
@@ -173,7 +173,7 @@ export default function ClassesPage() {
                       onClick={() => openEdit(cls)}
                       className="text-blue-600 hover:text-blue-800 text-sm"
                     >
-                      Duzenle
+                      Düzenle
                     </button>
                     <button
                       onClick={() => handleDelete(cls.id)}
@@ -185,7 +185,7 @@ export default function ClassesPage() {
                 </div>
 
                 {days.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Ders gunu belirlenmemis</p>
+                  <p className="text-sm text-gray-400 italic">Ders günü belirlenmemiş</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {days.map((d) => (
@@ -206,7 +206,7 @@ export default function ClassesPage() {
                   onClick={() => openSchedule(cls)}
                   className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  Ders Gunlerini Ayarla
+                  Ders Günlerini Ayarla
                 </button>
               </div>
             );
@@ -214,32 +214,32 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Sinif Ekleme/Duzenleme Modal */}
+      {/* Sınıf Ekleme/Düzenleme Modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingClass ? "Sinif Duzenle" : "Yeni Sinif"}
+        title={editingClass ? "Sınıf Düzenle" : "Yeni Sınıf"}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sinif Adi *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sınıf Adı *</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              placeholder="Ornek: 5. Sinif A Grubu"
+              placeholder="Örnek: 5. Sınıf A Grubu"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duzey</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
             <select
               value={form.level}
               onChange={(e) => setForm({ ...form, level: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
             >
-              <option value="">Secilmedi</option>
+              <option value="">Seçilmedi</option>
               {LEVELS.map((level) => (
                 <option key={level} value={level}>
                   {level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
@@ -248,13 +248,13 @@ export default function ClassesPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Aciklama</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
             <input
               type="text"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              placeholder="Ornek: Hafta ici sabah grubu"
+              placeholder="Örnek: Hafta içi sabah grubu"
             />
           </div>
           <div className="flex gap-3 pt-2">
@@ -269,17 +269,17 @@ export default function ClassesPage() {
               onClick={() => setModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Iptal
+              İptal
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Ders Gunleri Modal */}
+      {/* Ders Günleri Modal */}
       <Modal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
-        title={`${selectedClass?.name} - Ders Gunleri`}
+        title={`${selectedClass?.name} - Ders Günleri`}
       >
         <div className="space-y-3">
           {dayConfigs.map((config, idx) => (
@@ -343,7 +343,7 @@ export default function ClassesPage() {
               onClick={() => setScheduleModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Iptal
+              İptal
             </button>
           </div>
         </div>

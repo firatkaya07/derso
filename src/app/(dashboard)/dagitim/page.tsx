@@ -104,14 +104,14 @@ export default function DagitimPage() {
               specialization: t.specialization,
             })
             .eq("id", existing.id);
-          log.push(`Ogretmen guncellendi: ${t.name}`);
+          log.push(`Öğretmen güncellendi: ${t.name}`);
         } else {
           await supabase.from("teachers").insert({
             name: t.name,
             off_days: t.offDays,
             specialization: t.specialization,
           });
-          log.push(`Ogretmen eklendi: ${t.name}`);
+          log.push(`Öğretmen eklendi: ${t.name}`);
         }
       }
 
@@ -145,7 +145,7 @@ export default function DagitimPage() {
 
         if (existing) {
           classId = existing.id;
-          log.push(`Sinif mevcut: ${cls.name}`);
+          log.push(`Sınıf mevcut: ${cls.name}`);
         } else {
           const { data: newClass } = await supabase
             .from("classes")
@@ -154,7 +154,7 @@ export default function DagitimPage() {
             .single();
           if (!newClass) continue;
           classId = newClass.id;
-          log.push(`Sinif eklendi: ${cls.name}`);
+          log.push(`Sınıf eklendi: ${cls.name}`);
         }
 
         if (cls.days.length > 0) {
@@ -172,7 +172,7 @@ export default function DagitimPage() {
             });
           }
           log.push(
-            `  ${cls.name} gunleri: ${cls.days.map((d) => DAY_NAMES[d.dayOfWeek]).join(", ")}`
+            `  ${cls.name} günleri: ${cls.days.map((d) => DAY_NAMES[d.dayOfWeek]).join(", ")}`
           );
         }
       }
@@ -199,7 +199,7 @@ export default function DagitimPage() {
           { onConflict: "class_id,subject_id" }
         );
       }
-      log.push(`${parsedData.subjectHours.length} ders-sinif iliskisi kaydedildi.`);
+      log.push(`${parsedData.subjectHours.length} ders-sınıf ilişkisi kaydedildi.`);
 
       setImported(true);
       setImportLog(log);
@@ -279,7 +279,7 @@ export default function DagitimPage() {
 
       setSaved(true);
     } catch (err) {
-      alert("Kaydetme hatasi: " + (err as Error).message);
+      alert("Kaydetme hatası: " + (err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -301,13 +301,13 @@ export default function DagitimPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Otomatik Ders Dagitimi
+        Otomatik Ders Dağıtımı
       </h1>
 
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
         {(
           [
-            ["import", "Ice Aktarma"],
+            ["import", "İçe Aktarma"],
             ["rules", "Kurallar"],
             ["schedule", "Program"],
           ] as [Tab, string][]
@@ -330,7 +330,7 @@ export default function DagitimPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Excel Dosyasi Yukle
+              Excel Dosyası Yükle
             </h2>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition-colors">
@@ -347,7 +347,7 @@ export default function DagitimPage() {
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                   />
                 </svg>
-                Dosya Sec
+                Dosya Seç
                 <input
                   type="file"
                   accept=".xlsx,.xls"
@@ -357,7 +357,7 @@ export default function DagitimPage() {
               </label>
               {parsedData && (
                 <span className="text-sm text-green-600 font-medium">
-                  Dosya basariyla okundu
+                  Dosya başarıyla okundu
                 </span>
               )}
             </div>
@@ -370,7 +370,7 @@ export default function DagitimPage() {
                   <div className="text-3xl font-bold text-blue-600">
                     {parsedData.teachers.length}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">Ogretmen</div>
+                  <div className="text-sm text-gray-500 mt-1">Öğretmen</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                   <div className="text-3xl font-bold text-green-600">
@@ -382,13 +382,13 @@ export default function DagitimPage() {
                   <div className="text-3xl font-bold text-purple-600">
                     {parsedData.classes.length}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">Sinif</div>
+                  <div className="text-sm text-gray-500 mt-1">Sınıf</div>
                 </div>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Ogretmenler
+                  Öğretmenler
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -398,10 +398,10 @@ export default function DagitimPage() {
                           Ad Soyad
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Bransi
+                          Branşı
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Izin Gunleri
+                          İzin Günleri
                         </th>
                       </tr>
                     </thead>
@@ -433,17 +433,17 @@ export default function DagitimPage() {
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Siniflar ve Ders Gunleri
+                  Sınıflar ve Ders Günleri
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Sinif
+                          Sınıf
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Gunler
+                          Günler
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
                           Saatler
@@ -468,7 +468,7 @@ export default function DagitimPage() {
                               ))}
                               {c.days.length === 0 && (
                                 <span className="text-gray-400 text-xs italic">
-                                  Belirlenmemis
+                                  Belirlenmemiş
                                 </span>
                               )}
                             </div>
@@ -491,7 +491,7 @@ export default function DagitimPage() {
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Ders Dagilimlari ({parsedData.subjectHours.length} kayit)
+                  Ders Dağılımları ({parsedData.subjectHours.length} kayıt)
                 </h3>
                 <div className="overflow-x-auto max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -501,10 +501,10 @@ export default function DagitimPage() {
                           Ders
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Sinif
+                          Sınıf
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Haftalik Saat
+                          Haftalık Saat
                         </th>
                       </tr>
                     </thead>
@@ -534,17 +534,17 @@ export default function DagitimPage() {
                   className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {importing
-                    ? "Ice Aktariliyor..."
+                    ? "İçe Aktarılıyor..."
                     : imported
-                      ? "Ice Aktarildi"
-                      : "Veritabanina Aktar"}
+                      ? "İçe Aktarıldı"
+                      : "Veritabanına Aktar"}
                 </button>
               </div>
 
               {importLog.length > 0 && (
                 <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 max-h-64 overflow-y-auto">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                    Ice Aktarma Logu
+                    İçe Aktarma Logu
                   </h4>
                   <div className="space-y-0.5">
                     {importLog.map((line, i) => (
@@ -564,11 +564,11 @@ export default function DagitimPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Bolme Kurallari
+              Bölme Kuralları
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              Haftalik ders saatine gore derslerin nasil bolunecegini belirleyin.
-              &quot;+&quot; isaretiyle ayirin (ornek: 2+1)
+              Haftalık ders saatine göre derslerin nasıl bölüneceğini belirleyin.
+              &quot;+&quot; işaretiyle ayırın (örnek: 2+1)
             </p>
             <div className="space-y-3">
               {[1, 2, 3, 4, 5, 6].map((hours) => (
@@ -594,7 +594,7 @@ export default function DagitimPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Kisitlamalar
+              Kısıtlamalar
             </h2>
             <div className="space-y-4">
               <label className="flex items-center gap-3 cursor-pointer">
@@ -611,10 +611,10 @@ export default function DagitimPage() {
                 />
                 <div>
                   <div className="text-sm font-medium text-gray-900">
-                    Ogretmen izin gunu kontrolu
+                    Öğretmen izin günü kontrolü
                   </div>
                   <div className="text-xs text-gray-500">
-                    Ogretmenler izinli oldugu gun ders vermez
+                    Öğretmenler izinli olduğu gün ders vermez
                   </div>
                 </div>
               </label>
@@ -633,10 +633,10 @@ export default function DagitimPage() {
                 />
                 <div>
                   <div className="text-sm font-medium text-gray-900">
-                    Ogretmen cakisma kontrolu
+                    Öğretmen çakışma kontrolü
                   </div>
                   <div className="text-xs text-gray-500">
-                    Ayni ogretmen ayni saatte birden fazla sinifta ders vermez
+                    Aynı öğretmen aynı saatte birden fazla sınıfta ders vermez
                   </div>
                 </div>
               </label>
@@ -648,11 +648,11 @@ export default function DagitimPage() {
             disabled={generating || dbClassSubjects.length === 0}
             className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {generating ? "Olusturuluyor..." : "Programi Olustur"}
+            {generating ? "Oluşturuluyor..." : "Programı Oluştur"}
           </button>
           {dbClassSubjects.length === 0 && (
             <p className="text-sm text-amber-600">
-              Once Excel dosyasini ice aktarin.
+              Önce Excel dosyasını içe aktarın.
             </p>
           )}
         </div>
@@ -663,8 +663,8 @@ export default function DagitimPage() {
           {!scheduleResult && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
               <p className="text-gray-500">
-                Henuz program olusturulmadi. Kurallar sekmesinden
-                &quot;Programi Olustur&quot; tusuna basin.
+                Henüz program oluşturulmadı. Kurallar sekmesinden
+                &quot;Programı Oluştur&quot; tuşuna basın.
               </p>
             </div>
           )}
@@ -677,7 +677,7 @@ export default function DagitimPage() {
                     {scheduleResult.lessons.length}
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    Yerlestirilen Ders
+                    Yerleştirilen Ders
                   </div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
@@ -690,7 +690,7 @@ export default function DagitimPage() {
                   <div className="text-3xl font-bold text-amber-600">
                     {scheduleResult.warnings.length}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">Uyari</div>
+                  <div className="text-sm text-gray-500 mt-1">Uyarı</div>
                 </div>
               </div>
 
@@ -711,17 +711,17 @@ export default function DagitimPage() {
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Olusturulan Program
+                  Oluşturulan Program
                 </h3>
                 <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white">
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Sinif
+                          Sınıf
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Gun
+                          Gün
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
                           Saat
@@ -730,7 +730,7 @@ export default function DagitimPage() {
                           Ders
                         </th>
                         <th className="text-left py-2 px-3 text-gray-500">
-                          Ogretmen
+                          Öğretmen
                         </th>
                       </tr>
                     </thead>
@@ -779,14 +779,14 @@ export default function DagitimPage() {
                     ? "Kaydediliyor..."
                     : saved
                       ? "Kaydedildi"
-                      : "Programi Kaydet"}
+                      : "Programı Kaydet"}
                 </button>
                 <button
                   onClick={handleGenerate}
                   disabled={generating}
                   className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                 >
-                  Yeniden Olustur
+                  Yeniden Oluştur
                 </button>
               </div>
             </>

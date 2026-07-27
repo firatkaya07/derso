@@ -29,20 +29,20 @@ export default function ProgramListPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Yukleniyor...</div>
+        <div className="text-gray-500">Yükleniyor...</div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Ders Programi</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Ders Programı</h1>
 
       {classes.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henuz sinif eklenmemis.</p>
+          <p className="text-gray-500">Henüz sınıf eklenmemiş.</p>
           <Link href="/siniflar" className="text-blue-600 hover:underline mt-2 text-sm inline-block">
-            Once sinif ekleyin
+            Önce sınıf ekleyin
           </Link>
         </div>
       ) : (
@@ -65,7 +65,7 @@ export default function ProgramListPage() {
                 )}
                 {days.length === 0 ? (
                   <p className="text-sm text-gray-400 mt-3 italic">
-                    Ders gunu belirlenmemis
+                    Ders günü belirlenmemiş
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5 mt-3">
@@ -80,7 +80,7 @@ export default function ProgramListPage() {
                   </div>
                 )}
                 <p className="text-sm text-blue-600 mt-3 font-medium">
-                  Programi goruntule &rarr;
+                  Programı görüntüle &rarr;
                 </p>
               </Link>
             );

@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Derso - Kurs Merkezi Ders Programi",
-  description: "Kurs merkezi ders programi yonetim sistemi",
+  title: "Derso - Kurs Merkezi Ders Programı",
+  description: "Kurs merkezi ders programı yönetim sistemi",
 };
 
 export default function RootLayout({
