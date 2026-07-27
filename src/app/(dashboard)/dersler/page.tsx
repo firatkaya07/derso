@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
 import type { Subject } from "@/lib/types";
-import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS } from "@/lib/types";
+import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS, SUBGROUPS } from "@/lib/types";
 
 export default function SubjectsPage() {
   const supabase = createClient();
@@ -17,6 +17,7 @@ export default function SubjectsPage() {
     short_name: "",
     color: SUBJECT_COLORS[0],
     level: "",
+    subgroups: "",
   });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
 
@@ -38,7 +39,7 @@ export default function SubjectsPage() {
     const usedColors = subjects.map((s) => s.color);
     const nextColor =
       SUBJECT_COLORS.find((c) => !usedColors.includes(c)) || SUBJECT_COLORS[0];
-    setForm({ name: "", short_name: "", color: nextColor, level: "" });
+    setForm({ name: "", short_name: "", color: nextColor, level: "", subgroups: "" });
     setModalOpen(true);
   };
 
@@ -49,6 +50,7 @@ export default function SubjectsPage() {
       short_name: subject.short_name || "",
       color: subject.color,
       level: subject.level || "",
+      subgroups: subject.subgroups || "",
     });
     setModalOpen(true);
   };
@@ -60,6 +62,7 @@ export default function SubjectsPage() {
       short_name: form.short_name || null,
       color: form.color,
       level: form.level || null,
+      subgroups: form.subgroups || null,
     };
 
     let subjectId: string;
@@ -79,10 +82,15 @@ export default function SubjectsPage() {
 
     if (form.level) {
       const subjectLevels = form.level.split(",").map((l) => l.trim());
-      const { data: classes } = await supabase.from("classes").select("id, level");
-      const matchingClasses = (classes || []).filter(
-        (c) => c.level && subjectLevels.includes(c.level)
-      );
+      const subjectSubgroups = form.subgroups ? form.subgroups.split(",").map((sg) => sg.trim()) : [];
+      const { data: classes } = await supabase.from("classes").select("id, level, subgroup");
+      const matchingClasses = (classes || []).filter((c) => {
+        if (!c.level || !subjectLevels.includes(c.level)) return false;
+        if (subjectSubgroups.length > 0 && c.subgroup) {
+          return subjectSubgroups.includes(c.subgroup);
+        }
+        return true;
+      });
       for (const cls of matchingClasses) {
         await supabase
           .from("class_subjects")
@@ -243,9 +251,9 @@ export default function SubjectsPage() {
                   </button>
                 </div>
               </div>
-              {subject.level && (
+              {(subject.level || subject.subgroups) && (
                 <div className="flex flex-wrap gap-1 mt-3">
-                  {subject.level.split(",").map((l) => (
+                  {subject.level && subject.level.split(",").map((l) => (
                     <span
                       key={l}
                       className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full"
@@ -253,6 +261,14 @@ export default function SubjectsPage() {
                       {l.trim() === "Mezun"
                         ? "Mezun"
                         : `${l.trim()}. Sınıf`}
+                    </span>
+                  ))}
+                  {subject.subgroups && subject.subgroups.split(",").map((sg) => (
+                    <span
+                      key={sg}
+                      className="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full"
+                    >
+                      {sg.trim()}
                     </span>
                   ))}
                 </div>
@@ -344,6 +360,37 @@ export default function SubjectsPage() {
                 + Mezun
               </button>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Alt Gruplar
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {SUBGROUPS.map((sg) => {
+                const selected = form.subgroups.split(",").map((s) => s.trim()).filter(Boolean).includes(sg);
+                return (
+                  <button
+                    key={sg}
+                    type="button"
+                    onClick={() => {
+                      const current = form.subgroups.split(",").map((s) => s.trim()).filter(Boolean);
+                      const next = selected ? current.filter((s) => s !== sg) : [...current, sg];
+                      setForm({ ...form, subgroups: next.join(",") });
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                      selected
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {sg}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Seçilmezse tüm alt gruplara atanır
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

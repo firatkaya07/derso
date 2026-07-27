@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
-import { DAY_NAMES, LEVELS } from "@/lib/types";
+import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
 
 export default function ClassesPage() {
   const supabase = createClient();
@@ -19,7 +19,7 @@ export default function ClassesPage() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", level: "" });
+  const [form, setForm] = useState({ name: "", description: "", level: "", subgroup: "" });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
   const [classSubjectEdits, setClassSubjectEdits] = useState<
     { id: string; subject_id: string; weekly_hours: number; teacher_id: string | null; subject?: Subject }[]
@@ -53,14 +53,14 @@ export default function ClassesPage() {
 
   const openCreate = () => {
     setEditingClass(null);
-    setForm({ name: "", description: "", level: "" });
+    setForm({ name: "", description: "", level: "", subgroup: "" });
     setClassSubjectEdits([]);
     setModalOpen(true);
   };
 
   const openEdit = (cls: ClassGroup) => {
     setEditingClass(cls);
-    setForm({ name: cls.name, description: cls.description || "", level: cls.level || "" });
+    setForm({ name: cls.name, description: cls.description || "", level: cls.level || "", subgroup: cls.subgroup || "" });
     const csForClass = allClassSubjects
       .filter((cs) => cs.class_id === cls.id)
       .map((cs) => ({
@@ -97,6 +97,7 @@ export default function ClassesPage() {
       name: form.name,
       description: form.description || null,
       level: form.level || null,
+      subgroup: form.subgroup || null,
     };
 
     let classId: string;
@@ -122,9 +123,16 @@ export default function ClassesPage() {
     }
 
     if (form.level) {
-      const matchingSubjects = subjects.filter(
-        (s) => s.level && s.level.split(",").map((l) => l.trim()).includes(form.level)
-      );
+      const matchingSubjects = subjects.filter((s) => {
+        if (!s.level) return false;
+        const subjectLevels = s.level.split(",").map((l) => l.trim());
+        if (!subjectLevels.includes(form.level)) return false;
+        if (form.subgroup && s.subgroups) {
+          const subjectSubgroups = s.subgroups.split(",").map((sg) => sg.trim());
+          return subjectSubgroups.includes(form.subgroup);
+        }
+        return true;
+      });
       for (const sub of matchingSubjects) {
         await supabase
           .from("class_subjects")
@@ -214,17 +222,32 @@ export default function ClassesPage() {
       ? classes
       : classes.filter((c) => c.level === levelFilter);
 
-  const groupedByLevel = filteredClasses.reduce<Record<string, ClassGroup[]>>((acc, cls) => {
-    const key = cls.level || "Belirsiz";
+  const groupedByLevelSubgroup = filteredClasses.reduce<Record<string, ClassGroup[]>>((acc, cls) => {
+    const levelKey = cls.level || "Belirsiz";
+    const subgroupKey = cls.subgroup || "";
+    const key = subgroupKey ? `${levelKey}::${subgroupKey}` : levelKey;
     if (!acc[key]) acc[key] = [];
     acc[key].push(cls);
     return acc;
   }, {});
 
   const levelOrder = [...LEVELS, "Belirsiz"];
-  const sortedGroups = levelOrder
-    .filter((l) => groupedByLevel[l])
-    .map((l) => ({ level: l, classes: groupedByLevel[l] }));
+  const sortedGroups: { level: string; subgroup: string; classes: ClassGroup[] }[] = [];
+  for (const level of levelOrder) {
+    const keys = Object.keys(groupedByLevelSubgroup)
+      .filter((k) => k === level || k.startsWith(level + "::"))
+      .sort((a, b) => {
+        const sgA = a.includes("::") ? a.split("::")[1] : "";
+        const sgB = b.includes("::") ? b.split("::")[1] : "";
+        if (!sgA && sgB) return -1;
+        if (sgA && !sgB) return 1;
+        return SUBGROUPS.indexOf(sgA) - SUBGROUPS.indexOf(sgB);
+      });
+    for (const key of keys) {
+      const subgroup = key.includes("::") ? key.split("::")[1] : "";
+      sortedGroups.push({ level, subgroup, classes: groupedByLevelSubgroup[key] });
+    }
+  }
 
   const renderClassCard = (cls: ClassGroup) => {
     const days = getClassDays(cls.id);
@@ -237,6 +260,11 @@ export default function ClassesPage() {
         <div className="flex items-start justify-between mb-3">
           <div>
             <h3 className="font-semibold text-gray-900 text-lg">{cls.name}</h3>
+            {cls.subgroup && (
+              <span className="inline-block bg-purple-50 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full mt-1">
+                {cls.subgroup}
+              </span>
+            )}
             {cls.description && (
               <p className="text-sm text-gray-500 mt-0.5">{cls.description}</p>
             )}
@@ -341,11 +369,12 @@ export default function ClassesPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {sortedGroups.map(({ level, classes: groupClasses }) => (
-            <div key={level}>
+          {sortedGroups.map(({ level, subgroup, classes: groupClasses }) => (
+            <div key={`${level}::${subgroup}`}>
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
                   {level === "Belirsiz" ? "Düzey Belirlenmemiş" : level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
+                  {subgroup && <span className="text-purple-600 ml-1">({subgroup})</span>}
                 </h2>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                   {groupClasses.length} şube
@@ -366,8 +395,8 @@ export default function ClassesPage() {
         size={editingClass && classSubjectEdits.length > 0 ? "lg" : "md"}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
               <select
                 value={form.level}
@@ -382,7 +411,20 @@ export default function ClassesPage() {
                 ))}
               </select>
             </div>
-            <div className="sm:col-span-1">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Alt Grup</label>
+              <select
+                value={form.subgroup}
+                onChange={(e) => setForm({ ...form, subgroup: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              >
+                <option value="">Seçilmedi</option>
+                {SUBGROUPS.map((sg) => (
+                  <option key={sg} value={sg}>{sg}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Şube Adı *</label>
               <input
                 type="text"
@@ -393,7 +435,7 @@ export default function ClassesPage() {
                 required
               />
             </div>
-            <div className="sm:col-span-1">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
               <input
                 type="text"

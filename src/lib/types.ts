@@ -25,6 +25,7 @@ export interface Subject {
   short_name: string | null;
   color: string;
   level: string | null;
+  subgroups: string | null;
   created_at: string;
 }
 
@@ -49,12 +50,15 @@ export interface ClassGroup {
   name: string;
   description: string | null;
   level: string | null;
+  subgroup: string | null;
   created_at: string;
 }
 
 export const LEVELS = [
   "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "Mezun",
 ];
+
+export const SUBGROUPS = ["TM", "MF", "SAY", "SÖZ", "DİL", "HİBRİT"];
 
 export interface ClassScheduleDay {
   id: string;
