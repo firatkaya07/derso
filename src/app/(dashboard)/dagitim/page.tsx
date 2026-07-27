@@ -253,7 +253,8 @@ export default function DagitimPage() {
         totalFailed: number;
       } | null = null;
 
-      const MAX_RETRIES = 20;
+      const MAX_RETRIES = 100;
+      const SWAP_DEPTH = 30;
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         const schedResult = autoSchedule(
           dbClasses,
@@ -263,7 +264,8 @@ export default function DagitimPage() {
           rules,
           dbTeacherSubjects,
           dbTeachers,
-          attempt
+          attempt,
+          SWAP_DEPTH
         );
 
         const assignResult = assignTeachersToSchedule(

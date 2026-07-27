@@ -77,12 +77,183 @@ function slotKey(dayOfWeek: number, startTime: string): string {
   return `${dayOfWeek}:${startTime}`;
 }
 
-function classSubjectDayKey(
-  classId: string,
-  subjectId: string,
-  day: number
-): string {
+function csdKey(classId: string, subjectId: string, day: number): string {
   return `${classId}:${subjectId}:${day}`;
+}
+
+class ScheduleState {
+  lessons: GeneratedLesson[] = [];
+  classSlots = new Map<string, Set<string>>();
+  subjectSlotCount = new Map<string, number>();
+  classDaySubjectHours = new Map<string, number>();
+  classDaySubjectSlots = new Map<string, string[]>();
+  preAssignedTeacherSlots = new Map<string, Set<string>>();
+  // Map from blockKey (classId:subjectId:blockIdx) to lesson indices
+  blockLessons = new Map<string, number[]>();
+
+  isClassSlotFree(classId: string, day: number, time: string): boolean {
+    const set = this.classSlots.get(classId);
+    return !set || !set.has(slotKey(day, time));
+  }
+
+  occupyClassSlot(classId: string, day: number, time: string) {
+    if (!this.classSlots.has(classId))
+      this.classSlots.set(classId, new Set());
+    this.classSlots.get(classId)!.add(slotKey(day, time));
+  }
+
+  freeClassSlot(classId: string, day: number, time: string) {
+    this.classSlots.get(classId)?.delete(slotKey(day, time));
+  }
+
+  getSubjectSlotUsage(subjectId: string, day: number, time: string): number {
+    return this.subjectSlotCount.get(`${subjectId}:${slotKey(day, time)}`) || 0;
+  }
+
+  addSubjectSlotUsage(subjectId: string, day: number, time: string) {
+    const k = `${subjectId}:${slotKey(day, time)}`;
+    this.subjectSlotCount.set(k, (this.subjectSlotCount.get(k) || 0) + 1);
+  }
+
+  removeSubjectSlotUsage(subjectId: string, day: number, time: string) {
+    const k = `${subjectId}:${slotKey(day, time)}`;
+    const v = (this.subjectSlotCount.get(k) || 0) - 1;
+    if (v <= 0) this.subjectSlotCount.delete(k);
+    else this.subjectSlotCount.set(k, v);
+  }
+
+  getDaySubjectHours(classId: string, subjectId: string, day: number): number {
+    return this.classDaySubjectHours.get(csdKey(classId, subjectId, day)) || 0;
+  }
+
+  addDaySubjectHours(
+    classId: string,
+    subjectId: string,
+    day: number,
+    hours: number
+  ) {
+    const k = csdKey(classId, subjectId, day);
+    this.classDaySubjectHours.set(
+      k,
+      (this.classDaySubjectHours.get(k) || 0) + hours
+    );
+  }
+
+  removeDaySubjectHours(
+    classId: string,
+    subjectId: string,
+    day: number,
+    hours: number
+  ) {
+    const k = csdKey(classId, subjectId, day);
+    const v = (this.classDaySubjectHours.get(k) || 0) - hours;
+    if (v <= 0) this.classDaySubjectHours.delete(k);
+    else this.classDaySubjectHours.set(k, v);
+  }
+
+  getDaySubjectSlots(
+    classId: string,
+    subjectId: string,
+    day: number
+  ): string[] {
+    return this.classDaySubjectSlots.get(csdKey(classId, subjectId, day)) || [];
+  }
+
+  addDaySubjectSlot(
+    classId: string,
+    subjectId: string,
+    day: number,
+    startTime: string
+  ) {
+    const k = csdKey(classId, subjectId, day);
+    const arr = this.classDaySubjectSlots.get(k) || [];
+    arr.push(startTime);
+    this.classDaySubjectSlots.set(k, arr);
+  }
+
+  removeDaySubjectSlot(
+    classId: string,
+    subjectId: string,
+    day: number,
+    startTime: string
+  ) {
+    const k = csdKey(classId, subjectId, day);
+    const arr = this.classDaySubjectSlots.get(k);
+    if (arr) {
+      const idx = arr.indexOf(startTime);
+      if (idx >= 0) arr.splice(idx, 1);
+    }
+  }
+
+  isPreAssignedTeacherFree(
+    teacherId: string,
+    day: number,
+    time: string
+  ): boolean {
+    const set = this.preAssignedTeacherSlots.get(teacherId);
+    return !set || !set.has(slotKey(day, time));
+  }
+
+  occupyPreAssignedTeacher(teacherId: string, day: number, time: string) {
+    if (!this.preAssignedTeacherSlots.has(teacherId))
+      this.preAssignedTeacherSlots.set(teacherId, new Set());
+    this.preAssignedTeacherSlots.get(teacherId)!.add(slotKey(day, time));
+  }
+
+  freePreAssignedTeacher(teacherId: string, day: number, time: string) {
+    this.preAssignedTeacherSlots.get(teacherId)?.delete(slotKey(day, time));
+  }
+
+  addLesson(lesson: GeneratedLesson, blockKey: string) {
+    const idx = this.lessons.length;
+    this.lessons.push(lesson);
+    if (!this.blockLessons.has(blockKey))
+      this.blockLessons.set(blockKey, []);
+    this.blockLessons.get(blockKey)!.push(idx);
+  }
+
+  removeBlockLessons(blockKey: string): GeneratedLesson[] {
+    const indices = this.blockLessons.get(blockKey);
+    if (!indices) return [];
+    const removed: GeneratedLesson[] = [];
+    for (const idx of indices) {
+      const l = this.lessons[idx];
+      if (!l) continue;
+      removed.push({ ...l });
+      this.freeClassSlot(l.classId, l.dayOfWeek, l.startTime);
+      this.removeSubjectSlotUsage(l.subjectId, l.dayOfWeek, l.startTime);
+      this.removeDaySubjectSlot(
+        l.classId,
+        l.subjectId,
+        l.dayOfWeek,
+        l.startTime
+      );
+    }
+    if (removed.length > 0) {
+      const days = [...new Set(removed.map((l) => l.dayOfWeek))];
+      for (const day of days) {
+        const count = removed.filter((l) => l.dayOfWeek === day).length;
+        this.removeDaySubjectHours(
+          removed[0].classId,
+          removed[0].subjectId,
+          day,
+          count
+        );
+      }
+    }
+    // Null out removed lessons (we'll filter later)
+    for (const idx of indices) {
+      (this.lessons as (GeneratedLesson | null)[])[idx] = null;
+    }
+    this.blockLessons.delete(blockKey);
+    return removed;
+  }
+
+  getCleanLessons(): GeneratedLesson[] {
+    return this.lessons.filter(
+      (l): l is GeneratedLesson => l !== null
+    );
+  }
 }
 
 export function autoSchedule(
@@ -93,10 +264,9 @@ export function autoSchedule(
   rules: ScheduleRules,
   teacherSubjects?: TeacherSubject[],
   teachers?: Teacher[],
-  seed?: number
+  seed?: number,
+  swapDepth?: number
 ): ScheduleResult {
-  const lessons: GeneratedLesson[] = [];
-  const errors: string[] = [];
   const warnings: string[] = [];
 
   const classDaysMap = new Map<string, ClassScheduleDay[]>();
@@ -129,7 +299,6 @@ export function autoSchedule(
     }
     for (const [subId, set] of teacherSets) {
       teacherCountBySubject.set(subId, set.size);
-
       if (teachers) {
         for (let day = 0; day < 7; day++) {
           let available = 0;
@@ -159,63 +328,9 @@ export function autoSchedule(
     return Infinity;
   }
 
-  const subjectSlotCount = new Map<string, number>();
-  function getSubjectSlotUsage(subjectId: string, key: string): number {
-    const k = `${subjectId}:${key}`;
-    return subjectSlotCount.get(k) || 0;
-  }
-  function addSubjectSlotUsage(subjectId: string, key: string) {
-    const k = `${subjectId}:${key}`;
-    subjectSlotCount.set(k, (subjectSlotCount.get(k) || 0) + 1);
-  }
-
-  const classDaySubjectHours = new Map<string, number>();
-  function getDaySubjectHours(
-    classId: string,
-    subjectId: string,
-    day: number
-  ): number {
-    return (
-      classDaySubjectHours.get(classSubjectDayKey(classId, subjectId, day)) || 0
-    );
-  }
-  function addDaySubjectHours(
-    classId: string,
-    subjectId: string,
-    day: number,
-    hours: number
-  ) {
-    const k = classSubjectDayKey(classId, subjectId, day);
-    classDaySubjectHours.set(k, (classDaySubjectHours.get(k) || 0) + hours);
-  }
-
-  const classDaySubjectSlots = new Map<string, string[]>();
-  function getDaySubjectSlots(
-    classId: string,
-    subjectId: string,
-    day: number
-  ): string[] {
-    return (
-      classDaySubjectSlots.get(classSubjectDayKey(classId, subjectId, day)) ||
-      []
-    );
-  }
-  function addDaySubjectSlot(
-    classId: string,
-    subjectId: string,
-    day: number,
-    startTime: string
-  ) {
-    const k = classSubjectDayKey(classId, subjectId, day);
-    const arr = classDaySubjectSlots.get(k) || [];
-    arr.push(startTime);
-    classDaySubjectSlots.set(k, arr);
-  }
-
-  // Track pre-assigned teacher time slots
-  const preAssignedTeacherSlots = new Map<string, Set<string>>();
-
-  const blocks: LessonBlock[] = [];
+  // Build all blocks
+  const allBlocks: LessonBlock[] = [];
+  let blockIdx = 0;
   for (const cs of classSubjects) {
     const cls = classMap.get(cs.classId);
     const sub = subjectMap.get(cs.subjectId);
@@ -223,7 +338,7 @@ export function autoSchedule(
 
     const splits = splitHours(cs.weeklyHours, rules.splitRules);
     for (const blockSize of splits) {
-      blocks.push({
+      allBlocks.push({
         classId: cs.classId,
         className: cls.name,
         subjectId: cs.subjectId,
@@ -231,70 +346,16 @@ export function autoSchedule(
         blockSize,
         preAssignedTeacherId: cs.teacherId || undefined,
       });
+      blockIdx++;
     }
   }
 
-  // Deterministic shuffle using seed for retry variations
-  if (seed !== undefined && seed > 0) {
-    let s = seed;
-    for (let i = blocks.length - 1; i > 0; i--) {
-      s = ((s * 1103515245 + 12345) & 0x7fffffff) >>> 0;
-      const j = s % (i + 1);
-      [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
-    }
-  }
-
-  // Pre-assigned blocks first, then sort by scarcity
-  blocks.sort((a, b) => {
-    const aPreAssigned = a.preAssignedTeacherId ? 1 : 0;
-    const bPreAssigned = b.preAssignedTeacherId ? 1 : 0;
-    if (aPreAssigned !== bPreAssigned) return bPreAssigned - aPreAssigned;
-
-    const aTeachers = teacherCountBySubject.get(a.subjectId) || 999;
-    const bTeachers = teacherCountBySubject.get(b.subjectId) || 999;
-    if (aTeachers !== bTeachers) return aTeachers - bTeachers;
-    return b.blockSize - a.blockSize;
-  });
-
-  const classSlots = new Map<string, Set<string>>();
-
-  function isClassSlotFree(
-    classId: string,
-    day: number,
-    time: string
-  ): boolean {
-    const key = slotKey(day, time);
-    const set = classSlots.get(classId);
-    return !set || !set.has(key);
-  }
-
-  function occupySlot(classId: string, day: number, time: string) {
-    const key = slotKey(day, time);
-    if (!classSlots.has(classId)) classSlots.set(classId, new Set());
-    classSlots.get(classId)!.add(key);
-  }
-
-  function isPreAssignedTeacherFree(
-    teacherId: string,
-    day: number,
-    time: string
-  ): boolean {
-    const set = preAssignedTeacherSlots.get(teacherId);
-    if (!set) return true;
-    return !set.has(slotKey(day, time));
-  }
-
-  function occupyPreAssignedTeacherSlot(
-    teacherId: string,
-    day: number,
-    time: string
-  ) {
-    if (!preAssignedTeacherSlots.has(teacherId))
-      preAssignedTeacherSlots.set(teacherId, new Set());
-    preAssignedTeacherSlots.get(teacherId)!.add(slotKey(day, time));
+  function makeBlockKey(block: LessonBlock, idx: number): string {
+    return `${block.classId}:${block.subjectId}:${idx}`;
   }
 
   function canPlaceBlock(
+    state: ScheduleState,
     block: LessonBlock,
     day: number,
     slots: { start: string; end: string }[],
@@ -302,59 +363,53 @@ export function autoSchedule(
   ): boolean {
     const maxConcurrent = getMaxConcurrent(block.subjectId, day);
     for (let i = 0; i < block.blockSize; i++) {
-      if (!isClassSlotFree(block.classId, day, slots[startIdx + i].start)) {
+      if (!state.isClassSlotFree(block.classId, day, slots[startIdx + i].start))
         return false;
-      }
 
       if (maxConcurrent !== Infinity) {
-        const key = slotKey(day, slots[startIdx + i].start);
-        const currentUsage = getSubjectSlotUsage(block.subjectId, key);
-        if (currentUsage >= maxConcurrent) {
-          return false;
-        }
+        const usage = state.getSubjectSlotUsage(
+          block.subjectId,
+          day,
+          slots[startIdx + i].start
+        );
+        if (usage >= maxConcurrent) return false;
       }
 
-      // Check pre-assigned teacher availability
       if (block.preAssignedTeacherId) {
         if (
-          !isPreAssignedTeacherFree(
+          !state.isPreAssignedTeacherFree(
             block.preAssignedTeacherId,
             day,
             slots[startIdx + i].start
           )
-        ) {
+        )
           return false;
-        }
       }
     }
     return true;
   }
 
   function isAdjacentToExisting(
+    state: ScheduleState,
     block: LessonBlock,
     day: number,
     slots: { start: string; end: string }[],
     startIdx: number
   ): boolean {
-    const existing = getDaySubjectSlots(block.classId, block.subjectId, day);
+    const existing = state.getDaySubjectSlots(
+      block.classId,
+      block.subjectId,
+      day
+    );
     if (existing.length === 0) return true;
 
-    const blockEnd = slots[startIdx + block.blockSize - 1].end;
     const blockStart = slots[startIdx].start;
-
-    for (const existStart of existing) {
-      if (existStart === blockEnd || existStart === blockStart) return true;
-    }
+    const blockEnd = slots[startIdx + block.blockSize - 1].end;
 
     const existingSorted = [...existing].sort();
     const lastExistingStart = existingSorted[existingSorted.length - 1];
-    const lastExistingSlotIdx = slots.findIndex(
-      (s) => s.start === lastExistingStart
-    );
-    if (lastExistingSlotIdx >= 0) {
-      const lastExistingEnd = slots[lastExistingSlotIdx].end;
-      if (blockStart === lastExistingEnd) return true;
-    }
+    const lastSlotIdx = slots.findIndex((s) => s.start === lastExistingStart);
+    if (lastSlotIdx >= 0 && blockStart === slots[lastSlotIdx].end) return true;
 
     const firstExistingStart = existingSorted[0];
     if (blockEnd === firstExistingStart) return true;
@@ -362,57 +417,92 @@ export function autoSchedule(
     return false;
   }
 
-  function tryPlaceBlock(
+  function placeBlock(
+    state: ScheduleState,
     block: LessonBlock,
+    blockKey: string,
+    day: number,
+    slots: { start: string; end: string }[],
+    startIdx: number
+  ) {
+    for (let i = 0; i < block.blockSize; i++) {
+      const slot = slots[startIdx + i];
+      state.occupyClassSlot(block.classId, day, slot.start);
+      state.addSubjectSlotUsage(block.subjectId, day, slot.start);
+      state.addDaySubjectSlot(block.classId, block.subjectId, day, slot.start);
+      if (block.preAssignedTeacherId) {
+        state.occupyPreAssignedTeacher(
+          block.preAssignedTeacherId,
+          day,
+          slot.start
+        );
+      }
+      state.addLesson(
+        {
+          classId: block.classId,
+          className: block.className,
+          subjectId: block.subjectId,
+          subjectName: block.subjectName,
+          teacherId: "",
+          teacherName: "",
+          dayOfWeek: day,
+          startTime: slot.start,
+          endTime: slot.end,
+        },
+        blockKey
+      );
+    }
+    state.addDaySubjectHours(block.classId, block.subjectId, day, block.blockSize);
+  }
+
+  function tryPlaceBlock(
+    state: ScheduleState,
+    block: LessonBlock,
+    blockKey: string,
     classDays: ClassScheduleDay[],
     allowExceedDayLimit: boolean
   ): boolean {
-    // For pre-assigned teachers, filter out off_days
     let availableDays = classDays;
     if (block.preAssignedTeacherId) {
       const teacher = teacherMap.get(block.preAssignedTeacherId);
       if (teacher?.off_days && teacher.off_days.length > 0) {
-        availableDays = classDays.filter(
+        const filtered = classDays.filter(
           (d) => !teacher.off_days.includes(d.day_of_week)
         );
-        if (availableDays.length === 0) availableDays = classDays;
+        if (filtered.length > 0) availableDays = filtered;
       }
     }
 
     const dayOrder = [...availableDays].sort((a, b) => {
-      const aSubjectHours = getDaySubjectHours(
+      const aHours = state.getDaySubjectHours(
         block.classId,
         block.subjectId,
         a.day_of_week
       );
-      const bSubjectHours = getDaySubjectHours(
+      const bHours = state.getDaySubjectHours(
         block.classId,
         block.subjectId,
         b.day_of_week
       );
-      if (aSubjectHours !== bSubjectHours)
-        return aSubjectHours - bSubjectHours;
+      if (aHours !== bHours) return aHours - bHours;
 
-      const aUsed = classSlots.get(block.classId);
-      const aCount = aUsed
-        ? [...aUsed].filter((k) => k.startsWith(`${a.day_of_week}:`)).length
+      const aSet = state.classSlots.get(block.classId);
+      const aCount = aSet
+        ? [...aSet].filter((k) => k.startsWith(`${a.day_of_week}:`)).length
         : 0;
-      const bCount = aUsed
-        ? [...aUsed].filter((k) => k.startsWith(`${b.day_of_week}:`)).length
+      const bCount = aSet
+        ? [...aSet].filter((k) => k.startsWith(`${b.day_of_week}:`)).length
         : 0;
       return aCount - bCount;
     });
 
     for (const day of dayOrder) {
-      const currentDayHours = getDaySubjectHours(
+      const currentHours = state.getDaySubjectHours(
         block.classId,
         block.subjectId,
         day.day_of_week
       );
-
-      if (!allowExceedDayLimit && currentDayHours + block.blockSize > 2) {
-        continue;
-      }
+      if (!allowExceedDayLimit && currentHours + block.blockSize > 2) continue;
 
       const slots = generateTimeSlots(
         day.start_time.slice(0, 5),
@@ -424,56 +514,52 @@ export function autoSchedule(
         startIdx <= slots.length - block.blockSize;
         startIdx++
       ) {
-        if (!canPlaceBlock(block, day.day_of_week, slots, startIdx)) continue;
-
-        if (
-          currentDayHours > 0 &&
-          !isAdjacentToExisting(block, day.day_of_week, slots, startIdx)
-        ) {
+        if (!canPlaceBlock(state, block, day.day_of_week, slots, startIdx))
           continue;
-        }
+        if (
+          currentHours > 0 &&
+          !isAdjacentToExisting(state, block, day.day_of_week, slots, startIdx)
+        )
+          continue;
 
-        for (let i = 0; i < block.blockSize; i++) {
-          const slot = slots[startIdx + i];
-          const key = slotKey(day.day_of_week, slot.start);
-          occupySlot(block.classId, day.day_of_week, slot.start);
-          addSubjectSlotUsage(block.subjectId, key);
-          addDaySubjectSlot(
-            block.classId,
-            block.subjectId,
-            day.day_of_week,
-            slot.start
-          );
-          if (block.preAssignedTeacherId) {
-            occupyPreAssignedTeacherSlot(
-              block.preAssignedTeacherId,
-              day.day_of_week,
-              slot.start
-            );
-          }
-          lessons.push({
-            classId: block.classId,
-            className: block.className,
-            subjectId: block.subjectId,
-            subjectName: block.subjectName,
-            teacherId: "",
-            teacherName: "",
-            dayOfWeek: day.day_of_week,
-            startTime: slot.start,
-            endTime: slot.end,
-          });
-        }
-        addDaySubjectHours(
-          block.classId,
-          block.subjectId,
-          day.day_of_week,
-          block.blockSize
-        );
+        placeBlock(state, block, blockKey, day.day_of_week, slots, startIdx);
         return true;
       }
     }
     return false;
   }
+
+  // --- Main scheduling ---
+  const state = new ScheduleState();
+
+  // Shuffle with seed
+  const blocks = [...allBlocks];
+  if (seed !== undefined && seed > 0) {
+    let s = seed;
+    for (let i = blocks.length - 1; i > 0; i--) {
+      s = ((s * 1103515245 + 12345) & 0x7fffffff) >>> 0;
+      const j = s % (i + 1);
+      [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+    }
+  }
+
+  // Pre-assigned first, then by scarcity
+  blocks.sort((a, b) => {
+    const aPre = a.preAssignedTeacherId ? 1 : 0;
+    const bPre = b.preAssignedTeacherId ? 1 : 0;
+    if (aPre !== bPre) return bPre - aPre;
+    const aT = teacherCountBySubject.get(a.subjectId) || 999;
+    const bT = teacherCountBySubject.get(b.subjectId) || 999;
+    if (aT !== bT) return aT - bT;
+    return b.blockSize - a.blockSize;
+  });
+
+  // Keep block index mapping for blockKeys
+  const blockKeyMap = new Map<LessonBlock, string>();
+  blocks.forEach((b, i) => blockKeyMap.set(b, makeBlockKey(b, i)));
+
+  const failedBlocks: { block: LessonBlock; key: string }[] = [];
+  const errors: string[] = [];
 
   for (const block of blocks) {
     const classDays = classDaysMap.get(block.classId) || [];
@@ -484,23 +570,271 @@ export function autoSchedule(
       continue;
     }
 
-    let placed = tryPlaceBlock(block, classDays, false);
-
+    const key = blockKeyMap.get(block)!;
+    let placed = tryPlaceBlock(state, block, key, classDays, false);
     if (!placed) {
-      placed = tryPlaceBlock(block, classDays, true);
+      placed = tryPlaceBlock(state, block, key, classDays, true);
       if (placed) {
         warnings.push(
-          `${block.className} - ${block.subjectName}: Aynı gün 2 saatten fazla verildi (başka gün bulunamadı).`
+          `${block.className} - ${block.subjectName}: Aynı gün 2 saatten fazla verildi.`
         );
       }
     }
-
     if (!placed) {
-      errors.push(
-        `${block.className} - ${block.subjectName} (${block.blockSize} ders): Uygun slot bulunamadı.`
-      );
+      failedBlocks.push({ block, key });
     }
   }
 
-  return { lessons, errors, warnings };
+  // --- Swap optimization ---
+  const depth = swapDepth ?? 30;
+  if (failedBlocks.length > 0 && depth > 0) {
+    for (let iter = 0; iter < depth && failedBlocks.length > 0; iter++) {
+      const { block: failedBlock, key: failedKey } =
+        failedBlocks[iter % failedBlocks.length];
+      const classDays = classDaysMap.get(failedBlock.classId) || [];
+      if (classDays.length === 0) continue;
+
+      let resolved = false;
+
+      for (const day of classDays) {
+        if (resolved) break;
+
+        const slots = generateTimeSlots(
+          day.start_time.slice(0, 5),
+          day.end_time.slice(0, 5)
+        );
+
+        for (
+          let startIdx = 0;
+          startIdx <= slots.length - failedBlock.blockSize;
+          startIdx++
+        ) {
+          if (resolved) break;
+
+          // Check which constraints are violated
+          let capacityBlocked = false;
+          let classBlocked = false;
+          let preTeacherBlocked = false;
+
+          for (let i = 0; i < failedBlock.blockSize; i++) {
+            const s = slots[startIdx + i].start;
+            if (!state.isClassSlotFree(failedBlock.classId, day.day_of_week, s))
+              classBlocked = true;
+            const maxC = getMaxConcurrent(failedBlock.subjectId, day.day_of_week);
+            if (
+              maxC !== Infinity &&
+              state.getSubjectSlotUsage(
+                failedBlock.subjectId,
+                day.day_of_week,
+                s
+              ) >= maxC
+            )
+              capacityBlocked = true;
+            if (
+              failedBlock.preAssignedTeacherId &&
+              !state.isPreAssignedTeacherFree(
+                failedBlock.preAssignedTeacherId,
+                day.day_of_week,
+                s
+              )
+            )
+              preTeacherBlocked = true;
+          }
+
+          // Only try swap if the issue is class slot or capacity conflict
+          if (!classBlocked && !capacityBlocked && !preTeacherBlocked) continue;
+          if (preTeacherBlocked) continue; // can't swap pre-assigned teacher conflicts
+
+          // Find blocking lesson blocks at these slots for this class
+          if (classBlocked) {
+            // Find which blockKeys occupy these class slots
+            const blockerKeys = new Set<string>();
+            for (const [bk, indices] of state.blockLessons) {
+              for (const idx of indices) {
+                const l = state.lessons[idx];
+                if (!l || l.classId !== failedBlock.classId) continue;
+                for (let i = 0; i < failedBlock.blockSize; i++) {
+                  if (
+                    l.dayOfWeek === day.day_of_week &&
+                    l.startTime === slots[startIdx + i].start
+                  ) {
+                    blockerKeys.add(bk);
+                  }
+                }
+              }
+            }
+
+            for (const blockerKey of blockerKeys) {
+              if (resolved) break;
+              // Find the block info for the blocker
+              const blockerBlock = blocks.find(
+                (b) => blockKeyMap.get(b) === blockerKey
+              );
+              if (!blockerBlock) continue;
+
+              // Remove the blocker
+              const removedLessons = state.removeBlockLessons(blockerKey);
+              if (removedLessons.length === 0) continue;
+
+              // Remove pre-assigned teacher slots for the removed blocker
+              if (blockerBlock.preAssignedTeacherId) {
+                for (const rl of removedLessons) {
+                  state.freePreAssignedTeacher(
+                    blockerBlock.preAssignedTeacherId,
+                    rl.dayOfWeek,
+                    rl.startTime
+                  );
+                }
+              }
+
+              // Try placing the failed block
+              const failedPlaced = tryPlaceBlock(
+                state,
+                failedBlock,
+                failedKey,
+                classDays,
+                false
+              );
+
+              if (failedPlaced) {
+                // Try re-placing the blocker elsewhere
+                const blockerDays =
+                  classDaysMap.get(blockerBlock.classId) || [];
+                const blockerPlaced = tryPlaceBlock(
+                  state,
+                  blockerBlock,
+                  blockerKey,
+                  blockerDays,
+                  false
+                );
+
+                if (blockerPlaced) {
+                  // Swap successful
+                  const idx = failedBlocks.findIndex(
+                    (fb) => fb.key === failedKey
+                  );
+                  if (idx >= 0) failedBlocks.splice(idx, 1);
+                  resolved = true;
+                } else {
+                  // Blocker can't be re-placed: undo failed block placement
+                  state.removeBlockLessons(failedKey);
+                  // Restore blocker
+                  const bDays = classDaysMap.get(blockerBlock.classId) || [];
+                  const restored = tryPlaceBlock(
+                    state,
+                    blockerBlock,
+                    blockerKey,
+                    bDays,
+                    true
+                  );
+                  if (!restored) {
+                    // Restore manually at original position
+                    for (const rl of removedLessons) {
+                      const rSlots = generateTimeSlots(
+                        bDays
+                          .find((d) => d.day_of_week === rl.dayOfWeek)
+                          ?.start_time.slice(0, 5) || "08:00",
+                        bDays
+                          .find((d) => d.day_of_week === rl.dayOfWeek)
+                          ?.end_time.slice(0, 5) || "20:00"
+                      );
+                      state.occupyClassSlot(
+                        rl.classId,
+                        rl.dayOfWeek,
+                        rl.startTime
+                      );
+                      state.addSubjectSlotUsage(
+                        rl.subjectId,
+                        rl.dayOfWeek,
+                        rl.startTime
+                      );
+                      state.addDaySubjectSlot(
+                        rl.classId,
+                        rl.subjectId,
+                        rl.dayOfWeek,
+                        rl.startTime
+                      );
+                      if (blockerBlock.preAssignedTeacherId) {
+                        state.occupyPreAssignedTeacher(
+                          blockerBlock.preAssignedTeacherId,
+                          rl.dayOfWeek,
+                          rl.startTime
+                        );
+                      }
+                      state.addLesson(rl, blockerKey);
+                    }
+                    const daySet = new Set(
+                      removedLessons.map((l) => l.dayOfWeek)
+                    );
+                    for (const d of daySet) {
+                      const cnt = removedLessons.filter(
+                        (l) => l.dayOfWeek === d
+                      ).length;
+                      state.addDaySubjectHours(
+                        blockerBlock.classId,
+                        blockerBlock.subjectId,
+                        d,
+                        cnt
+                      );
+                    }
+                  }
+                }
+              } else {
+                // Failed block couldn't be placed either — restore blocker
+                for (const rl of removedLessons) {
+                  state.occupyClassSlot(
+                    rl.classId,
+                    rl.dayOfWeek,
+                    rl.startTime
+                  );
+                  state.addSubjectSlotUsage(
+                    rl.subjectId,
+                    rl.dayOfWeek,
+                    rl.startTime
+                  );
+                  state.addDaySubjectSlot(
+                    rl.classId,
+                    rl.subjectId,
+                    rl.dayOfWeek,
+                    rl.startTime
+                  );
+                  if (blockerBlock.preAssignedTeacherId) {
+                    state.occupyPreAssignedTeacher(
+                      blockerBlock.preAssignedTeacherId,
+                      rl.dayOfWeek,
+                      rl.startTime
+                    );
+                  }
+                  state.addLesson(rl, blockerKey);
+                }
+                const daySet = new Set(
+                  removedLessons.map((l) => l.dayOfWeek)
+                );
+                for (const d of daySet) {
+                  const cnt = removedLessons.filter(
+                    (l) => l.dayOfWeek === d
+                  ).length;
+                  state.addDaySubjectHours(
+                    blockerBlock.classId,
+                    blockerBlock.subjectId,
+                    d,
+                    cnt
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Build final errors for remaining failed blocks
+  for (const { block } of failedBlocks) {
+    errors.push(
+      `${block.className} - ${block.subjectName} (${block.blockSize} ders): Uygun slot bulunamadı.`
+    );
+  }
+
+  return { lessons: state.getCleanLessons(), errors, warnings };
 }
