@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import LevelFilter from "@/components/LevelFilter";
+import SearchInput from "@/components/SearchInput";
+import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
@@ -27,16 +33,22 @@ interface ClassSubjectEdit {
   subject?: Subject;
 }
 
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-gray-900";
+
 export default function ClassesPage() {
   const supabase = createClient();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClassGroup | null>(null);
   const [form, setForm] = useState({ name: "", description: "", level: "", subgroup: "" });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
+  const [search, setSearch] = useState("");
   const [classSubjectEdits, setClassSubjectEdits] = useState<ClassSubjectEdit[]>(
     []
   );
@@ -272,17 +284,19 @@ export default function ClassesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bu sınıfı ve tüm programını silmek istediğinize emin misiniz?"))
-      return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     const { error: deleteError } = await supabase
       .from("classes")
       .delete()
-      .eq("id", id);
+      .eq("id", deleteTarget.id);
+    setDeleting(false);
     if (deleteError) {
       toast.error(describeDbError(deleteError));
       return;
     }
+    setDeleteTarget(null);
     reload();
     toast.success("Sınıf silindi.");
   };
@@ -310,9 +324,38 @@ export default function ClassesPage() {
 
   const getClassSubjectSummary = (classId: string) => {
     const cs = allClassSubjects.filter((c) => c.class_id === classId);
+    const withHours = cs.filter((c) => c.weekly_hours > 0);
     const totalHours = cs.reduce((sum, c) => sum + c.weekly_hours, 0);
-    return { count: cs.length, totalHours };
+    const assignedTeachers = withHours.filter((c) => c.teacher_id).length;
+    return {
+      count: withHours.length,
+      totalHours,
+      assignedTeachers,
+      missingTeachers: withHours.length - assignedTeachers,
+    };
   };
+
+  const levelCounts = useMemo(() => {
+    const counts: Record<string, number> = { Tümü: classes.length };
+    for (const level of LEVELS) counts[level] = 0;
+    for (const cls of classes) {
+      if (cls.level && counts[cls.level] !== undefined) counts[cls.level] += 1;
+    }
+    return counts;
+  }, [classes]);
+
+  const filteredClasses = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("tr");
+    return classes.filter((cls) => {
+      if (levelFilter !== "Tümü" && cls.level !== levelFilter) return false;
+      if (!query) return true;
+      const haystack =
+        `${cls.name} ${cls.description ?? ""} ${cls.subgroup ?? ""}`.toLocaleLowerCase(
+          "tr"
+        );
+      return haystack.includes(query);
+    });
+  }, [classes, levelFilter, search]);
 
   if (loading && !data) {
     return (
@@ -323,21 +366,10 @@ export default function ClassesPage() {
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-        {error.message}
-      </div>
-    );
+    return <ErrorBanner message={error.message} onRetry={reload} />;
   }
 
   const totalEditHours = classSubjectEdits.reduce((sum, cs) => sum + cs.weekly_hours, 0);
-
-  const filterTabs = ["Tümü", ...LEVELS];
-
-  const filteredClasses =
-    levelFilter === "Tümü"
-      ? classes
-      : classes.filter((c) => c.level === levelFilter);
 
   const groupedByLevelSubgroup = filteredClasses.reduce<Record<string, ClassGroup[]>>((acc, cls) => {
     const levelKey = cls.level || "Belirsiz";
@@ -372,53 +404,68 @@ export default function ClassesPage() {
     return (
       <div
         key={cls.id}
-        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-green-200 transition-colors"
       >
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="font-semibold text-gray-900 text-lg">{cls.name}</h3>
-            {cls.subgroup && (
-              <span className="inline-block bg-purple-50 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full mt-1">
-                {cls.subgroup}
-              </span>
-            )}
+        <div className="flex items-start justify-between mb-3 gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 text-base truncate">{cls.name}</h3>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {cls.subgroup && (
+                <span className="inline-block bg-violet-50 text-violet-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {cls.subgroup}
+                </span>
+              )}
+            </div>
             {cls.description && (
-              <p className="text-sm text-gray-500 mt-0.5">{cls.description}</p>
+              <p className="text-sm text-gray-500 mt-1">{cls.description}</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button
+              type="button"
               onClick={() => openEdit(cls)}
-              className="text-teal-600 hover:text-teal-800 text-sm"
+              className="text-green-700 hover:text-green-900 text-sm font-medium"
             >
               Düzenle
             </button>
             <button
-              onClick={() => handleDelete(cls.id)}
-              className="text-red-600 hover:text-red-800 text-sm"
+              type="button"
+              onClick={() => setDeleteTarget(cls)}
+              className="text-red-600 hover:text-red-800 text-sm font-medium"
             >
               Sil
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs text-gray-500">
+        <div className="flex flex-wrap items-center gap-2 mb-3 text-xs text-gray-500">
+          <span className="bg-gray-50 px-2 py-0.5 rounded-full">
             {summary.count} ders · {summary.totalHours} saat/hafta
           </span>
+          {summary.missingTeachers > 0 && (
+            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+              {summary.missingTeachers} derste öğretmen yok
+            </span>
+          )}
         </div>
 
         {days.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Ders günü belirlenmemiş</p>
+          <button
+            type="button"
+            onClick={() => openSchedule(cls)}
+            className="w-full text-left text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 hover:bg-amber-100 transition-colors"
+          >
+            Ders günü belirlenmemiş — ayarlamak için tıklayın
+          </button>
         ) : (
           <div className="flex flex-wrap gap-2">
             {days.map((d) => (
               <span
                 key={d.id}
-                className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs font-medium px-2.5 py-1 rounded-full"
+                className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full"
               >
                 {DAY_NAMES[d.day_of_week]}
-                <span className="text-teal-500">
+                <span className="text-green-600/80">
                   {d.start_time.slice(0, 5)}-{d.end_time.slice(0, 5)}
                 </span>
               </span>
@@ -427,10 +474,11 @@ export default function ClassesPage() {
         )}
 
         <button
+          type="button"
           onClick={() => openSchedule(cls)}
-          className="mt-3 text-sm text-teal-600 hover:text-teal-800 font-medium"
+          className="mt-3 text-sm text-green-700 hover:text-green-900 font-medium"
         >
-          Ders Günlerini Ayarla
+          Ders günlerini ayarla
         </button>
       </div>
     );
@@ -438,67 +486,65 @@ export default function ClassesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <h1 className="text-lg font-bold text-gray-900">Sınıflar</h1>
-        </div>
-        <button
-          onClick={openCreate}
-          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Sınıf Ekle
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-        <span className="text-sm text-gray-500 shrink-0 flex items-center gap-1.5">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          Düzey:
-        </span>
-        {filterTabs.map((tab) => (
+      <PageHeader
+        title="Sınıflar"
+        description="Şubeleri, ders saatlerini ve öğretmen atamalarını yönetin."
+        action={
           <button
-            key={tab}
-            onClick={() => setLevelFilter(tab)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-              levelFilter === tab
-                ? "bg-teal-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            type="button"
+            onClick={openCreate}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
           >
-            {tab === "Tümü" ? `Tümü (${classes.length})` : tab === "Mezun" ? "Mezun" : `${tab}. Sınıf`}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Sınıf Ekle
           </button>
-        ))}
+        }
+      />
+
+      <div className="flex flex-col gap-3 mb-5">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Şube adı veya açıklama ara..."
+          className="max-w-sm"
+        />
+        <LevelFilter
+          value={levelFilter}
+          onChange={setLevelFilter}
+          counts={levelCounts}
+          activeClassName="bg-green-600 text-white"
+        />
       </div>
 
       {classes.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henüz sınıf eklenmemiş.</p>
-          <button onClick={openCreate} className="text-teal-600 hover:underline mt-2 text-sm">
-            İlk sınıfı ekleyin
-          </button>
-        </div>
+        <EmptyState
+          title="Henüz sınıf eklenmemiş"
+          description="Şubeleri oluşturup ders günlerini ve öğretmen atamalarını tanımlayın."
+          actionLabel="İlk sınıfı ekle"
+          onAction={openCreate}
+          accentClassName="text-green-700"
+        />
       ) : filteredClasses.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <p className="text-gray-500">Bu düzeyde sınıf bulunamadı.</p>
-        </div>
+        <EmptyState
+          title="Sonuç bulunamadı"
+          description="Arama veya seviye filtresiyle eşleşen sınıf yok."
+          secondaryLabel="Filtreleri temizle"
+          onSecondary={() => {
+            setSearch("");
+            setLevelFilter("Tümü");
+          }}
+          accentClassName="text-green-700"
+        />
       ) : (
         <div className="space-y-8">
           {sortedGroups.map(({ level, subgroup, classes: groupClasses }) => (
             <div key={`${level}::${subgroup}`}>
               <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  {level === "Belirsiz" ? "Düzey Belirlenmemiş" : level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
-                  {subgroup && <span className="text-purple-600 ml-1">({subgroup})</span>}
+                <h2 className="text-base font-semibold text-gray-800">
+                  {level === "Belirsiz" ? "Seviye belirlenmemiş" : level === "Mezun" ? "Mezun" : `${level}. Sınıf`}
+                  {subgroup && <span className="text-violet-600 ml-1">({subgroup})</span>}
                 </h2>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                   {groupClasses.length} şube
@@ -516,12 +562,12 @@ export default function ClassesPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingClass ? "Sınıf Düzenle" : "Yeni Sınıf"}
-        size={classSubjectEdits.length > 0 ? "lg" : "md"}
+        size={classSubjectEdits.length > 0 ? "xl" : "md"}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Düzey</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Seviye</label>
               <select
                 value={form.level}
                 onChange={(e) => {
@@ -529,7 +575,7 @@ export default function ClassesPage() {
                   setForm((f) => ({ ...f, level: newLevel }));
                   setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, newLevel, form.subgroup));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
+                className={inputClass}
               >
                 <option value="">Seçilmedi</option>
                 {LEVELS.map((level) => (
@@ -548,7 +594,7 @@ export default function ClassesPage() {
                   setForm((f) => ({ ...f, subgroup: newSubgroup }));
                   setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, form.level, newSubgroup));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
+                className={inputClass}
               >
                 <option value="">Seçilmedi</option>
                 {SUBGROUPS.map((sg) => (
@@ -562,7 +608,7 @@ export default function ClassesPage() {
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
+                className={inputClass}
                 placeholder="Örnek: 12-A"
                 required
               />
@@ -573,7 +619,7 @@ export default function ClassesPage() {
                 type="text"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
+                className={inputClass}
                 placeholder="Sabah grubu"
               />
             </div>
@@ -581,17 +627,17 @@ export default function ClassesPage() {
 
           {classSubjectEdits.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 sticky top-0 bg-white z-[1] py-1">
                 <h3 className="text-sm font-semibold text-gray-900">Sınıf Dersleri</h3>
                 <span className="text-xs font-medium bg-green-50 text-green-700 px-3 py-1 rounded-full">
                   Toplam: {totalEditHours} saat
                 </span>
               </div>
 
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[360px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
+                  <thead className="sticky top-0 bg-gray-50">
+                    <tr className="border-b border-gray-200">
                       <th className="text-left px-4 py-2.5 font-medium text-gray-600">Ders</th>
                       <th className="text-center px-4 py-2.5 font-medium text-gray-600 w-28">Saat</th>
                       <th className="text-left px-4 py-2.5 font-medium text-gray-600">Öğretmen</th>
@@ -652,9 +698,9 @@ export default function ClassesPage() {
                               onChange={(e) =>
                                 updateClassSubject(idx, "teacher_id", e.target.value || null)
                               }
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
                             >
-                              <option value="">- Yok -</option>
+                              <option value="">Atanmamış</option>
                               {getTeachersForSubject(cs.subject_id).map((t) => (
                                 <option key={t.id} value={t.id}>
                                   {t.name}
@@ -672,13 +718,17 @@ export default function ClassesPage() {
           )}
 
           {classSubjectEdits.length === 0 && form.level && (
-            <p className="text-sm text-gray-400 italic">
-              Bu düzeyde tanımlı ders bulunamadı. Dersler sayfasından düzey atayın.
+            <p className="text-sm text-gray-500">
+              Bu seviyede tanımlı ders yok.{" "}
+              <Link href="/dersler" className="text-green-700 hover:underline">
+                Dersler sayfasından
+              </Link>{" "}
+              seviye atayın.
             </p>
           )}
           {classSubjectEdits.length === 0 && !form.level && (
-            <p className="text-sm text-gray-400 italic">
-              Düzey seçerek eşleşen dersleri görebilirsiniz.
+            <p className="text-sm text-gray-500">
+              Seviye seçerek eşleşen dersleri görebilirsiniz.
             </p>
           )}
 
@@ -686,9 +736,9 @@ export default function ClassesPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? "Kaydediliyor..." : editingClass ? "Güncelle" : "Ekle"}
+              {saving ? "Kaydediliyor..." : editingClass ? "Kaydet" : "Ekle"}
             </button>
             <button
               type="button"
@@ -704,15 +754,15 @@ export default function ClassesPage() {
       <Modal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
-        title={`${selectedClass?.name} - Ders Günleri`}
+        title={`${selectedClass?.name ?? ""} — Ders Günleri`}
       >
         <div className="space-y-3">
           {dayConfigs.map((config, idx) => (
             <div
               key={config.day}
-              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+              className={`flex flex-wrap items-center gap-3 p-3 rounded-lg border transition-colors ${
                 config.enabled
-                  ? "bg-teal-50 border-teal-200"
+                  ? "bg-green-50 border-green-200"
                   : "bg-gray-50 border-gray-200"
               }`}
             >
@@ -724,7 +774,7 @@ export default function ClassesPage() {
                   updated[idx] = { ...config, enabled: e.target.checked };
                   setDayConfigs(updated);
                 }}
-                className="w-4 h-4 text-teal-600 rounded"
+                className="w-4 h-4 text-green-600 rounded"
               />
               <span className="w-24 text-sm font-medium text-gray-700">
                 {DAY_NAMES[config.day]}
@@ -759,13 +809,15 @@ export default function ClassesPage() {
 
           <div className="flex gap-3 pt-3">
             <button
-              onClick={handleSaveSchedule}
+              type="button"
+              onClick={() => void handleSaveSchedule()}
               disabled={saving}
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>
             <button
+              type="button"
               onClick={() => setScheduleModalOpen(false)}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
@@ -774,6 +826,15 @@ export default function ClassesPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="Sınıfı sil"
+        message={`“${deleteTarget?.name ?? ""}” sınıfını ve programını silmek istediğinize emin misiniz?`}
+        loading={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

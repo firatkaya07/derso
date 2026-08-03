@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/Modal";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import SearchInput from "@/components/SearchInput";
+import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
@@ -24,14 +29,20 @@ const EMPTY_FORM = {
   off_days: [] as number[],
 };
 
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900";
+
 export default function TeachersPage() {
   const supabase = createClient();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async (): Promise<TeachersData> => {
     const [teacherResult, subjectResult, tsResult] = await Promise.all([
@@ -55,12 +66,26 @@ export default function TeachersPage() {
   const subjects = useMemo(() => data?.subjects ?? [], [data]);
   const teacherSubjects = useMemo(() => data?.teacherSubjects ?? [], [data]);
 
-  const getTeacherSubjects = (teacherId: string) => {
-    return teacherSubjects
+  const getTeacherSubjects = (teacherId: string) =>
+    teacherSubjects
       .filter((ts) => ts.teacher_id === teacherId)
       .map((ts) => ts.subject as Subject)
       .filter(Boolean);
-  };
+
+  const filteredTeachers = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("tr");
+    if (!query) return teachers;
+    return teachers.filter((teacher) => {
+      const subjectNames = getTeacherSubjects(teacher.id)
+        .map((s) => s.name)
+        .join(" ");
+      const haystack =
+        `${teacher.name} ${teacher.specialization ?? ""} ${teacher.phone ?? ""} ${teacher.email ?? ""} ${subjectNames}`.toLocaleLowerCase(
+          "tr"
+        );
+      return haystack.includes(query);
+    });
+  }, [teachers, search, teacherSubjects]);
 
   const openCreate = () => {
     setEditingTeacher(null);
@@ -78,10 +103,11 @@ export default function TeachersPage() {
       email: teacher.email || "",
       off_days: teacher.off_days || [],
     });
-    const currentSubjectIds = teacherSubjects
-      .filter((ts) => ts.teacher_id === teacher.id)
-      .map((ts) => ts.subject_id);
-    setSelectedSubjectIds(currentSubjectIds);
+    setSelectedSubjectIds(
+      teacherSubjects
+        .filter((ts) => ts.teacher_id === teacher.id)
+        .map((ts) => ts.subject_id)
+    );
     setModalOpen(true);
   };
 
@@ -125,8 +151,6 @@ export default function TeachersPage() {
         teacherId = result.data!.id;
       }
 
-      // Yalnızca değişen eşleşmelere dokunulur; hepsini silip yeniden yazmak
-      // hata durumunda öğretmeni derssiz bırakabiliyordu.
       const current = teacherSubjects
         .filter((ts) => ts.teacher_id === teacherId)
         .map((ts) => ts.subject_id);
@@ -167,12 +191,14 @@ export default function TeachersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bu öğretmeni silmek istediğinize emin misiniz?")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     const { error: deleteError } = await supabase
       .from("teachers")
       .delete()
-      .eq("id", id);
+      .eq("id", deleteTarget.id);
+    setDeleting(false);
     if (deleteError) {
       toast.error(
         deleteError.code === "23503"
@@ -181,6 +207,7 @@ export default function TeachersPage() {
       );
       return;
     }
+    setDeleteTarget(null);
     reload();
     toast.success("Öğretmen silindi.");
   };
@@ -194,146 +221,251 @@ export default function TeachersPage() {
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-        {error.message}
-      </div>
-    );
+    return <ErrorBanner message={error.message} onRetry={reload} />;
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      <PageHeader
+        title="Öğretmenler"
+        description="Branş, verdiği dersler ve izin günlerini yönetin."
+        action={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-          </Link>
-          <h1 className="text-lg font-bold text-gray-900">Öğretmenler</h1>
+            Öğretmen Ekle
+          </button>
+        }
+      />
+
+      {teachers.length > 0 && (
+        <div className="mb-5 max-w-sm">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Ad, branş veya ders ara..."
+          />
         </div>
-        <button
-          onClick={openCreate}
-          className="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-700 transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Öğretmen Ekle
-        </button>
-      </div>
+      )}
 
       {teachers.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">Henüz öğretmen eklenmemiş.</p>
-          <button
-            onClick={openCreate}
-            className="text-pink-600 hover:underline mt-2 text-sm"
-          >
-            İlk öğretmeni ekleyin
-          </button>
-        </div>
+        <EmptyState
+          title="Henüz öğretmen eklenmemiş"
+          description="Dağıtım için öğretmenleri ve verdikleri dersleri tanımlayın."
+          actionLabel="İlk öğretmeni ekle"
+          onAction={openCreate}
+          accentClassName="text-orange-600"
+        />
+      ) : filteredTeachers.length === 0 ? (
+        <EmptyState
+          title="Sonuç bulunamadı"
+          description="Aramayla eşleşen öğretmen yok."
+          secondaryLabel="Aramayı temizle"
+          onSecondary={() => setSearch("")}
+          accentClassName="text-orange-600"
+        />
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Ad Soyad
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Branş
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Verdiği Dersler
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  İzin Günleri
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Telefon
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  E-posta
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  İşlemler
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {teachers.map((teacher) => {
-                const tSubjects = getTeacherSubjects(teacher.id);
-                return (
-                  <tr key={teacher.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {teacher.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {teacher.specialization || "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      {tSubjects.length === 0 ? (
-                        <span className="text-sm text-gray-400">-</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {tSubjects.map((s) => (
-                            <span
-                              key={s.id}
-                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white"
-                              style={{ backgroundColor: s.color }}
-                            >
-                              {s.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {teacher.off_days && teacher.off_days.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.off_days
-                            .sort((a, b) => a - b)
-                            .map((d) => (
-                              <span
-                                key={d}
-                                className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600"
-                              >
-                                {DAY_NAMES[d]}
-                              </span>
-                            ))}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {teacher.phone || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {teacher.email || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-right">
+        <>
+          {/* Mobil: kart listesi */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {filteredTeachers.map((teacher) => {
+              const tSubjects = getTeacherSubjects(teacher.id);
+              return (
+                <div
+                  key={teacher.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {teacher.name}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {teacher.specialization || "Branş belirtilmemiş"}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
                       <button
+                        type="button"
                         onClick={() => openEdit(teacher)}
-                        className="text-pink-600 hover:text-pink-800 text-sm font-medium mr-4"
+                        className="text-orange-600 hover:text-orange-800 text-sm font-medium"
                       >
                         Düzenle
                       </button>
                       <button
-                        onClick={() => handleDelete(teacher.id)}
+                        type="button"
+                        onClick={() => setDeleteTarget(teacher)}
                         className="text-red-600 hover:text-red-800 text-sm font-medium"
                       >
                         Sil
                       </button>
-                    </td>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {tSubjects.length === 0 ? (
+                      <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                        Ders atanmamış
+                      </span>
+                    ) : (
+                      tSubjects.map((subject) => (
+                        <span
+                          key={subject.id}
+                          className="text-xs px-2 py-0.5 rounded-full text-white"
+                          style={{ backgroundColor: subject.color }}
+                        >
+                          {subject.short_name || subject.name}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  {teacher.off_days && teacher.off_days.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {teacher.off_days
+                        .slice()
+                        .sort((a, b) => a - b)
+                        .map((day) => (
+                          <span
+                            key={day}
+                            className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600"
+                          >
+                            {DAY_NAMES[day]}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                  {(teacher.phone || teacher.email) && (
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {teacher.phone && <div>{teacher.phone}</div>}
+                      {teacher.email && <div>{teacher.email}</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Masaüstü: tablo */}
+          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Ad Soyad
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Branş
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Verdiği Dersler
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      İzin
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      İletişim
+                    </th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredTeachers.map((teacher) => {
+                    const tSubjects = getTeacherSubjects(teacher.id);
+                    const visibleSubjects = tSubjects.slice(0, 4);
+                    const hiddenCount = tSubjects.length - visibleSubjects.length;
+                    return (
+                      <tr key={teacher.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-4 text-sm font-medium text-gray-900">
+                          {teacher.name}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-gray-600">
+                          {teacher.specialization || "—"}
+                        </td>
+                        <td className="px-5 py-4">
+                          {tSubjects.length === 0 ? (
+                            <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                              Ders atanmamış
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {visibleSubjects.map((subject) => (
+                                <span
+                                  key={subject.id}
+                                  className="inline-flex text-xs px-2 py-0.5 rounded-full text-white"
+                                  style={{ backgroundColor: subject.color }}
+                                  title={subject.name}
+                                >
+                                  {subject.short_name || subject.name}
+                                </span>
+                              ))}
+                              {hiddenCount > 0 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                  +{hiddenCount}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {teacher.off_days && teacher.off_days.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {teacher.off_days
+                                .slice()
+                                .sort((a, b) => a - b)
+                                .map((day) => (
+                                  <span
+                                    key={day}
+                                    className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600"
+                                  >
+                                    {DAY_NAMES[day].slice(0, 3)}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-gray-600">
+                          <div className="space-y-0.5">
+                            <div>{teacher.phone || "—"}</div>
+                            {teacher.email && (
+                              <div className="text-xs text-gray-400 truncate max-w-[180px]">
+                                {teacher.email}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(teacher)}
+                            className="text-orange-600 hover:text-orange-800 text-sm font-medium mr-3"
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(teacher)}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          >
+                            Sil
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       <Modal
@@ -350,7 +482,7 @@ export default function TeachersPage() {
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
+              className={inputClass}
               required
             />
           </div>
@@ -364,12 +496,11 @@ export default function TeachersPage() {
               onChange={(e) =>
                 setForm({ ...form, specialization: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
+              className={inputClass}
               placeholder="Örnek: Matematik"
             />
             <p className="text-xs text-gray-400 mt-1">
-              Bilgi amaçlıdır; program dağıtımında aşağıda seçilen dersler
-              kullanılır.
+              Bilgi amaçlıdır; dağıtımda aşağıda seçilen dersler kullanılır.
             </p>
           </div>
           <div>
@@ -377,11 +508,15 @@ export default function TeachersPage() {
               Verdiği Dersler
             </label>
             {subjects.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                Henüz ders tanımlanmamış.
+              <p className="text-sm text-gray-500">
+                Henüz ders tanımlanmamış.{" "}
+                <Link href="/dersler" className="text-orange-600 hover:underline">
+                  Dersler sayfasına gidin
+                </Link>
+                .
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-0.5">
                 {subjects.map((subject) => {
                   const isSelected = selectedSubjectIds.includes(subject.id);
                   return (
@@ -396,30 +531,22 @@ export default function TeachersPage() {
                       }`}
                       style={
                         isSelected
-                          ? { backgroundColor: subject.color, borderColor: subject.color }
+                          ? {
+                              backgroundColor: subject.color,
+                              borderColor: subject.color,
+                            }
                           : undefined
                       }
                     >
-                      {!isSelected && (
+                      {isSelected ? (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
                         <div
                           className="w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: subject.color }}
                         />
-                      )}
-                      {isSelected && (
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
                       )}
                       {subject.name}
                     </button>
@@ -459,36 +586,38 @@ export default function TeachersPage() {
               })}
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Öğretmenin ders veremeyeceği günleri seçin
+              Öğretmenin ders veremeyeceği günleri seçin.
             </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telefon
-            </label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              E-posta
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefon
+              </label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                E-posta
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={inputClass}
+              />
+            </div>
           </div>
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-pink-600 text-white py-2 rounded-lg font-medium hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-orange-500 text-white py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Kaydediliyor..." : editingTeacher ? "Kaydet" : "Ekle"}
             </button>
@@ -502,6 +631,15 @@ export default function TeachersPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="Öğretmeni sil"
+        message={`“${deleteTarget?.name ?? ""}” öğretmenini silmek istediğinize emin misiniz?`}
+        loading={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
