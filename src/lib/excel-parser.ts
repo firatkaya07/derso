@@ -107,7 +107,7 @@ function readTable(
 
   const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[actualName], {
     header: 1,
-    blankrows: false,
+    blankrows: true,
     defval: null,
   });
   if (rows.length === 0) {
@@ -541,7 +541,7 @@ function parseDistribution(
   // 1. satırın ikinci hücresinden itibaren sınıf adları yer alır.
   const headerRow = XLSX.utils.sheet_to_json<unknown[]>(
     workbook.Sheets[table.name],
-    { header: 1, blankrows: false, defval: null }
+    { header: 1, blankrows: true, defval: null }
   )[0] as unknown[];
 
   const classColumns: { className: string; index: number }[] = [];
