@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/components/Toast";
 import { useOrganization } from "@/components/OrganizationProvider";
+import { useFields } from "@/components/FieldsProvider";
 import { parseExcelFile, type ParsedWorkbook } from "@/lib/excel-parser";
 import { downloadTemplate, SHEET_NAMES } from "@/lib/excel-template";
 import { importWorkbook } from "@/lib/excel-import";
@@ -19,6 +20,7 @@ export default function AktarimPage() {
   const supabase = createClient();
   const toast = useToast();
   const { organizationId } = useOrganization();
+  const fields = useFields();
 
   const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
   const [fileName, setFileName] = useState("");
@@ -35,7 +37,9 @@ export default function AktarimPage() {
     setImported(false);
     setImportLog([]);
     try {
-      const result = parseExcelFile(await file.arrayBuffer());
+      const result = parseExcelFile(await file.arrayBuffer(), {
+        allowedFields: fields,
+      });
       setParsed(result);
       if (result.errors.length > 0) {
         toast.error(
@@ -89,7 +93,7 @@ export default function AktarimPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => downloadTemplate()}
+              onClick={() => downloadTemplate("derso-sablon.xlsx", fields)}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               <svg

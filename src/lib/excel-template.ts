@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import { DAY_NAMES, SUBGROUPS, SUBJECT_COLORS } from "./types";
+import { DAY_NAMES, SUBJECT_COLORS } from "./types";
+import { DEFAULT_FIELD_NAMES } from "./fields";
 
 /**
  * Derso Excel şablonu.
@@ -226,7 +227,7 @@ const INFO_LINES: string[][] = [
     "Seviyeler",
     "1–12 arası sayılar veya Mezun. Örnek: 9,10,11,12",
   ],
-  ["Alanlar", SUBGROUPS.join(", ")],
+  ["Alanlar", "__FIELDS__"],
   ["Renk", "#RRGGBB biçiminde. Boş bırakılırsa otomatik atanır."],
   [
     "Ders saati",
@@ -298,12 +299,17 @@ function sheetFromRows(
 }
 
 /** Boş şablonu (örnek satırlarla birlikte) bir çalışma kitabı olarak üretir. */
-export function buildTemplateWorkbook(): XLSX.WorkBook {
+export function buildTemplateWorkbook(
+  fieldNames: string[] = [...DEFAULT_FIELD_NAMES]
+): XLSX.WorkBook {
   const workbook = XLSX.utils.book_new();
+  const infoLines = INFO_LINES.map((row) =>
+    row.map((cell) => (cell === "__FIELDS__" ? fieldNames.join(", ") : cell))
+  );
 
   XLSX.utils.book_append_sheet(
     workbook,
-    sheetFromRows(INFO_LINES, [26, 62, 46]),
+    sheetFromRows(infoLines, [26, 62, 46]),
     SHEET_NAMES.info
   );
 
@@ -404,6 +410,11 @@ export function buildTemplateWorkbook(): XLSX.WorkBook {
 }
 
 /** Şablonu kullanıcının bilgisayarına indirir. */
-export function downloadTemplate(fileName = "derso-sablon.xlsx") {
-  XLSX.writeFile(buildTemplateWorkbook(), fileName, { compression: true });
+export function downloadTemplate(
+  fileName = "derso-sablon.xlsx",
+  fieldNames: string[] = [...DEFAULT_FIELD_NAMES]
+) {
+  XLSX.writeFile(buildTemplateWorkbook(fieldNames), fileName, {
+    compression: true,
+  });
 }

@@ -25,6 +25,12 @@ import {
   SCHEDULE_PRESETS,
   slotsForWindow,
 } from "@/lib/slot-management";
+import {
+  createField,
+  deleteField,
+  loadFields,
+  type FieldRow,
+} from "@/lib/fields";
 
 export default function GenelTanimlarPage() {
   const supabase = createClient();
@@ -39,6 +45,10 @@ export default function GenelTanimlarPage() {
   const [tableMissing, setTableMissing] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
   const [orphanCount, setOrphanCount] = useState<number | null>(null);
+  const [fields, setFields] = useState<FieldRow[]>([]);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [fieldBusy, setFieldBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +59,55 @@ export default function GenelTanimlarPage() {
       cancelled = true;
     };
   }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFieldsLoading(true);
+    void loadFields(supabase, organizationId)
+      .then((rows) => {
+        if (!cancelled) setFields(rows);
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error((error as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setFieldsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, organizationId]);
+
+  const handleAddField = async () => {
+    const name = newFieldName.trim();
+    if (!name) return;
+    setFieldBusy(true);
+    try {
+      const row = await createField(supabase, organizationId, name);
+      setFields((current) => [...current, row]);
+      setNewFieldName("");
+      router.refresh();
+      toast.success(`“${row.name}” alanı eklendi.`);
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setFieldBusy(false);
+    }
+  };
+
+  const handleDeleteField = async (field: FieldRow) => {
+    setFieldBusy(true);
+    try {
+      await deleteField(supabase, field.id);
+      setFields((current) => current.filter((row) => row.id !== field.id));
+      router.refresh();
+      toast.success(`“${field.name}” alanı silindi.`);
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setFieldBusy(false);
+    }
+  };
 
   const copySetupSql = async () => {
     try {
@@ -394,6 +453,67 @@ export default function GenelTanimlarPage() {
                 PNG, JPEG, WEBP veya SVG · en fazla 2 MB
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="font-semibold text-gray-900 mb-1">Alanlar</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Sınıf ve ders formlarındaki alan listesi (TM, MF, SAY…). Kuruma özeldir.
+          </p>
+
+          {fieldsLoading ? (
+            <p className="text-sm text-gray-400">Yükleniyor…</p>
+          ) : (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {fields.map((field) => (
+                <span
+                  key={field.id}
+                  className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-800 text-sm font-medium pl-3 pr-1.5 py-1 rounded-full"
+                >
+                  {field.name}
+                  <button
+                    type="button"
+                    disabled={fieldBusy}
+                    onClick={() => void handleDeleteField(field)}
+                    className="w-6 h-6 rounded-full text-violet-500 hover:bg-violet-100 hover:text-violet-800 disabled:opacity-50"
+                    aria-label={`${field.name} alanını sil`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {fields.length === 0 && (
+                <span className="text-sm text-amber-700">
+                  Henüz alan yok. Aşağıdan ekleyin.
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 items-center max-w-md">
+            <input
+              type="text"
+              value={newFieldName}
+              onChange={(e) => setNewFieldName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleAddField();
+                }
+              }}
+              placeholder="Yeni alan (örn. TM)"
+              className={inputClass}
+              disabled={fieldBusy}
+            />
+            <button
+              type="button"
+              onClick={() => void handleAddField()}
+              disabled={fieldBusy || !newFieldName.trim()}
+              className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+            >
+              Ekle
+            </button>
           </div>
         </section>
 

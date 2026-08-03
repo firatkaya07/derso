@@ -14,6 +14,7 @@ import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useSettings } from "@/components/SettingsProvider";
+import { useFields } from "@/components/FieldsProvider";
 import SlotPreview from "@/components/SlotPreview";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import { slotTimingOf } from "@/lib/settings";
@@ -28,7 +29,7 @@ import {
   type DayWindow,
 } from "@/lib/slot-management";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
-import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
+import { DAY_NAMES, LEVELS } from "@/lib/types";
 
 interface ClassesData {
   classes: ClassGroup[];
@@ -56,6 +57,7 @@ export default function ClassesPage() {
   const { organizationId } = useOrganization();
   const settings = useSettings();
   const timing = slotTimingOf(settings);
+  const subgroups = useFields();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -524,7 +526,7 @@ export default function ClassesPage() {
         const sgB = b.includes("::") ? b.split("::")[1] : "";
         if (!sgA && sgB) return -1;
         if (sgA && !sgB) return 1;
-        return SUBGROUPS.indexOf(sgA) - SUBGROUPS.indexOf(sgB);
+        return subgroups.indexOf(sgA) - subgroups.indexOf(sgB);
       });
     for (const key of keys) {
       const subgroup = key.includes("::") ? key.split("::")[1] : "";
@@ -735,7 +737,7 @@ export default function ClassesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Alt Grup</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Alan</label>
               <select
                 value={form.subgroup}
                 onChange={(e) => {
@@ -746,7 +748,7 @@ export default function ClassesPage() {
                 className={inputClass}
               >
                 <option value="">Seçilmedi</option>
-                {SUBGROUPS.map((sg) => (
+                {subgroups.map((sg) => (
                   <option key={sg} value={sg}>{sg}</option>
                 ))}
               </select>

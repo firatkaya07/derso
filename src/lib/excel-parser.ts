@@ -12,7 +12,8 @@ import {
   parseTimeCell,
   splitList,
 } from "./excel-template";
-import { DAY_NAMES, LEVELS, SUBGROUPS, SUBJECT_COLORS } from "./types";
+import { DAY_NAMES, LEVELS, SUBJECT_COLORS } from "./types";
+import { DEFAULT_FIELD_NAMES } from "./fields";
 
 export interface ParsedTeacher {
   name: string;
@@ -237,7 +238,8 @@ function parseTeachers(
 
 function parseSubjects(
   workbook: XLSX.WorkBook,
-  issues: IssueCollector
+  issues: IssueCollector,
+  allowedFields: string[]
 ): ParsedSubject[] {
   const table = readTable(workbook, SHEET_NAMES.subjects);
   if (!table) {
@@ -312,12 +314,16 @@ function parseSubjects(
 
     const subgroups = subgroupCol >= 0 ? splitList(row[subgroupCol]) : [];
     const unknownSubgroups = subgroups.filter(
-      (subgroup) => !SUBGROUPS.includes(subgroup.toUpperCase())
+      (subgroup) =>
+        !allowedFields.some(
+          (field) =>
+            field.toLocaleUpperCase("tr-TR") === subgroup.toUpperCase()
+        )
     );
     if (unknownSubgroups.length > 0) {
       issues.warn(
         table.name,
-        `Tanınmayan alan: ${unknownSubgroups.join(", ")}. Geçerli değerler: ${SUBGROUPS.join(", ")}.`,
+        `Tanınmayan alan: ${unknownSubgroups.join(", ")}. Geçerli değerler: ${allowedFields.join(", ")}.`,
         excelRow
       );
     }
@@ -339,7 +345,8 @@ function parseSubjects(
 
 function parseClasses(
   workbook: XLSX.WorkBook,
-  issues: IssueCollector
+  issues: IssueCollector,
+  allowedFields: string[]
 ): ParsedClass[] {
   const table = readTable(workbook, SHEET_NAMES.classes);
   if (!table) {
@@ -388,10 +395,15 @@ function parseClasses(
     }
 
     const subgroup = subgroupCol >= 0 ? text(row[subgroupCol]).toUpperCase() : "";
-    if (subgroup && !SUBGROUPS.includes(subgroup)) {
+    if (
+      subgroup &&
+      !allowedFields.some(
+        (field) => field.toLocaleUpperCase("tr-TR") === subgroup
+      )
+    ) {
       issues.warn(
         table.name,
-        `"${subgroup}" tanınmayan bir alan. Geçerli değerler: ${SUBGROUPS.join(", ")}.`,
+        `"${subgroup}" tanınmayan bir alan. Geçerli değerler: ${allowedFields.join(", ")}.`,
         excelRow
       );
     }
@@ -725,8 +737,14 @@ function applyAssignments(
  * dosyasındaki tüm hataları tek seferde görüp düzeltebilir. `errors` boş
  * değilse içe aktarma yapılmamalıdır.
  */
-export function parseExcelFile(buffer: ArrayBuffer): ParsedWorkbook {
+export function parseExcelFile(
+  buffer: ArrayBuffer,
+  options?: { allowedFields?: string[] }
+): ParsedWorkbook {
   const issues = new IssueCollector();
+  const allowedFields = options?.allowedFields?.length
+    ? options.allowedFields
+    : [...DEFAULT_FIELD_NAMES];
 
   let workbook: XLSX.WorkBook;
   try {
@@ -748,8 +766,8 @@ export function parseExcelFile(buffer: ArrayBuffer): ParsedWorkbook {
   }
 
   const teachers = parseTeachers(workbook, issues);
-  const subjects = parseSubjects(workbook, issues);
-  const classes = parseClasses(workbook, issues);
+  const subjects = parseSubjects(workbook, issues, allowedFields);
+  const classes = parseClasses(workbook, issues, allowedFields);
 
   const teacherLookup = new Map(
     teachers.map((teacher) => [normalizeKey(teacher.name), teacher.name])

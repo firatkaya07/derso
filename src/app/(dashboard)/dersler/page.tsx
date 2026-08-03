@@ -12,9 +12,10 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useOrganization } from "@/components/OrganizationProvider";
+import { useFields } from "@/components/FieldsProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Subject } from "@/lib/types";
-import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS, SUBGROUPS } from "@/lib/types";
+import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS } from "@/lib/types";
 
 function parseCsv(value: string): string[] {
   return value
@@ -31,6 +32,7 @@ export default function SubjectsPage() {
   const supabase = createClient();
   const toast = useToast();
   const { organizationId } = useOrganization();
+  const subgroups = useFields();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -479,10 +481,10 @@ export default function SubjectsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Alt Gruplar
+              Alanlar
             </label>
             <div className="flex flex-wrap gap-2">
-              {SUBGROUPS.map((subgroup) => {
+              {subgroups.map((subgroup) => {
                 const selected = form.subgroups.includes(subgroup);
                 return (
                   <button
@@ -501,7 +503,8 @@ export default function SubjectsPage() {
               })}
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Seçilmezse tüm alt gruplara atanır.
+              Seçilmezse tüm alanlara atanır. Listeyi Genel Tanımlar’dan
+              düzenleyebilirsiniz.
             </p>
           </div>
           <div>

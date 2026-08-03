@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/org";
 import { loadSettings } from "@/lib/settings";
+import { fieldNamesOf, loadFields, DEFAULT_FIELD_NAMES } from "@/lib/fields";
 import { redirect } from "next/navigation";
 import Header from "@/components/Header";
 import { SettingsProvider } from "@/components/SettingsProvider";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
+import { FieldsProvider } from "@/components/FieldsProvider";
 
 export default async function DashboardLayout({
   children,
@@ -18,17 +20,27 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  const settings = await loadSettings(supabase, membership.organizationId);
+  const [settings, fieldRows] = await Promise.all([
+    loadSettings(supabase, membership.organizationId),
+    loadFields(supabase, membership.organizationId).catch(
+      () => [] as Awaited<ReturnType<typeof loadFields>>
+    ),
+  ]);
+
+  const fields =
+    fieldRows.length > 0 ? fieldNamesOf(fieldRows) : [...DEFAULT_FIELD_NAMES];
 
   return (
     <OrganizationProvider membership={membership}>
       <SettingsProvider settings={settings}>
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
-        </div>
+        <FieldsProvider fields={fields}>
+          <div className="min-h-screen bg-gray-50">
+            <Header />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {children}
+            </main>
+          </div>
+        </FieldsProvider>
       </SettingsProvider>
     </OrganizationProvider>
   );
