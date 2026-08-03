@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { autoSchedule, DEFAULT_RULES, type ClassSubjectInput } from "@/lib/scheduler";
+import {
+  autoSchedule,
+  DEFAULT_RULES,
+  type ClassSubjectInput,
+  type GeneratedLesson,
+} from "@/lib/scheduler";
 import {
   makeClass,
   makeScheduleDay,
@@ -9,23 +14,51 @@ import {
 } from "./helpers/fixtures";
 
 /** Bir sınıfın aynı gün ve saatte iki dersi olamaz. */
-function hasClassConflict(
-  lessons: { classId: string; dayOfWeek: number; startTime: string }[]
-): boolean {
+function classConflicts(lessons: GeneratedLesson[]): number {
   const seen = new Set<string>();
+  let conflicts = 0;
   for (const lesson of lessons) {
     const key = `${lesson.classId}:${lesson.dayOfWeek}:${lesson.startTime}`;
-    if (seen.has(key)) return true;
+    if (seen.has(key)) conflicts++;
     seen.add(key);
   }
-  return false;
+  return conflicts;
+}
+
+/** Bir öğretmen aynı anda iki sınıfta olamaz. */
+function teacherConflicts(lessons: GeneratedLesson[]): number {
+  const seen = new Set<string>();
+  let conflicts = 0;
+  for (const lesson of lessons) {
+    if (!lesson.teacherId) continue;
+    const key = `${lesson.teacherId}:${lesson.dayOfWeek}:${lesson.startTime}`;
+    if (seen.has(key)) conflicts++;
+    seen.add(key);
+  }
+  return conflicts;
+}
+
+/** Bir sınıf-ders çiftini birden çok öğretmenin vermesi kabul edilemez. */
+function splitCourses(lessons: GeneratedLesson[]): string[] {
+  const byCourse = new Map<string, Set<string>>();
+  for (const lesson of lessons) {
+    const key = `${lesson.className} - ${lesson.subjectName}`;
+    const set = byCourse.get(key) ?? new Set<string>();
+    set.add(lesson.teacherId);
+    byCourse.set(key, set);
+  }
+  return [...byCourse.entries()]
+    .filter(([, teachers]) => teachers.size > 1)
+    .map(([course]) => course);
 }
 
 describe("autoSchedule", () => {
-  it("tüm haftalık saatleri yerleştirir ve sınıfı çakıştırmaz", () => {
+  it("tüm haftalık saatleri yerleştirir ve öğretmenlerini atar", () => {
     const sinif = makeClass("12-A");
     const matematik = makeSubject("Matematik");
     const turkce = makeSubject("Türkçe");
+    const matOgretmeni = makeTeacher("Mat Öğretmeni");
+    const turOgretmeni = makeTeacher("Türkçe Öğretmeni");
 
     const classSubjects: ClassSubjectInput[] = [
       {
@@ -51,22 +84,91 @@ describe("autoSchedule", () => {
       ],
       [matematik, turkce],
       classSubjects,
-      DEFAULT_RULES
+      DEFAULT_RULES,
+      [
+        makeTeacherSubject(matOgretmeni.id, matematik.id),
+        makeTeacherSubject(turOgretmeni.id, turkce.id),
+      ],
+      [matOgretmeni, turOgretmeni]
     );
 
     expect(result.errors).toEqual([]);
     expect(result.lessons).toHaveLength(7);
-    expect(hasClassConflict(result.lessons)).toBe(false);
-
-    const matematikSaatleri = result.lessons.filter(
-      (lesson) => lesson.subjectId === matematik.id
-    );
-    expect(matematikSaatleri).toHaveLength(4);
+    expect(result.stats.placedHours).toBe(7);
+    expect(result.stats.coverage).toBe(1);
+    expect(classConflicts(result.lessons)).toBe(0);
+    expect(teacherConflicts(result.lessons)).toBe(0);
+    expect(result.lessons.every((lesson) => lesson.teacherId)).toBe(true);
   });
 
-  it("ders günü tanımlanmamış sınıf için hata döndürür", () => {
+  it("bir sınıfın dersini iki öğretmene bölmez", () => {
+    // İki öğretmen de matematik verebiliyor; algoritma sıkışsa bile dersin
+    // saatlerini ikiye bölerek doldurmamalı.
+    const sinif = makeClass("12-A");
+    const matematik = makeSubject("Matematik");
+    const birinci = makeTeacher("Birinci");
+    const ikinci = makeTeacher("İkinci");
+
+    const result = autoSchedule(
+      [sinif],
+      [makeScheduleDay(sinif.id, 0), makeScheduleDay(sinif.id, 2)],
+      [matematik],
+      [
+        {
+          classId: sinif.id,
+          subjectId: matematik.id,
+          subjectName: matematik.name,
+          weeklyHours: 6,
+        },
+      ],
+      DEFAULT_RULES,
+      [
+        makeTeacherSubject(birinci.id, matematik.id),
+        makeTeacherSubject(ikinci.id, matematik.id),
+      ],
+      [birinci, ikinci]
+    );
+
+    expect(splitCourses(result.lessons)).toEqual([]);
+    const teachers = new Set(result.lessons.map((lesson) => lesson.teacherId));
+    expect(teachers.size).toBe(1);
+  });
+
+  it("öğretmen yetmediğinde dersi bölmek yerine açıkta bırakır", () => {
+    // Tek öğretmen, iki sınıfa 4'er saat: sınıflar aynı günlerde ders görüyor
+    // ve öğretmenin toplam müsait süresi 8 saat olsa da her ders tek kişiye
+    // ait olmak zorunda.
+    const a = makeClass("12-A");
+    const b = makeClass("12-B");
+    const matematik = makeSubject("Matematik");
+    const ogretmen = makeTeacher("Tek Öğretmen");
+
+    const result = autoSchedule(
+      [a, b],
+      [makeScheduleDay(a.id, 0), makeScheduleDay(b.id, 0)],
+      [matematik],
+      [a, b].map((cls) => ({
+        classId: cls.id,
+        subjectId: matematik.id,
+        subjectName: matematik.name,
+        weeklyHours: 4,
+      })),
+      DEFAULT_RULES,
+      [makeTeacherSubject(ogretmen.id, matematik.id)],
+      [ogretmen]
+    );
+
+    expect(splitCourses(result.lessons)).toEqual([]);
+    expect(teacherConflicts(result.lessons)).toBe(0);
+    // Bir günde 4 slot var; öğretmen ikisine birden yetişemez.
+    expect(result.stats.placedHours).toBeLessThan(8);
+    expect(result.unplaced.length).toBeGreaterThan(0);
+  });
+
+  it("ders günü tanımlanmamış sınıfı raporlar", () => {
     const sinif = makeClass("11-C");
     const fizik = makeSubject("Fizik");
+    const ogretmen = makeTeacher("Fizik Öğretmeni");
 
     const result = autoSchedule(
       [sinif],
@@ -80,56 +182,47 @@ describe("autoSchedule", () => {
           weeklyHours: 2,
         },
       ],
-      DEFAULT_RULES
-    );
-
-    expect(result.lessons).toEqual([]);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain("Ders günü tanımlanmamış");
-  });
-
-  it("sabit atanmış öğretmeni aynı saatte iki sınıfa koymaz", () => {
-    const a = makeClass("12-A");
-    const b = makeClass("12-B");
-    const matematik = makeSubject("Matematik");
-    const ogretmen = makeTeacher("Ayşe Yılmaz");
-
-    const result = autoSchedule(
-      [a, b],
-      [makeScheduleDay(a.id, 0), makeScheduleDay(b.id, 0)],
-      [matematik],
-      [
-        {
-          classId: a.id,
-          subjectId: matematik.id,
-          subjectName: matematik.name,
-          weeklyHours: 2,
-          teacherId: ogretmen.id,
-        },
-        {
-          classId: b.id,
-          subjectId: matematik.id,
-          subjectName: matematik.name,
-          weeklyHours: 2,
-          teacherId: ogretmen.id,
-        },
-      ],
       DEFAULT_RULES,
-      [makeTeacherSubject(ogretmen.id, matematik.id)],
+      [makeTeacherSubject(ogretmen.id, fizik.id)],
       [ogretmen]
     );
 
-    const slots = result.lessons.map(
-      (lesson) => `${lesson.dayOfWeek}:${lesson.startTime}`
-    );
-    expect(new Set(slots).size).toBe(slots.length);
+    expect(result.lessons).toEqual([]);
+    expect(result.errors.join(" ")).toContain("ders günü tanımlanmamış");
+    expect(result.feasibility.issues[0].kind).toBe("class-capacity");
   });
 
-  it("sabit atanmış öğretmenin izin gününe ders koymaz", () => {
+  it("dersi verebilecek öğretmen yoksa nedenini söyler", () => {
     const sinif = makeClass("12-A");
     const matematik = makeSubject("Matematik");
-    // Pazartesi izinli; sınıf pazartesi ve çarşamba ders görüyor.
-    const ogretmen = makeTeacher("Ayşe Yılmaz", { offDays: [0] });
+
+    const result = autoSchedule(
+      [sinif],
+      [makeScheduleDay(sinif.id, 0)],
+      [matematik],
+      [
+        {
+          classId: sinif.id,
+          subjectId: matematik.id,
+          subjectName: matematik.name,
+          weeklyHours: 2,
+        },
+      ],
+      DEFAULT_RULES,
+      [],
+      []
+    );
+
+    expect(result.lessons).toEqual([]);
+    expect(result.feasibility.issues[0].kind).toBe("no-teacher");
+    expect(result.errors.join(" ")).toContain("öğretmen tanımlı değil");
+  });
+
+  it("sabit atanmış öğretmeni kullanır ve izin gününe ders koymaz", () => {
+    const sinif = makeClass("12-A");
+    const matematik = makeSubject("Matematik");
+    const sabit = makeTeacher("Sabit Öğretmen", { offDays: [0] });
+    const diger = makeTeacher("Diğer Öğretmen");
 
     const result = autoSchedule(
       [sinif],
@@ -141,101 +234,95 @@ describe("autoSchedule", () => {
           subjectId: matematik.id,
           subjectName: matematik.name,
           weeklyHours: 2,
-          teacherId: ogretmen.id,
+          teacherId: sabit.id,
         },
       ],
       DEFAULT_RULES,
-      [makeTeacherSubject(ogretmen.id, matematik.id)],
-      [ogretmen]
+      [
+        makeTeacherSubject(sabit.id, matematik.id),
+        makeTeacherSubject(diger.id, matematik.id),
+      ],
+      [sabit, diger]
     );
 
     expect(result.lessons).toHaveLength(2);
-    expect(result.lessons.every((lesson) => lesson.dayOfWeek !== 0)).toBe(true);
+    expect(result.lessons.every((l) => l.teacherId === sabit.id)).toBe(true);
+    expect(result.lessons.every((l) => l.dayOfWeek !== 0)).toBe(true);
   });
 
-  it("bir dersi aynı anda öğretmen sayısından fazla sınıfa koymaz", () => {
-    const siniflar = [makeClass("A"), makeClass("B"), makeClass("C")];
+  it("aynı öğretmeni aynı saatte iki sınıfa koymaz", () => {
+    const a = makeClass("12-A");
+    const b = makeClass("12-B");
     const matematik = makeSubject("Matematik");
-    // Tek matematik öğretmeni var: aynı saatte yalnızca bir sınıf ders görebilir.
     const ogretmen = makeTeacher("Tek Öğretmen");
 
     const result = autoSchedule(
-      siniflar,
-      siniflar.flatMap((sinif) => [
-        makeScheduleDay(sinif.id, 0),
-        makeScheduleDay(sinif.id, 1),
-        makeScheduleDay(sinif.id, 2),
-      ]),
+      [a, b],
+      [
+        makeScheduleDay(a.id, 0),
+        makeScheduleDay(a.id, 2),
+        makeScheduleDay(b.id, 0),
+        makeScheduleDay(b.id, 2),
+      ],
       [matematik],
-      siniflar.map((sinif) => ({
-        classId: sinif.id,
+      [a, b].map((cls) => ({
+        classId: cls.id,
         subjectId: matematik.id,
         subjectName: matematik.name,
         weeklyHours: 2,
+        teacherId: ogretmen.id,
       })),
       DEFAULT_RULES,
       [makeTeacherSubject(ogretmen.id, matematik.id)],
       [ogretmen]
     );
 
-    const perSlot = new Map<string, number>();
-    for (const lesson of result.lessons) {
-      const key = `${lesson.dayOfWeek}:${lesson.startTime}`;
-      perSlot.set(key, (perSlot.get(key) ?? 0) + 1);
-    }
-    expect(Math.max(...perSlot.values())).toBe(1);
+    expect(teacherConflicts(result.lessons)).toBe(0);
+    expect(result.stats.placedHours).toBe(4);
   });
 
-  it("aynı tohum aynı sonucu üretir", () => {
+  it("eşli dersleri aynı sınıfta farklı öğretmenlere verir", () => {
     const sinif = makeClass("12-A");
-    const matematik = makeSubject("Matematik");
-    const turkce = makeSubject("Türkçe");
-    const scheduleDays = [
-      makeScheduleDay(sinif.id, 0),
-      makeScheduleDay(sinif.id, 2),
-    ];
-    const classSubjects: ClassSubjectInput[] = [
-      {
+    const turkce = makeSubject("TÜRKÇE");
+    const edebiyat = makeSubject("EDEBİYAT");
+    const birinci = makeTeacher("Birinci");
+    const ikinci = makeTeacher("İkinci");
+
+    const result = autoSchedule(
+      [sinif],
+      [makeScheduleDay(sinif.id, 0), makeScheduleDay(sinif.id, 2)],
+      [turkce, edebiyat],
+      [turkce, edebiyat].map((subject) => ({
         classId: sinif.id,
-        subjectId: matematik.id,
-        subjectName: matematik.name,
-        weeklyHours: 3,
-      },
-      {
-        classId: sinif.id,
-        subjectId: turkce.id,
-        subjectName: turkce.name,
+        subjectId: subject.id,
+        subjectName: subject.name,
         weeklyHours: 2,
-      },
-    ];
-
-    const first = autoSchedule(
-      [sinif],
-      scheduleDays,
-      [matematik, turkce],
-      classSubjects,
+      })),
       DEFAULT_RULES,
-      undefined,
-      undefined,
-      7
-    );
-    const second = autoSchedule(
-      [sinif],
-      scheduleDays,
-      [matematik, turkce],
-      classSubjects,
-      DEFAULT_RULES,
-      undefined,
-      undefined,
-      7
+      [
+        makeTeacherSubject(birinci.id, turkce.id),
+        makeTeacherSubject(birinci.id, edebiyat.id),
+        makeTeacherSubject(ikinci.id, turkce.id),
+        makeTeacherSubject(ikinci.id, edebiyat.id),
+      ],
+      [birinci, ikinci]
     );
 
-    expect(first.lessons).toEqual(second.lessons);
+    const turkceTeacher = result.lessons.find(
+      (l) => l.subjectId === turkce.id
+    )?.teacherId;
+    const edebiyatTeacher = result.lessons.find(
+      (l) => l.subjectId === edebiyat.id
+    )?.teacherId;
+    expect(turkceTeacher).toBeTruthy();
+    expect(edebiyatTeacher).toBeTruthy();
+    expect(turkceTeacher).not.toBe(edebiyatTeacher);
   });
 
   it("bölme kuralına göre dersi arka arkaya bloklara yerleştirir", () => {
     const sinif = makeClass("12-A");
     const matematik = makeSubject("Matematik");
+    const ogretmen = makeTeacher("Mat Öğretmeni");
 
     const result = autoSchedule(
       [sinif],
@@ -249,7 +336,9 @@ describe("autoSchedule", () => {
           weeklyHours: 2,
         },
       ],
-      { splitRules: { 2: [2] } }
+      { splitRules: { 2: [2] } },
+      [makeTeacherSubject(ogretmen.id, matematik.id)],
+      [ogretmen]
     );
 
     expect(result.lessons).toHaveLength(2);
@@ -257,8 +346,45 @@ describe("autoSchedule", () => {
       a.startTime.localeCompare(b.startTime)
     );
     expect(first.dayOfWeek).toBe(second.dayOfWeek);
-    // 40 dakika ders + 10 dakika teneffüs: bloklar bitişik olmalı.
-    expect(first.endTime).not.toBe(second.startTime);
+    // 40 dakika ders + 10 dakika teneffüs: ikinci saat birincinin hemen ardından.
     expect(second.startTime > first.endTime).toBe(true);
+  });
+
+  it("aynı tohum aynı sonucu üretir", () => {
+    const sinif = makeClass("12-A");
+    const matematik = makeSubject("Matematik");
+    const turkce = makeSubject("Türkçe");
+    const matOgretmeni = makeTeacher("Mat");
+    const turOgretmeni = makeTeacher("Tür");
+
+    const run = () =>
+      autoSchedule(
+        [sinif],
+        [makeScheduleDay(sinif.id, 0), makeScheduleDay(sinif.id, 2)],
+        [matematik, turkce],
+        [
+          {
+            classId: sinif.id,
+            subjectId: matematik.id,
+            subjectName: matematik.name,
+            weeklyHours: 3,
+          },
+          {
+            classId: sinif.id,
+            subjectId: turkce.id,
+            subjectName: turkce.name,
+            weeklyHours: 2,
+          },
+        ],
+        DEFAULT_RULES,
+        [
+          makeTeacherSubject(matOgretmeni.id, matematik.id),
+          makeTeacherSubject(turOgretmeni.id, turkce.id),
+        ],
+        [matOgretmeni, turOgretmeni],
+        7
+      );
+
+    expect(run().lessons).toEqual(run().lessons);
   });
 });
