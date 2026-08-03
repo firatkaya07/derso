@@ -168,8 +168,7 @@ export default function ProgramPage() {
         const subject = cs.subject as Subject;
         const teacher = cs.teacher as Teacher | undefined;
         const placed = lessons.filter(
-          (l) =>
-            l.subject_id === cs.subject_id && l.teacher_id === cs.teacher_id
+          (l) => l.subject_id === cs.subject_id
         ).length;
         return {
           subjectId: cs.subject_id,
