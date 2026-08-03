@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import Modal from "@/components/Modal";
 import type { Subject } from "@/lib/types";
 import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS, SUBGROUPS } from "@/lib/types";
@@ -137,23 +138,20 @@ export default function SubjectsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Dersler</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-lg font-bold text-gray-900">Dersler</h1>
+        </div>
         <button
           onClick={openCreate}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-2"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Ders Ekle
         </button>
@@ -183,7 +181,7 @@ export default function SubjectsPage() {
             onClick={() => setLevelFilter(tab)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
               levelFilter === tab
-                ? "bg-blue-600 text-white"
+                ? "bg-teal-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -201,7 +199,7 @@ export default function SubjectsPage() {
           <p className="text-gray-500">Henüz ders eklenmemiş.</p>
           <button
             onClick={openCreate}
-            className="text-blue-600 hover:underline mt-2 text-sm"
+            className="text-teal-600 hover:underline mt-2 text-sm"
           >
             İlk dersi ekleyin
           </button>
@@ -239,7 +237,7 @@ export default function SubjectsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEdit(subject)}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
+                    className="text-teal-600 hover:text-teal-800 text-sm"
                   >
                     Düzenle
                   </button>
@@ -256,7 +254,7 @@ export default function SubjectsPage() {
                   {subject.level && subject.level.split(",").map((l) => (
                     <span
                       key={l}
-                      className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full"
+                      className="inline-block bg-teal-50 text-teal-700 text-xs px-2 py-0.5 rounded-full"
                     >
                       {l.trim() === "Mezun"
                         ? "Mezun"
@@ -292,7 +290,7 @@ export default function SubjectsPage() {
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
               placeholder="Örnek: Matematik"
               required
             />
@@ -311,7 +309,7 @@ export default function SubjectsPage() {
                     short_name: e.target.value.slice(0, 5),
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
                 placeholder="Örnek: Mat"
                 maxLength={5}
               />
@@ -328,7 +326,7 @@ export default function SubjectsPage() {
               type="text"
               value={form.level}
               onChange={(e) => setForm({ ...form, level: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
               placeholder="1,2,3,4,5,6,7,8,9,10,11,12"
             />
             <p className="text-xs text-gray-400 mt-1">
@@ -340,7 +338,7 @@ export default function SubjectsPage() {
                   key={preset.label}
                   type="button"
                   onClick={() => setForm({ ...form, level: preset.levels })}
-                  className="px-3 py-1 text-xs font-medium border border-blue-200 text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+                  className="px-3 py-1 text-xs font-medium border border-teal-200 text-teal-600 rounded-full hover:bg-teal-50 transition-colors"
                 >
                   {preset.label}
                 </button>
@@ -355,7 +353,7 @@ export default function SubjectsPage() {
                       : "Mezun",
                   })
                 }
-                className="px-3 py-1 text-xs font-medium border border-blue-200 text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+                className="px-3 py-1 text-xs font-medium border border-teal-200 text-teal-600 rounded-full hover:bg-teal-50 transition-colors"
               >
                 + Mezun
               </button>
@@ -415,7 +413,7 @@ export default function SubjectsPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
             >
               {editingSubject ? "Kaydet" : "Ekle"}
             </button>

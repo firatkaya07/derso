@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import Modal from "@/components/Modal";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
@@ -274,7 +275,7 @@ export default function ClassesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => openEdit(cls)}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className="text-teal-600 hover:text-teal-800 text-sm"
             >
               Düzenle
             </button>
@@ -300,10 +301,10 @@ export default function ClassesPage() {
             {days.map((d) => (
               <span
                 key={d.id}
-                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full"
+                className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs font-medium px-2.5 py-1 rounded-full"
               >
                 {DAY_NAMES[d.day_of_week]}
-                <span className="text-blue-500">
+                <span className="text-teal-500">
                   {d.start_time.slice(0, 5)}-{d.end_time.slice(0, 5)}
                 </span>
               </span>
@@ -313,7 +314,7 @@ export default function ClassesPage() {
 
         <button
           onClick={() => openSchedule(cls)}
-          className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="mt-3 text-sm text-teal-600 hover:text-teal-800 font-medium"
         >
           Ders Günlerini Ayarla
         </button>
@@ -324,10 +325,17 @@ export default function ClassesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Sınıflar</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-lg font-bold text-gray-900">Sınıflar</h1>
+        </div>
         <button
           onClick={openCreate}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -349,7 +357,7 @@ export default function ClassesPage() {
             onClick={() => setLevelFilter(tab)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
               levelFilter === tab
-                ? "bg-blue-600 text-white"
+                ? "bg-teal-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -361,7 +369,7 @@ export default function ClassesPage() {
       {classes.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <p className="text-gray-500">Henüz sınıf eklenmemiş.</p>
-          <button onClick={openCreate} className="text-blue-600 hover:underline mt-2 text-sm">
+          <button onClick={openCreate} className="text-teal-600 hover:underline mt-2 text-sm">
             İlk sınıfı ekleyin
           </button>
         </div>
@@ -407,7 +415,7 @@ export default function ClassesPage() {
                   setForm((f) => ({ ...f, level: newLevel }));
                   setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, newLevel, form.subgroup));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
               >
                 <option value="">Seçilmedi</option>
                 {LEVELS.map((level) => (
@@ -426,7 +434,7 @@ export default function ClassesPage() {
                   setForm((f) => ({ ...f, subgroup: newSubgroup }));
                   setClassSubjectEdits(buildClassSubjectEdits(editingClass?.id || null, form.level, newSubgroup));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
               >
                 <option value="">Seçilmedi</option>
                 {SUBGROUPS.map((sg) => (
@@ -440,7 +448,7 @@ export default function ClassesPage() {
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
                 placeholder="Örnek: 12-A"
                 required
               />
@@ -451,7 +459,7 @@ export default function ClassesPage() {
                 type="text"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-900"
                 placeholder="Sabah grubu"
               />
             </div>
@@ -527,7 +535,7 @@ export default function ClassesPage() {
                               onChange={(e) =>
                                 updateClassSubject(idx, "teacher_id", e.target.value || null)
                               }
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                             >
                               <option value="">- Yok -</option>
                               {getTeachersForSubject(cs.subject_id).map((t) => (
@@ -560,7 +568,7 @@ export default function ClassesPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
             >
               {editingClass ? "Güncelle" : "Ekle"}
             </button>
@@ -586,7 +594,7 @@ export default function ClassesPage() {
               key={config.day}
               className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                 config.enabled
-                  ? "bg-blue-50 border-blue-200"
+                  ? "bg-teal-50 border-teal-200"
                   : "bg-gray-50 border-gray-200"
               }`}
             >
@@ -598,7 +606,7 @@ export default function ClassesPage() {
                   updated[idx] = { ...config, enabled: e.target.checked };
                   setDayConfigs(updated);
                 }}
-                className="w-4 h-4 text-blue-600 rounded"
+                className="w-4 h-4 text-teal-600 rounded"
               />
               <span className="w-24 text-sm font-medium text-gray-700">
                 {DAY_NAMES[config.day]}
@@ -634,7 +642,7 @@ export default function ClassesPage() {
           <div className="flex gap-3 pt-3">
             <button
               onClick={handleSaveSchedule}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
             >
               Kaydet
             </button>

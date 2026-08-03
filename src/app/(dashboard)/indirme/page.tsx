@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import { generateTimeSlots } from "@/lib/types";
 import {
   prepareLessons,
@@ -185,10 +186,15 @@ export default function IndirmePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        Program İndirme
-      </h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
+        <h1 className="text-lg font-bold text-gray-900">Program İndirme</h1>
+      </div>
+      <p className="text-sm text-gray-500 mb-6 ml-7">
         Oluşturulan ders programını PDF formatında indirin.
       </p>
 
