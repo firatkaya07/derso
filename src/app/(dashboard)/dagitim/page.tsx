@@ -455,7 +455,7 @@ export default function DagitimPage() {
           <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
             <div
               className="bg-blue-600 h-1.5 rounded-full transition-all"
-              style={{ width: `${attemptLogs.length}%` }}
+              style={{ width: `${Math.min(100, (attemptLogs.length / maxRetries) * 100)}%` }}
             />
           </div>
           <div className="max-h-48 overflow-y-auto text-xs font-mono space-y-0.5">
