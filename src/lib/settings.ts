@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { throwIfDbError } from "./db-error";
+import { isMissingRelationError, throwIfDbError } from "./db-error";
 import { DEFAULT_SLOT_TIMING, type SlotTiming } from "./types";
 
 /** Kurum geneli tanımlar. Veritabanında tek satır olarak tutulur. */
@@ -90,6 +90,19 @@ export async function loadSettings(
   if (result.error) return DEFAULT_SETTINGS;
   if (!result.data) return DEFAULT_SETTINGS;
   return fromRow(result.data as unknown as SettingsRow);
+}
+
+/**
+ * `settings` tablosunun API şemasında görünüp görünmediğini kontrol eder.
+ * Migration henüz uygulanmamışsa `missing` döner.
+ */
+export async function probeSettingsTable(
+  supabase: SupabaseClient
+): Promise<"ok" | "missing" | "error"> {
+  const result = await supabase.from("settings").select("id").limit(1);
+  if (!result.error) return "ok";
+  if (isMissingRelationError(result.error)) return "missing";
+  return "error";
 }
 
 export async function saveSettings(

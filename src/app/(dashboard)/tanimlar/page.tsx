@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,9 +11,11 @@ import {
   academicYearLabel,
   locationLabel,
   LOGO_SIZE,
+  probeSettingsTable,
   saveSettings,
   type AppSettings,
 } from "@/lib/settings";
+import { SETTINGS_SETUP_SQL } from "@/lib/settings-setup-sql";
 import { LOGO_ACCEPTED_TYPES, resizeImageToSquareDataUrl } from "@/lib/image";
 import { generateTimeSlots } from "@/lib/types";
 
@@ -30,6 +32,29 @@ export default function GenelTanimlarPage() {
   const [form, setForm] = useState<AppSettings>(initial);
   const [saving, setSaving] = useState(false);
   const [processingLogo, setProcessingLogo] = useState(false);
+  const [tableMissing, setTableMissing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void probeSettingsTable(supabase).then((status) => {
+      if (!cancelled) setTableMissing(status === "missing");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  const copySetupSql = async () => {
+    try {
+      await navigator.clipboard.writeText(SETTINGS_SETUP_SQL);
+      setCopiedSql(true);
+      toast.success("SQL panoya kopyalandı.");
+      window.setTimeout(() => setCopiedSql(false), 2000);
+    } catch {
+      toast.error("SQL kopyalanamadı. Metni elle seçip kopyalayın.");
+    }
+  };
 
   const update = <K extends keyof AppSettings>(
     key: K,
@@ -128,12 +153,59 @@ export default function GenelTanimlarPage() {
         </div>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || tableMissing}
           className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
         >
           {saving ? "Kaydediliyor..." : "Kaydet"}
         </button>
       </div>
+
+      {tableMissing && (
+        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+          <p className="font-semibold text-amber-900">
+            settings tablosu veritabanında yok
+          </p>
+          <p className="mt-1 text-amber-800">
+            Genel tanımları kaydetmek için Supabase SQL Editor&apos;de aşağıdaki
+            SQL&apos;i bir kez çalıştırın; ardından bu sayfayı yenileyin.
+          </p>
+          <ol className="mt-3 list-decimal list-inside space-y-1 text-amber-800">
+            <li>Supabase paneli → SQL Editor → New query</li>
+            <li>SQL&apos;i yapıştırıp Run</li>
+            <li>Bu sayfayı yenileyip Kaydet</li>
+          </ol>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copySetupSql()}
+              className="px-3 py-1.5 rounded-lg bg-amber-900 text-white text-xs font-medium hover:bg-amber-800"
+            >
+              {copiedSql ? "Kopyalandı" : "SQL’i kopyala"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void probeSettingsTable(supabase).then((status) => {
+                  setTableMissing(status === "missing");
+                  if (status === "ok") {
+                    toast.success("settings tablosu hazır. Artık kaydedebilirsiniz.");
+                  } else if (status === "missing") {
+                    toast.error("Tablo hâlâ görünmüyor. SQL’i çalıştırıp birkaç saniye bekleyin.");
+                  } else {
+                    toast.error("Tablo kontrolü başarısız. Oturumunuzu kontrol edin.");
+                  }
+                });
+              }}
+              className="px-3 py-1.5 rounded-lg border border-amber-400 bg-white text-amber-900 text-xs font-medium hover:bg-amber-100"
+            >
+              Tekrar kontrol et
+            </button>
+          </div>
+          <pre className="mt-3 max-h-48 overflow-auto rounded-lg bg-white/80 border border-amber-200 p-3 text-[11px] leading-relaxed text-gray-800 whitespace-pre-wrap">
+            {SETTINGS_SETUP_SQL}
+          </pre>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <section className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">

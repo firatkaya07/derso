@@ -44,7 +44,7 @@ hatayla durur.
 
 ## Veritabanı
 
-Şema `supabase/migrations` altındadır ve iki dosyadan oluşur:
+Şema `supabase/migrations` altındadır:
 
 | Dosya | İçerik |
 | --- | --- |
@@ -55,6 +55,11 @@ hatayla durur.
 Yeni bir Supabase projesinde dosyaları sırayla SQL Editor'e yapıştırıp
 çalıştırmanız yeterlidir. Supabase CLI kullanıyorsanız `supabase db push`
 komutu da aynı işi yapar.
+
+**Genel Tanımlar** sayfası `0003_settings.sql` olmadan kaydedilemez. Daha önce
+yalnızca `0001` / `0002` çalıştırdıysanız, Supabase SQL Editor'de
+`0003_settings.sql` içeriğini bir kez daha çalıştırmanız gerekir. Tablo yokken
+görülen tipik hata: `Could not find the table 'public.settings' in the schema cache`.
 
 Ardından uygulamayı kullanacak kişiler için Supabase panelinden
 (Authentication > Users) hesap açın; alternatif olarak

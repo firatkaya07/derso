@@ -26,8 +26,25 @@ const CODE_MESSAGES: Record<string, string> = {
   "23503": "Bu kayıt başka kayıtlarla ilişkili olduğu için işlem yapılamadı.",
   "23514": "Girilen değerler geçerli aralıkta değil.",
   "42501": "Bu işlem için yetkiniz yok. Oturumunuz düşmüş olabilir.",
+  PGRST205: "İstenen tablo veritabanında bulunamadı. Eksik migration çalıştırılmış olabilir.",
   PGRST301: "Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın.",
 };
+
+/** PostgREST / Postgres "tablo yok" hatalarını yakalar. */
+export function isMissingRelationError(error: PostgrestError | Error): boolean {
+  const pgError = error as PostgrestError;
+  const haystack = `${pgError.message ?? ""} ${pgError.details ?? ""} ${
+    "code" in error ? String(pgError.code ?? "") : ""
+  }`.toLowerCase();
+
+  return (
+    pgError.code === "PGRST205" ||
+    pgError.code === "42P01" ||
+    haystack.includes("schema cache") ||
+    haystack.includes("does not exist") ||
+    haystack.includes("could not find the table")
+  );
+}
 
 /** Supabase hatasını kullanıcıya gösterilebilir bir Türkçe mesaja çevirir. */
 export function describeDbError(error: PostgrestError | Error): string {
@@ -40,6 +57,20 @@ export function describeDbError(error: PostgrestError | Error): string {
 
   for (const [constraint, message] of Object.entries(CONSTRAINT_MESSAGES)) {
     if (haystack.includes(constraint)) return message;
+  }
+
+  if (isMissingRelationError(pgError)) {
+    if (/settings/i.test(haystack)) {
+      return (
+        "settings tablosu henüz oluşturulmamış. Supabase SQL Editor'de " +
+        "supabase/migrations/0003_settings.sql dosyasını çalıştırın; ardından " +
+        "bu sayfayı yenileyip tekrar kaydedin."
+      );
+    }
+    return (
+      "İstenen tablo veritabanında bulunamadı. Supabase SQL Editor'de " +
+      "supabase/migrations altındaki SQL dosyalarını sırayla çalıştırın."
+    );
   }
 
   const byCode = pgError.code ? CODE_MESSAGES[pgError.code] : undefined;

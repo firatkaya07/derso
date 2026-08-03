@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { describeDbError, isMissingRelationError } from "@/lib/db-error";
 import {
   academicYearLabel,
   DEFAULT_SETTINGS,
@@ -6,11 +7,31 @@ import {
   slotTimingOf,
   type AppSettings,
 } from "@/lib/settings";
+import { SETTINGS_SETUP_SQL } from "@/lib/settings-setup-sql";
 import { generateTimeSlots } from "@/lib/types";
 
 function settings(overrides: Partial<AppSettings> = {}): AppSettings {
   return { ...DEFAULT_SETTINGS, ...overrides };
 }
+
+describe("settings tablosu eksikliği", () => {
+  it("schema cache hatasını tanır", () => {
+    const error = {
+      message: "Could not find the table 'public.settings' in the schema cache",
+      details: null,
+      hint: null,
+      code: "PGRST205",
+      name: "PostgrestError",
+    };
+    expect(isMissingRelationError(error)).toBe(true);
+    expect(describeDbError(error)).toMatch(/0003_settings\.sql/);
+  });
+
+  it("kurulum SQL'i settings tablosunu oluşturur", () => {
+    expect(SETTINGS_SETUP_SQL).toContain("create table if not exists public.settings");
+    expect(SETTINGS_SETUP_SQL).toContain("settings_authenticated_all");
+  });
+});
 
 describe("locationLabel", () => {
   it("il ve ilçeyi birleştirir", () => {
