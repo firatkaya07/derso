@@ -100,10 +100,10 @@ erişim reddedilir.
    gerekir; "Branş" alanı yalnızca bilgi amaçlıdır.
 3. **Sınıflar** — Şubeler, her şubenin hangi gün hangi saatler arasında ders
    gördüğü ve haftalık ders dağılımı.
-4. **Otomatik Dağıtım** — Yukarıdaki üç adımı Excel ile toplu doldurma ve
-   programı otomatik oluşturma.
-5. **Sınıf / Öğretmen Programları** — Oluşan programı elle düzenleme.
-6. **Program Çıktıları** — Yazdırılabilir çarşaf listeleri ve resmî formatta
+4. **Excel İçe Aktarma** — Yukarıdaki üç adımı Excel şablonuyla toplu doldurma.
+5. **Otomatik Dağıtım** — Kurallara göre haftalık programı otomatik oluşturma.
+6. **Sınıf / Öğretmen Programları** — Oluşan programı elle düzenleme.
+7. **Program Çıktıları** — Yazdırılabilir çarşaf listeleri ve resmî formatta
    sınıf/öğretmen programları.
 
 Ders saati varsayılan olarak 40 dakika, teneffüs 10 dakikadır; ikisi de Genel
@@ -112,7 +112,7 @@ girilen başlangıç saatinden itibaren bu sürelere göre otomatik hesaplanır.
 
 ## Excel şablonu
 
-Otomatik Dağıtım sayfasındaki **Şablonu İndir** düğmesi, örnek satırlarla
+**Excel İçe Aktarma** sayfasındaki **Şablonu İndir** düğmesi, örnek satırlarla
 doldurulmuş bir `.xlsx` üretir. Her sayfa bir veri kümesine karşılık gelir:
 
 | Sayfa | Beslediği veri | Zorunlu sütunlar |
