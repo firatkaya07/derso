@@ -3,12 +3,39 @@
 import { useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { signUpEnabled } from "@/lib/env";
 import { useRouter } from "next/navigation";
+
+/**
+ * Supabase'in İngilizce hata mesajlarını kullanıcının anlayacağı karşılıklara
+ * çevirir. Eşleşmeyen durumlarda genel bir mesaj gösterilir; kimlik doğrulama
+ * hatalarında ayrıntı vermek hesap sızdırmaya yarayabilir.
+ */
+function describeAuthError(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid login credentials")) {
+    return "E-posta veya şifre hatalı.";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "E-posta adresiniz henüz doğrulanmamış. Gelen kutunuzu kontrol edin.";
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many")) {
+    return "Çok fazla deneme yapıldı. Bir süre sonra tekrar deneyin.";
+  }
+  if (normalized.includes("already registered")) {
+    return "Bu e-posta ile kayıtlı bir hesap zaten var.";
+  }
+  if (normalized.includes("password")) {
+    return "Şifre en az 6 karakter olmalı.";
+  }
+  return "Giriş yapılamadı. Lütfen tekrar deneyin.";
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -16,15 +43,16 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      setError("E-posta veya şifre hatalı");
+    if (signInError) {
+      setError(describeAuthError(signInError.message));
       setLoading(false);
       return;
     }
@@ -35,15 +63,16 @@ export default function LoginPage() {
 
   const handleSignUp = async () => {
     setError("");
+    setNotice("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(describeAuthError(signUpError.message));
       setLoading(false);
       return;
     }
@@ -54,7 +83,7 @@ export default function LoginPage() {
     });
 
     if (loginError) {
-      setError("Kayıt başarılı! Lütfen giriş yapın.");
+      setNotice("Hesap oluşturuldu. Şimdi giriş yapabilirsiniz.");
       setLoading(false);
       return;
     }
@@ -108,6 +137,12 @@ export default function LoginPage() {
             </div>
           )}
 
+          {notice && (
+            <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm">
+              {notice}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -116,14 +151,16 @@ export default function LoginPage() {
             {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
 
-          <button
-            type="button"
-            onClick={handleSignUp}
-            disabled={loading}
-            className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Yeni Hesap Oluştur
-          </button>
+          {signUpEnabled && (
+            <button
+              type="button"
+              onClick={handleSignUp}
+              disabled={loading}
+              className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Yeni Hesap Oluştur
+            </button>
+          )}
         </form>
       </div>
     </div>

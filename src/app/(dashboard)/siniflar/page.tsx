@@ -1,56 +1,91 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Modal from "@/components/Modal";
+import { useAsyncData } from "@/hooks/use-async-data";
+import { useToast } from "@/components/Toast";
+import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
 
+interface ClassesData {
+  classes: ClassGroup[];
+  scheduleDays: ClassScheduleDay[];
+  classSubjects: ClassSubject[];
+  subjects: Subject[];
+  teachers: Teacher[];
+  teacherSubjects: TeacherSubject[];
+}
+
+interface ClassSubjectEdit {
+  id: string;
+  subject_id: string;
+  weekly_hours: number;
+  teacher_id: string | null;
+  subject?: Subject;
+}
+
 export default function ClassesPage() {
   const supabase = createClient();
-  const [classes, setClasses] = useState<ClassGroup[]>([]);
-  const [scheduleDays, setScheduleDays] = useState<ClassScheduleDay[]>([]);
-  const [allClassSubjects, setAllClassSubjects] = useState<ClassSubject[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [form, setForm] = useState({ name: "", description: "", level: "", subgroup: "" });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
-  const [classSubjectEdits, setClassSubjectEdits] = useState<
-    { id: string; subject_id: string; weekly_hours: number; teacher_id: string | null; subject?: Subject }[]
-  >([]);
+  const [classSubjectEdits, setClassSubjectEdits] = useState<ClassSubjectEdit[]>(
+    []
+  );
   const [dayConfigs, setDayConfigs] = useState<
     { day: number; enabled: boolean; startTime: string; endTime: string }[]
   >([]);
 
-  const fetchData = useCallback(async () => {
-    const [{ data: classData }, { data: scheduleData }, { data: csData }, { data: subjectData }, { data: teacherData }, { data: tsData }] =
-      await Promise.all([
-        supabase.from("classes").select("*").order("name"),
-        supabase.from("class_schedule_days").select("*"),
-        supabase.from("class_subjects").select("*, subject:subjects(*), teacher:teachers(*)"),
-        supabase.from("subjects").select("*").order("name"),
-        supabase.from("teachers").select("*").order("name"),
-        supabase.from("teacher_subjects").select("*"),
-      ]);
-    setClasses(classData || []);
-    setScheduleDays(scheduleData || []);
-    setAllClassSubjects(csData || []);
-    setSubjects(subjectData || []);
-    setTeachers(teacherData || []);
-    setTeacherSubjects(tsData || []);
-    setLoading(false);
+  const load = useCallback(async (): Promise<ClassesData> => {
+    const [
+      classResult,
+      dayResult,
+      csResult,
+      subjectResult,
+      teacherResult,
+      tsResult,
+    ] = await Promise.all([
+      supabase.from("classes").select("*").order("name"),
+      supabase.from("class_schedule_days").select("*"),
+      supabase
+        .from("class_subjects")
+        .select("*, subject:subjects(*), teacher:teachers(*)"),
+      supabase.from("subjects").select("*").order("name"),
+      supabase.from("teachers").select("*").order("name"),
+      supabase.from("teacher_subjects").select("*"),
+    ]);
+    throwIfDbError(classResult, "Sınıflar okunamadı");
+    throwIfDbError(dayResult, "Ders günleri okunamadı");
+    throwIfDbError(csResult, "Sınıf dersleri okunamadı");
+    throwIfDbError(subjectResult, "Dersler okunamadı");
+    throwIfDbError(teacherResult, "Öğretmenler okunamadı");
+    throwIfDbError(tsResult, "Öğretmen dersleri okunamadı");
+
+    return {
+      classes: classResult.data ?? [],
+      scheduleDays: dayResult.data ?? [],
+      classSubjects: csResult.data ?? [],
+      subjects: subjectResult.data ?? [],
+      teachers: teacherResult.data ?? [],
+      teacherSubjects: tsResult.data ?? [],
+    };
   }, [supabase]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, error, loading, reload } = useAsyncData(load);
+  const classes = useMemo(() => data?.classes ?? [], [data]);
+  const scheduleDays = useMemo(() => data?.scheduleDays ?? [], [data]);
+  const allClassSubjects = useMemo(() => data?.classSubjects ?? [], [data]);
+  const subjects = useMemo(() => data?.subjects ?? [], [data]);
+  const teachers = useMemo(() => data?.teachers ?? [], [data]);
+  const teacherSubjects = useMemo(() => data?.teacherSubjects ?? [], [data]);
 
   const openCreate = () => {
     setEditingClass(null);
@@ -115,70 +150,141 @@ export default function ClassesPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      name: form.name,
-      description: form.description || null,
-      level: form.level || null,
-      subgroup: form.subgroup || null,
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim() || null,
+        level: form.level || null,
+        subgroup: form.subgroup || null,
+      };
 
-    let classId: string;
-
-    if (editingClass) {
-      await supabase.from("classes").update(data).eq("id", editingClass.id);
-      classId = editingClass.id;
-    } else {
-      const { data: inserted } = await supabase
-        .from("classes")
-        .insert(data)
-        .select("id")
-        .single();
-      if (!inserted) return;
-      classId = inserted.id;
-    }
-
-    for (const cs of classSubjectEdits) {
-      await supabase
-        .from("class_subjects")
-        .upsert(
-          { class_id: classId, subject_id: cs.subject_id, weekly_hours: cs.weekly_hours, teacher_id: cs.teacher_id },
-          { onConflict: "class_id,subject_id" }
+      let classId: string;
+      if (editingClass) {
+        throwIfDbError(
+          await supabase
+            .from("classes")
+            .update(payload)
+            .eq("id", editingClass.id),
+          "Sınıf güncellenemedi"
         );
-    }
+        classId = editingClass.id;
+      } else {
+        const result = await supabase
+          .from("classes")
+          .insert(payload)
+          .select("id")
+          .single();
+        throwIfDbError(result, "Sınıf eklenemedi");
+        classId = result.data!.id;
+      }
 
-    setModalOpen(false);
-    fetchData();
+      if (classSubjectEdits.length > 0) {
+        throwIfDbError(
+          await supabase.from("class_subjects").upsert(
+            classSubjectEdits.map((cs) => ({
+              class_id: classId,
+              subject_id: cs.subject_id,
+              weekly_hours: cs.weekly_hours,
+              teacher_id: cs.teacher_id,
+            })),
+            { onConflict: "class_id,subject_id" }
+          ),
+          "Sınıf dersleri kaydedilemedi"
+        );
+      }
+
+      // Seviye/alan değişince listeden düşen dersleri temizle. Saati girilmiş
+      // dersler korunur; kullanıcı emeğini sessizce silmemek gerekir.
+      const keptSubjectIds = new Set(
+        classSubjectEdits.map((cs) => cs.subject_id)
+      );
+      const staleIds = allClassSubjects
+        .filter(
+          (cs) =>
+            cs.class_id === classId &&
+            !keptSubjectIds.has(cs.subject_id) &&
+            cs.weekly_hours === 0
+        )
+        .map((cs) => cs.id);
+
+      if (staleIds.length > 0) {
+        throwIfDbError(
+          await supabase.from("class_subjects").delete().in("id", staleIds),
+          "Eşleşmeyen dersler kaldırılamadı"
+        );
+      }
+
+      setModalOpen(false);
+      reload();
+      toast.success(editingClass ? "Sınıf güncellendi." : "Sınıf eklendi.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveSchedule = async () => {
     if (!selectedClass) return;
 
-    await supabase
-      .from("class_schedule_days")
-      .delete()
-      .eq("class_id", selectedClass.id);
-
-    const enabledDays = dayConfigs.filter((d) => d.enabled);
-    if (enabledDays.length > 0) {
-      await supabase.from("class_schedule_days").insert(
-        enabledDays.map((d) => ({
-          class_id: selectedClass.id,
-          day_of_week: d.day,
-          start_time: d.startTime,
-          end_time: d.endTime,
-        }))
+    const enabledDays = dayConfigs.filter((day) => day.enabled);
+    const invalid = enabledDays.find((day) => day.endTime <= day.startTime);
+    if (invalid) {
+      toast.error(
+        `${DAY_NAMES[invalid.day]}: bitiş saati başlangıç saatinden sonra olmalı.`
       );
+      return;
     }
 
-    setScheduleModalOpen(false);
-    fetchData();
+    setSaving(true);
+    try {
+      throwIfDbError(
+        await supabase
+          .from("class_schedule_days")
+          .delete()
+          .eq("class_id", selectedClass.id),
+        "Mevcut ders günleri temizlenemedi"
+      );
+
+      if (enabledDays.length > 0) {
+        throwIfDbError(
+          await supabase.from("class_schedule_days").insert(
+            enabledDays.map((day) => ({
+              class_id: selectedClass.id,
+              day_of_week: day.day,
+              start_time: day.startTime,
+              end_time: day.endTime,
+            }))
+          ),
+          "Ders günleri kaydedilemedi"
+        );
+      }
+
+      setScheduleModalOpen(false);
+      reload();
+      toast.success("Ders günleri kaydedildi.");
+    } catch (err) {
+      toast.error((err as Error).message);
+      reload();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu sınıfı ve tüm programını silmek istediğinize emin misiniz?"))
       return;
-    await supabase.from("classes").delete().eq("id", id);
-    fetchData();
+    const { error: deleteError } = await supabase
+      .from("classes")
+      .delete()
+      .eq("id", id);
+    if (deleteError) {
+      toast.error(describeDbError(deleteError));
+      return;
+    }
+    reload();
+    toast.success("Sınıf silindi.");
   };
 
   const getTeachersForSubject = (subjectId: string) => {
@@ -208,10 +314,18 @@ export default function ClassesPage() {
     return { count: cs.length, totalHours };
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        {error.message}
       </div>
     );
   }
@@ -487,7 +601,10 @@ export default function ClassesPage() {
                     {classSubjectEdits.map((cs, idx) => {
                       const subject = cs.subject;
                       return (
-                        <tr key={cs.id} className="border-b border-gray-100 last:border-b-0">
+                        <tr
+                          key={cs.subject_id}
+                          className="border-b border-gray-100 last:border-b-0"
+                        >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div
@@ -568,9 +685,10 @@ export default function ClassesPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+              disabled={saving}
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingClass ? "Güncelle" : "Ekle"}
+              {saving ? "Kaydediliyor..." : editingClass ? "Güncelle" : "Ekle"}
             </button>
             <button
               type="button"
@@ -642,9 +760,10 @@ export default function ClassesPage() {
           <div className="flex gap-3 pt-3">
             <button
               onClick={handleSaveSchedule}
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+              disabled={saving}
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Kaydet
+              {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>
             <button
               onClick={() => setScheduleModalOpen(false)}

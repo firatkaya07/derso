@@ -445,7 +445,6 @@ export function autoSchedule(
 
   // Build all blocks
   const allBlocks: LessonBlock[] = [];
-  let blockIdx = 0;
   for (const cs of classSubjects) {
     const cls = classMap.get(cs.classId);
     const sub = subjectMap.get(cs.subjectId);
@@ -461,7 +460,6 @@ export function autoSchedule(
         blockSize,
         preAssignedTeacherId: cs.teacherId || undefined,
       });
-      blockIdx++;
     }
   }
 
@@ -973,7 +971,7 @@ export function autoSchedule(
       const infeasibleBks = new Set<string>();
       const checkedSlots = new Set<string>();
 
-      for (const [bk, indices] of state.blockLessons) {
+      for (const indices of state.blockLessons.values()) {
         for (const idx of indices) {
           const l = state.lessons[idx];
           if (!l) continue;
