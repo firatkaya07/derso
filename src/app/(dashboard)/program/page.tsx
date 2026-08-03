@@ -263,12 +263,9 @@ export default function ProgramPage() {
         <h1 className="text-lg font-bold text-gray-900">Sınıf Programları</h1>
       </div>
 
-      <div
-        className="flex gap-3"
-        style={{ minHeight: "calc(100vh - 160px)" }}
-      >
+      <div className="flex gap-3 items-start">
         {/* Left: Class List */}
-        <div className="w-52 flex-shrink-0 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="w-52 flex-shrink-0 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 self-stretch max-h-[calc(100vh-160px)] sticky top-4">
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-2 mb-2.5">
               <svg
