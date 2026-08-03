@@ -90,6 +90,7 @@ class ScheduleState {
   preAssignedTeacherSlots = new Map<string, Set<string>>();
   // Map from blockKey (classId:subjectId:blockIdx) to lesson indices
   blockLessons = new Map<string, number[]>();
+  slotSubjectCounts = new Map<string, Map<string, number>>();
 
   isClassSlotFree(classId: string, day: number, time: string): boolean {
     const set = this.classSlots.get(classId);
@@ -113,6 +114,11 @@ class ScheduleState {
   addSubjectSlotUsage(subjectId: string, day: number, time: string) {
     const k = `${subjectId}:${slotKey(day, time)}`;
     this.subjectSlotCount.set(k, (this.subjectSlotCount.get(k) || 0) + 1);
+    const sk = slotKey(day, time);
+    if (!this.slotSubjectCounts.has(sk))
+      this.slotSubjectCounts.set(sk, new Map());
+    const m = this.slotSubjectCounts.get(sk)!;
+    m.set(subjectId, (m.get(subjectId) || 0) + 1);
   }
 
   removeSubjectSlotUsage(subjectId: string, day: number, time: string) {
@@ -120,6 +126,14 @@ class ScheduleState {
     const v = (this.subjectSlotCount.get(k) || 0) - 1;
     if (v <= 0) this.subjectSlotCount.delete(k);
     else this.subjectSlotCount.set(k, v);
+    const sk = slotKey(day, time);
+    const m = this.slotSubjectCounts.get(sk);
+    if (m) {
+      const sv = (m.get(subjectId) || 0) - 1;
+      if (sv <= 0) m.delete(subjectId);
+      else m.set(subjectId, sv);
+      if (m.size === 0) this.slotSubjectCounts.delete(sk);
+    }
   }
 
   getDaySubjectHours(classId: string, subjectId: string, day: number): number {
@@ -318,6 +332,107 @@ export function autoSchedule(
     }
   }
 
+  // Teacher-aware scheduling: per-subject-day available teacher sets
+  const subjectDayTeacherSet = new Map<string, Set<string>>();
+  if (teacherSubjects && teachers) {
+    const subjectTeacherSet = new Map<string, Set<string>>();
+    for (const ts of teacherSubjects) {
+      if (!subjectTeacherSet.has(ts.subject_id))
+        subjectTeacherSet.set(ts.subject_id, new Set());
+      subjectTeacherSet.get(ts.subject_id)!.add(ts.teacher_id);
+    }
+    for (const [subId, tids] of subjectTeacherSet) {
+      for (let day = 0; day < 7; day++) {
+        const available = new Set<string>();
+        for (const tid of tids) {
+          const t = teacherMap.get(tid);
+          if (!t || !t.off_days || !t.off_days.includes(day))
+            available.add(tid);
+        }
+        if (available.size > 0)
+          subjectDayTeacherSet.set(`${subId}:${day}`, available);
+      }
+    }
+  }
+
+  function maxBipartiteMatching(
+    adj: number[][],
+    leftCount: number,
+    rightCount: number
+  ): number {
+    const matchR = new Array(rightCount).fill(-1);
+    function tryAugment(u: number, visited: Uint8Array): boolean {
+      for (const v of adj[u]) {
+        if (visited[v]) continue;
+        visited[v] = 1;
+        if (matchR[v] === -1 || tryAugment(matchR[v], visited)) {
+          matchR[v] = u;
+          return true;
+        }
+      }
+      return false;
+    }
+    let matched = 0;
+    for (let u = 0; u < leftCount; u++) {
+      const visited = new Uint8Array(rightCount);
+      if (tryAugment(u, visited)) matched++;
+    }
+    return matched;
+  }
+
+  function isSlotTeacherFeasible(
+    state: ScheduleState,
+    day: number,
+    time: string,
+    extraSubjectId?: string
+  ): boolean {
+    if (subjectDayTeacherSet.size === 0) return true;
+    const sk = slotKey(day, time);
+    const subjectCounts = new Map<string, number>();
+    const existing = state.slotSubjectCounts.get(sk);
+    if (existing) {
+      for (const [subId, cnt] of existing) subjectCounts.set(subId, cnt);
+    }
+    if (extraSubjectId) {
+      subjectCounts.set(
+        extraSubjectId,
+        (subjectCounts.get(extraSubjectId) || 0) + 1
+      );
+    }
+    if (subjectCounts.size === 0) return true;
+
+    const allTeacherIds = new Set<string>();
+    for (const [subId] of subjectCounts) {
+      const ts = subjectDayTeacherSet.get(`${subId}:${day}`);
+      if (ts) for (const t of ts) allTeacherIds.add(t);
+    }
+    const teacherArr = [...allTeacherIds];
+    if (teacherArr.length === 0) return false;
+    const teacherIdx = new Map<string, number>();
+    teacherArr.forEach((id, i) => teacherIdx.set(id, i));
+
+    let leftCount = 0;
+    const adj: number[][] = [];
+    for (const [subId, count] of subjectCounts) {
+      const ts = subjectDayTeacherSet.get(`${subId}:${day}`);
+      const rightIndices: number[] = [];
+      if (ts) {
+        for (const t of ts) {
+          const idx = teacherIdx.get(t);
+          if (idx !== undefined) rightIndices.push(idx);
+        }
+      }
+      if (rightIndices.length === 0) return false;
+      for (let i = 0; i < count; i++) {
+        adj.push(rightIndices);
+        leftCount++;
+      }
+    }
+    if (leftCount === 0) return true;
+    if (leftCount > teacherArr.length) return false;
+    return maxBipartiteMatching(adj, leftCount, teacherArr.length) === leftCount;
+  }
+
   function getMaxConcurrent(subjectId: string, day: number): number {
     if (teacherCountBySubjectDay.size > 0) {
       const dayCount = teacherCountBySubjectDay.get(`${subjectId}:${day}`);
@@ -385,6 +500,16 @@ export function autoSchedule(
         )
           return false;
       }
+
+      if (
+        !isSlotTeacherFeasible(
+          state,
+          day,
+          slots[startIdx + i].start,
+          block.subjectId
+        )
+      )
+        return false;
     }
     return true;
   }
@@ -839,6 +964,98 @@ export function autoSchedule(
       }
 
       if (!anyResolved) break;
+    }
+  }
+
+  // Post-placement: verify teacher feasibility and re-place infeasible blocks
+  if (subjectDayTeacherSet.size > 0) {
+    for (let repass = 0; repass < 3; repass++) {
+      const infeasibleBks = new Set<string>();
+      const checkedSlots = new Set<string>();
+
+      for (const [bk, indices] of state.blockLessons) {
+        for (const idx of indices) {
+          const l = state.lessons[idx];
+          if (!l) continue;
+          const sk = slotKey(l.dayOfWeek, l.startTime);
+          if (checkedSlots.has(sk)) continue;
+          checkedSlots.add(sk);
+          if (!isSlotTeacherFeasible(state, l.dayOfWeek, l.startTime)) {
+            for (const [bk2, indices2] of state.blockLessons) {
+              for (const idx2 of indices2) {
+                const l2 = state.lessons[idx2];
+                if (
+                  l2 &&
+                  l2.dayOfWeek === l.dayOfWeek &&
+                  l2.startTime === l.startTime
+                )
+                  infeasibleBks.add(bk2);
+              }
+            }
+          }
+        }
+      }
+      if (infeasibleBks.size === 0) break;
+
+      let anyFixed = false;
+      for (const bk of infeasibleBks) {
+        const block = blocks.find((b) => blockKeyMap.get(b) === bk);
+        if (!block) continue;
+
+        const blockIndices = state.blockLessons.get(bk);
+        if (!blockIndices) continue;
+        let stillBad = false;
+        for (const idx of blockIndices) {
+          const l = state.lessons[idx];
+          if (l && !isSlotTeacherFeasible(state, l.dayOfWeek, l.startTime)) {
+            stillBad = true;
+            break;
+          }
+        }
+        if (!stillBad) continue;
+
+        const removed = state.removeBlockLessons(bk);
+        if (removed.length === 0) continue;
+        if (block.preAssignedTeacherId) {
+          for (const rl of removed)
+            state.freePreAssignedTeacher(
+              block.preAssignedTeacherId,
+              rl.dayOfWeek,
+              rl.startTime
+            );
+        }
+
+        const cDays = classDaysMap.get(block.classId) || [];
+        let rePlaced = tryPlaceBlock(state, block, bk, cDays, false);
+        if (!rePlaced)
+          rePlaced = tryPlaceBlock(state, block, bk, cDays, true);
+
+        if (rePlaced) {
+          const newIndices = state.blockLessons.get(bk);
+          let newOk = true;
+          if (newIndices) {
+            for (const idx of newIndices) {
+              const l = state.lessons[idx];
+              if (
+                l &&
+                !isSlotTeacherFeasible(state, l.dayOfWeek, l.startTime)
+              ) {
+                newOk = false;
+                break;
+              }
+            }
+          }
+          if (newOk) {
+            anyFixed = true;
+          } else {
+            state.removeBlockLessons(bk);
+            restoreBlock(block, bk, removed);
+          }
+        } else {
+          restoreBlock(block, bk, removed);
+        }
+      }
+      if (!anyFixed) break;
     }
   }
 

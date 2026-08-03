@@ -250,7 +250,7 @@ export default function DagitimPage() {
       teacherId: cs.teacher_id,
     }));
 
-    const MAX_RETRIES = 100;
+    const MAX_RETRIES = 500;
     const SWAP_DEPTH = 30;
     let bestResult: {
       schedule: typeof scheduleResult;
@@ -442,7 +442,7 @@ export default function DagitimPage() {
             </h3>
             <div className="flex items-center gap-3 text-xs">
               <span className="text-gray-500">
-                Deneme: {attemptLogs.length}/100
+                Deneme: {attemptLogs.length}/500
               </span>
               {attemptLogs.length > 0 && (
                 <span className="font-semibold text-green-600">

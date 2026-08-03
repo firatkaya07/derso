@@ -365,6 +365,176 @@ export function assignTeachersToSchedule(
     }
   }
 
+  // Third pass: repair — try swapping teacher assignments to resolve failures
+  for (let repairIter = 0; repairIter < 3; repairIter++) {
+    let anyRepaired = false;
+
+    const allGroups = [...groups, ...remainderQueue];
+    const failedGroupsList = allGroups.filter((g) =>
+      g.lessons.some((l) => !l.teacherId)
+    );
+    if (failedGroupsList.length === 0) break;
+
+    for (const failedGroup of failedGroupsList) {
+      const unassigned = failedGroup.lessons.filter((l) => !l.teacherId);
+      if (unassigned.length === 0) continue;
+
+      const eligibleIds = teachersBySubject.get(failedGroup.subjectId) || [];
+
+      for (const tid of eligibleIds) {
+        const teacher = teacherMap.get(tid);
+        if (!teacher) continue;
+
+        const { covered } = getCoverage(
+          tid,
+          teacher,
+          unassigned,
+          teacherSlots
+        );
+        if (covered.length === 0) continue;
+
+        // Check paired constraint
+        const pairedName = PAIRED_SUBJECTS[failedGroup.subjectName];
+        if (pairedName) {
+          const ca = classAssignments.get(failedGroup.classId);
+          if (ca?.get(pairedName) === tid) continue;
+        }
+
+        // This teacher covers some unassigned lessons but is busy at those slots.
+        // Find which other group uses this teacher at the conflict slots,
+        // and see if that group can use a different teacher.
+        const conflictSlots = unassigned
+          .filter(
+            (l) =>
+              !teacher.off_days?.includes(l.dayOfWeek) &&
+              teacherSlots
+                .get(tid)
+                ?.has(slotKey(l.dayOfWeek, l.startTime))
+          )
+          .map((l) => slotKey(l.dayOfWeek, l.startTime));
+
+        if (conflictSlots.length === 0) {
+          // Teacher is available — just assign
+          assignTeacherToLessons(tid, teacher, covered, failedGroup);
+          anyRepaired = true;
+          break;
+        }
+
+        // Find who occupies this teacher at conflict slots
+        let canSwap = true;
+        const swapTargets: {
+          group: LessonGroup;
+          lesson: GeneratedLesson;
+          altTid: string;
+          altTeacher: Teacher;
+        }[] = [];
+
+        for (const cs of conflictSlots) {
+          // Find the lesson that uses this teacher at this slot
+          const occupyingLesson = allGroups
+            .flatMap((g) => g.lessons)
+            .find(
+              (l) =>
+                l.teacherId === tid &&
+                slotKey(l.dayOfWeek, l.startTime) === cs
+            );
+          if (!occupyingLesson) {
+            canSwap = false;
+            break;
+          }
+
+          // Find an alternative teacher for the occupying lesson's group
+          const occGroup = allGroups.find(
+            (g) =>
+              g.classId === occupyingLesson.classId &&
+              g.subjectId === occupyingLesson.subjectId
+          );
+          if (!occGroup) {
+            canSwap = false;
+            break;
+          }
+
+          const altIds = (
+            teachersBySubject.get(occGroup.subjectId) || []
+          ).filter((altId) => {
+            if (altId === tid) return false;
+            const altT = teacherMap.get(altId);
+            if (!altT) return false;
+            if (altT.off_days?.includes(occupyingLesson.dayOfWeek))
+              return false;
+            if (
+              teacherSlots
+                .get(altId)
+                ?.has(slotKey(occupyingLesson.dayOfWeek, occupyingLesson.startTime))
+            )
+              return false;
+            const pn = PAIRED_SUBJECTS[occGroup.subjectName];
+            if (pn) {
+              const ca2 = classAssignments.get(occGroup.classId);
+              if (ca2?.get(pn) === altId) return false;
+            }
+            return true;
+          });
+
+          if (altIds.length === 0) {
+            canSwap = false;
+            break;
+          }
+
+          const altTeacher = teacherMap.get(altIds[0])!;
+          swapTargets.push({
+            group: occGroup,
+            lesson: occupyingLesson,
+            altTid: altIds[0],
+            altTeacher,
+          });
+        }
+
+        if (canSwap && swapTargets.length > 0) {
+          // Perform swaps: reassign occupying lessons to alternative teachers
+          for (const st of swapTargets) {
+            const sk = slotKey(
+              st.lesson.dayOfWeek,
+              st.lesson.startTime
+            );
+            teacherSlots.get(tid)?.delete(sk);
+            teacherLoad.set(tid, (teacherLoad.get(tid) || 1) - 1);
+
+            st.lesson.teacherId = st.altTid;
+            st.lesson.teacherName = st.altTeacher.name;
+            if (!teacherSlots.has(st.altTid))
+              teacherSlots.set(st.altTid, new Set());
+            teacherSlots.get(st.altTid)!.add(sk);
+            teacherLoad.set(
+              st.altTid,
+              (teacherLoad.get(st.altTid) || 0) + 1
+            );
+          }
+
+          // Now assign the freed teacher to the failed group
+          const reCov = getCoverage(
+            tid,
+            teacher,
+            unassigned,
+            teacherSlots
+          );
+          if (reCov.covered.length > 0) {
+            assignTeacherToLessons(
+              tid,
+              teacher,
+              reCov.covered,
+              failedGroup
+            );
+            anyRepaired = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!anyRepaired) break;
+  }
+
   const teacherLoads = [...teacherLoad.entries()]
     .map(([id, hours]) => ({
       teacherId: id,
