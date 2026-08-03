@@ -40,16 +40,40 @@ export default function ProgramPage() {
   const [teacherAllLessons, setTeacherAllLessons] = useState<Lesson[]>([]);
 
   const [activeCard, setActiveCard] = useState<SubjectCard | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const [classTotals, setClassTotals] = useState<
+    Map<string, { placed: number; total: number }>
+  >(new Map());
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("classes")
-        .select("*")
-        .order("name");
-      const list = data || [];
+      const [
+        { data: classData },
+        { data: csData },
+        { data: lessonData },
+      ] = await Promise.all([
+        supabase.from("classes").select("*").order("name"),
+        supabase.from("class_subjects").select("class_id, weekly_hours"),
+        supabase.from("lessons").select("class_id"),
+      ]);
+
+      const list = classData || [];
       setClasses(list);
       if (list.length > 0) setSelectedClassId(list[0].id);
+
+      const totals = new Map<string, { placed: number; total: number }>();
+      (csData || []).forEach((cs) => {
+        const e = totals.get(cs.class_id) || { placed: 0, total: 0 };
+        e.total += cs.weekly_hours;
+        totals.set(cs.class_id, e);
+      });
+      (lessonData || []).forEach((l) => {
+        const e = totals.get(l.class_id);
+        if (e) e.placed += 1;
+      });
+      setClassTotals(totals);
+
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,6 +83,7 @@ export default function ProgramPage() {
     if (!selectedClassId) return;
     setClassLoading(true);
     setActiveCard(null);
+    setHasChanges(false);
 
     const [
       { data: daysData },
@@ -197,20 +222,55 @@ export default function ProgramPage() {
 
   const handlePlace = async (day: number, start: string, end: string) => {
     if (!activeCard || !selectedClassId) return;
-    await supabase.from("lessons").insert({
-      class_id: selectedClassId,
-      subject_id: activeCard.subjectId,
-      teacher_id: activeCard.teacherId,
-      day_of_week: day,
-      start_time: start,
-      end_time: end,
-    });
-    fetchClassData();
+    const { data } = await supabase
+      .from("lessons")
+      .insert({
+        class_id: selectedClassId,
+        subject_id: activeCard.subjectId,
+        teacher_id: activeCard.teacherId,
+        day_of_week: day,
+        start_time: start,
+        end_time: end,
+      })
+      .select("*, subject:subjects(*), teacher:teachers(*)")
+      .single();
+    if (data) {
+      setLessons((prev) => [...prev, data]);
+      setHasChanges(true);
+      setClassTotals((prev) => {
+        const next = new Map(prev);
+        const e = next.get(selectedClassId) || { placed: 0, total: 0 };
+        next.set(selectedClassId, { ...e, placed: e.placed + 1 });
+        return next;
+      });
+    }
   };
 
   const handleRemove = async (lessonId: string) => {
+    if (!selectedClassId) return;
+    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
+    setHasChanges(true);
+    setClassTotals((prev) => {
+      const next = new Map(prev);
+      const e = next.get(selectedClassId!) || { placed: 0, total: 0 };
+      next.set(selectedClassId!, {
+        ...e,
+        placed: Math.max(0, e.placed - 1),
+      });
+      return next;
+    });
     await supabase.from("lessons").delete().eq("id", lessonId);
-    fetchClassData();
+  };
+
+  const handleClassSwitch = (classId: string) => {
+    if (classId === selectedClassId) return;
+    if (hasChanges) {
+      const ok = window.confirm(
+        "Bu sınıfta değişiklik yaptınız. Başka sınıfa geçmek istediğinize emin misiniz?"
+      );
+      if (!ok) return;
+    }
+    setSelectedClassId(classId);
   };
 
   const toggleCard = (card: SubjectCard) => {
@@ -311,10 +371,12 @@ export default function ProgramPage() {
           <div className="flex-1 overflow-y-auto p-1.5">
             {filteredClasses.map((cls, i) => {
               const sel = cls.id === selectedClassId;
+              const ct = classTotals.get(cls.id);
+              const incomplete = ct ? ct.placed < ct.total : false;
               return (
                 <button
                   key={cls.id}
-                  onClick={() => setSelectedClassId(cls.id)}
+                  onClick={() => handleClassSwitch(cls.id)}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all mb-0.5 ${
                     sel
                       ? "bg-teal-50 border border-teal-200"
@@ -337,7 +399,12 @@ export default function ProgramPage() {
                   >
                     {cls.name}
                   </span>
-                  {sel && (
+                  {incomplete && (
+                    <span className="text-red-500 text-sm ml-auto flex-shrink-0">
+                      *
+                    </span>
+                  )}
+                  {sel && !incomplete && (
                     <svg
                       className="w-3.5 h-3.5 text-teal-500 ml-auto flex-shrink-0"
                       fill="none"
@@ -597,7 +664,7 @@ export default function ProgramPage() {
         </div>
 
         {/* Right: Class Subjects */}
-        <div className="w-64 flex-shrink-0 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="w-64 flex-shrink-0 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 self-stretch max-h-[calc(100vh-160px)] sticky top-4">
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <svg
