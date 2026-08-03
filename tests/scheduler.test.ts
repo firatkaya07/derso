@@ -387,4 +387,92 @@ describe("autoSchedule", () => {
 
     expect(run().lessons).toEqual(run().lessons);
   });
+
+  it("aynı dersten bir günde en fazla 2 saat verir", () => {
+    const sinif = makeClass("12-A");
+    const matematik = makeSubject("Matematik");
+    const ogretmen = makeTeacher("Mat Öğretmeni");
+
+    // 6 saat matematik, 3 gün × 4 slot: günlük limit olmasa hepsi bir güne
+    // yığılabilir; sert kural günde en fazla 2 saat ister.
+    const result = autoSchedule(
+      [sinif],
+      [
+        makeScheduleDay(sinif.id, 0),
+        makeScheduleDay(sinif.id, 1),
+        makeScheduleDay(sinif.id, 2),
+      ],
+      [matematik],
+      [
+        {
+          classId: sinif.id,
+          subjectId: matematik.id,
+          subjectName: matematik.name,
+          weeklyHours: 6,
+        },
+      ],
+      DEFAULT_RULES,
+      [makeTeacherSubject(ogretmen.id, matematik.id)],
+      [ogretmen],
+      3,
+      { restarts: 4, maxIterations: 8000, timeLimitMs: 5000 }
+    );
+
+    expect(result.stats.placedHours).toBe(6);
+    expect(classConflicts(result.lessons)).toBe(0);
+
+    const hoursByDay = new Map<number, number>();
+    for (const lesson of result.lessons) {
+      hoursByDay.set(
+        lesson.dayOfWeek,
+        (hoursByDay.get(lesson.dayOfWeek) ?? 0) + 1
+      );
+    }
+    for (const hours of hoursByDay.values()) {
+      expect(hours).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("gün sayısı yetmezse günlük limit yüzünden açık bırakır", () => {
+    const sinif = makeClass("12-A");
+    const matematik = makeSubject("Matematik");
+    const ogretmen = makeTeacher("Mat Öğretmeni");
+
+    // 6 saat, yalnızca 2 gün → günde en fazla 2 ile en fazla 4 saat yerleşir.
+    const result = autoSchedule(
+      [sinif],
+      [makeScheduleDay(sinif.id, 0), makeScheduleDay(sinif.id, 1)],
+      [matematik],
+      [
+        {
+          classId: sinif.id,
+          subjectId: matematik.id,
+          subjectName: matematik.name,
+          weeklyHours: 6,
+        },
+      ],
+      DEFAULT_RULES,
+      [makeTeacherSubject(ogretmen.id, matematik.id)],
+      [ogretmen],
+      5,
+      { restarts: 3, maxIterations: 5000, timeLimitMs: 3000 }
+    );
+
+    expect(result.stats.maxPlaceableHours).toBe(4);
+    expect(result.stats.placedHours).toBeLessThanOrEqual(4);
+    expect(
+      result.feasibility.issues.some((issue) => issue.kind === "daily-subject-limit")
+    ).toBe(true);
+
+    const hoursByDay = new Map<number, number>();
+    for (const lesson of result.lessons) {
+      hoursByDay.set(
+        lesson.dayOfWeek,
+        (hoursByDay.get(lesson.dayOfWeek) ?? 0) + 1
+      );
+    }
+    for (const hours of hoursByDay.values()) {
+      expect(hours).toBeLessThanOrEqual(2);
+    }
+  });
 });

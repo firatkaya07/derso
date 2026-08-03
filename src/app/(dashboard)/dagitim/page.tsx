@@ -652,7 +652,9 @@ export default function DagitimPage() {
             </h2>
             <p className="text-sm text-gray-500 mb-4">
               Haftalık ders saatine göre derslerin nasıl bölüneceğini belirleyin.
-              &quot;+&quot; işaretiyle ayırın (örnek: 2+1)
+              &quot;+&quot; işaretiyle ayırın (örnek: 2+1). Aynı dersten bir günde
+              en fazla 2 saat verilir; 2&apos;den büyük parçalar otomatik olarak
+              2&apos;ye bölünür.
             </p>
             <div className="space-y-3">
               {[1, 2, 3, 4, 5, 6].map((hours) => (

@@ -13,6 +13,9 @@ export interface ScheduleRules {
   splitRules: Record<number, number[]>;
 }
 
+/** Bir sınıfa aynı dersten bir günde verilebilecek en fazla ders saati. */
+export const MAX_HOURS_PER_SUBJECT_PER_DAY = 2;
+
 export const DEFAULT_RULES: ScheduleRules = {
   splitRules: {
     1: [1],
@@ -100,17 +103,35 @@ export function splitHours(
   rules: Record<number, number[]>
 ): number[] {
   const rule = rules[hours];
+  let parts: number[];
   if (rule && rule.length > 0) {
     const total = rule.reduce((sum, part) => sum + part, 0);
-    if (total === hours) return [...rule];
+    if (total === hours) parts = [...rule];
+    else parts = defaultSplit(hours);
+  } else {
+    parts = defaultSplit(hours);
   }
 
+  // Sert kural: günde en fazla MAX saat → blok boyu da bunu aşamaz.
+  const result: number[] = [];
+  for (const part of parts) {
+    let remaining = Math.max(0, Math.floor(part));
+    while (remaining > MAX_HOURS_PER_SUBJECT_PER_DAY) {
+      result.push(MAX_HOURS_PER_SUBJECT_PER_DAY);
+      remaining -= MAX_HOURS_PER_SUBJECT_PER_DAY;
+    }
+    if (remaining > 0) result.push(remaining);
+  }
+  return result;
+}
+
+function defaultSplit(hours: number): number[] {
   const result: number[] = [];
   let remaining = hours;
   while (remaining > 0) {
-    if (remaining >= 2) {
-      result.push(2);
-      remaining -= 2;
+    if (remaining >= MAX_HOURS_PER_SUBJECT_PER_DAY) {
+      result.push(MAX_HOURS_PER_SUBJECT_PER_DAY);
+      remaining -= MAX_HOURS_PER_SUBJECT_PER_DAY;
     } else {
       result.push(1);
       remaining -= 1;

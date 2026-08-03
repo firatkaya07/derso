@@ -1,11 +1,13 @@
 import type { Model } from "./model";
+import { MAX_HOURS_PER_SUBJECT_PER_DAY } from "./model";
 
 export type FeasibilityKind =
   | "class-capacity"
   | "no-teacher"
   | "subject-capacity"
   | "indivisible-course"
-  | "fixed-teacher-capacity";
+  | "fixed-teacher-capacity"
+  | "daily-subject-limit";
 
 export interface FeasibilityIssue {
   kind: FeasibilityKind;
@@ -231,6 +233,24 @@ export function analyzeFeasibility(model: Model): FeasibilityReport {
     }
   }
 
+  // --- Günde aynı dersten en fazla N saat ---------------------------------
+  let boundByDailyLimit = 0;
+  for (const course of model.courses) {
+    const days = model.classDays[course.classIdx].length;
+    const maxByDay = days * MAX_HOURS_PER_SUBJECT_PER_DAY;
+    const placeable = Math.min(course.hours, maxByDay);
+    boundByDailyLimit += placeable;
+    if (course.hours > maxByDay) {
+      const className = model.classes[course.classIdx]?.name ?? "?";
+      const subjectName = model.subjects[course.subjectIdx]?.name ?? "?";
+      issues.push({
+        kind: "daily-subject-limit",
+        lostHours: course.hours - maxByDay,
+        message: `${className} - ${subjectName}: haftalık ${course.hours} saat var ama aynı dersten günde en fazla ${MAX_HOURS_PER_SUBJECT_PER_DAY} saat verilebilir; ${days} günde en fazla ${maxByDay} saat yerleşir. ${course.hours - maxByDay} saat için ders günü ekleyin veya haftalık saati düşürün.`,
+      });
+    }
+  }
+
   // --- Sabit atanmış öğretmenlerin yükü -----------------------------------
   const fixedCourses = new Map<number, number[]>();
   const fixedSlots = new Map<number, Set<number>>();
@@ -267,6 +287,11 @@ export function analyzeFeasibility(model: Model): FeasibilityReport {
   return {
     issues,
     totalHours,
-    maxPlaceableHours: Math.min(totalHours, boundByClass, boundBySubject),
+    maxPlaceableHours: Math.min(
+      totalHours,
+      boundByClass,
+      boundBySubject,
+      boundByDailyLimit
+    ),
   };
 }

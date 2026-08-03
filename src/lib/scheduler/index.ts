@@ -6,7 +6,6 @@ import type {
   Teacher,
   TeacherSubject,
 } from "../types";
-import { DAY_NAMES } from "../types";
 import { normalizeSubjectName } from "../paired-subjects";
 import {
   buildModel,
@@ -18,7 +17,7 @@ import {
 import { analyzeFeasibility, type FeasibilityReport } from "./feasibility";
 import { solve, type SolveOptions, type Solution } from "./solver";
 
-export { DEFAULT_RULES } from "./model";
+export { DEFAULT_RULES, MAX_HOURS_PER_SUBJECT_PER_DAY } from "./model";
 export type { ClassSubjectInput, ScheduleRules } from "./model";
 export type {
   FeasibilityIssue,
@@ -297,23 +296,6 @@ function collectWarnings(model: Model, solution: Solution): string[] {
   for (const course of model.courses) {
     const cls = model.classes[course.classIdx];
     const subject = model.subjects[course.subjectIdx];
-
-    const hoursByDay = new Map<number, number>();
-    for (const blockId of course.blockIds) {
-      const position = solution.placements[blockId];
-      if (!position) continue;
-      hoursByDay.set(
-        position.day,
-        (hoursByDay.get(position.day) ?? 0) + model.blocks[blockId].size
-      );
-    }
-    for (const [day, hours] of hoursByDay) {
-      if (hours > 2) {
-        warnings.push(
-          `${cls.name} - ${subject.name}: ${DAY_NAMES[day]} günü ${hours} saat üst üste verildi.`
-        );
-      }
-    }
 
     if (course.pairedCourse >= 0) {
       const teacher = solution.courseTeachers[course.index];

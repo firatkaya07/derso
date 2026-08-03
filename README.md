@@ -177,10 +177,11 @@ programda sınıf çakışması, öğretmen çakışması veya izin gününde de
   yetmediğinde ders iki öğretmene bölünmez; yerleştirilemeyen saat açıkta
   bırakılır ve nedeni raporlanır.
 - Sınıflar sayfasında bir derse sabit öğretmen belirlendiyse o atama korunur.
+- **Aynı dersten günde en fazla 2 saat.** Fazlası yerleştirilmez; gerekirse
+  ders günü eklenmeli veya haftalık saat düşürülmelidir.
 
 Esnetilebilen, ihlal edilirse uyarı üretilen tercihler:
 
-- Aynı dersten günde en fazla 2 saat.
 - Aynı dersin saatleri gün içinde arka arkaya.
 - `MATEMATİK 1/2`, `TÜRKÇE/EDEBİYAT` gibi ders çiftleri aynı sınıfta farklı
   öğretmenlere verilir.

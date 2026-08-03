@@ -1,4 +1,5 @@
 import type { Model, Position } from "./model";
+import { MAX_HOURS_PER_SUBJECT_PER_DAY } from "./model";
 
 export interface SolveOptions {
   seed?: number;
@@ -27,7 +28,7 @@ export interface Solution {
   unplacedBlocks: number[];
   placedHours: number;
   totalHours: number;
-  /** Aynı gün 2 saatten fazla verilen ders-gün sayısı. */
+  /** Yumuşak kısıt ihlali sayısı (dağınıklık vb.). */
   softViolations: number;
   restartsUsed: number;
   iterationsUsed: number;
@@ -36,7 +37,6 @@ export interface Solution {
 const EVICTION_COST = 1000;
 /** Büyük blokları söktürmek pahalıdır; yeniden yer bulmaları zordur. */
 const EVICTION_SIZE_COST = 60;
-const DAY_LIMIT_PENALTY = 30;
 const NON_ADJACENT_PENALTY = 10;
 /** Hiçbir bloğa yetmeyecek kadar kısa boşluk bırakmanın slot başına bedeli. */
 const FRAGMENT_PENALTY = 45;
@@ -178,19 +178,34 @@ export class Solver {
         }
       }
     }
+
+    // Sert kural: aynı sınıfta aynı dersten günde en fazla N saat.
+    // Limit aşılacaksa o gündeki aynı ders blokları sökülmeden yerleşme yok.
+    const block = this.model.blocks[blockId];
+    const dayHours = this.courseDayHours[block.courseIdx * 7 + position.day];
+    if (dayHours + block.size > MAX_HOURS_PER_SUBJECT_PER_DAY) {
+      for (const otherId of this.model.courses[block.courseIdx].blockIds) {
+        if (otherId === blockId) continue;
+        const posIndex = this.blockPos[otherId];
+        if (posIndex < 0) continue;
+        if (this.positionsOf(otherId)[posIndex].day !== position.day) continue;
+        if (!out.includes(otherId)) out.push(otherId);
+      }
+    }
+
     return out;
   }
 
   /**
-   * Yumuşak kısıt cezası: aynı gün 2 saatten fazla ders ve aynı dersin gün
-   * içinde dağınık durması istenmez ama yerleşme uğruna kabul edilebilir.
+   * Yumuşak kısıt cezası: aynı dersin gün içinde dağınık durması ve
+   * parçalanmış boşluk bırakmak istenmez ama yerleşme uğruna kabul edilebilir.
+   * Günde aynı dersten N saatten fazla vermek artık sert kısıttır.
    */
   private softPenalty(blockId: number, position: Position): number {
     const block = this.model.blocks[blockId];
     const dayHours = this.courseDayHours[block.courseIdx * 7 + position.day];
 
     let penalty = 0;
-    if (dayHours + block.size > 2) penalty += DAY_LIMIT_PENALTY;
     if (dayHours > 0 && !this.isAdjacent(blockId, position)) {
       penalty += NON_ADJACENT_PENALTY;
     }
@@ -471,6 +486,9 @@ export class Solver {
 
   /** Hiç çakışmayan, yumuşak cezası en düşük konum. */
   private findFreePosition(blockId: number): number {
+    const block = this.model.blocks[blockId];
+    if (block.size > MAX_HOURS_PER_SUBJECT_PER_DAY) return -1;
+
     const teacherIdx = this.teacherOf(blockId);
     const positions = this.positionsOf(blockId);
     const best = this.candidateScratch;
@@ -497,6 +515,9 @@ export class Solver {
   }
 
   private chooseRepairPosition(blockId: number, iteration: number): number {
+    const block = this.model.blocks[blockId];
+    if (block.size > MAX_HOURS_PER_SUBJECT_PER_DAY) return -1;
+
     const teacherIdx = this.teacherOf(blockId);
     const positions = this.positionsOf(blockId);
     const best = this.candidateScratch;
@@ -508,6 +529,11 @@ export class Solver {
       if (this.isTeacherOff(teacherIdx, position.day)) continue;
 
       const conflicts = this.collectConflicts(blockId, position, teacherIdx);
+      // Günlük limit: çakışan aynı-ders blokları sökülse bile sığmıyorsa konum geçersiz.
+      if (!this.fitsDailyLimitAfterEviction(blockId, position, conflicts)) {
+        continue;
+      }
+
       let cost = this.softPenalty(blockId, position);
       for (const other of conflicts) {
         cost += EVICTION_COST + this.model.blocks[other].size * EVICTION_SIZE_COST;
@@ -533,6 +559,28 @@ export class Solver {
 
     if (best.length === 0) return -1;
     return best[Math.floor(this.random() * best.length)];
+  }
+
+  /**
+   * Belirtilen bloklar söküldükten sonra aynı dersin o günkü saati
+   * MAX_HOURS_PER_SUBJECT_PER_DAY sınırına sığıyor mu.
+   */
+  private fitsDailyLimitAfterEviction(
+    blockId: number,
+    position: Position,
+    conflicts: number[]
+  ): boolean {
+    const block = this.model.blocks[blockId];
+    let dayHours = this.courseDayHours[block.courseIdx * 7 + position.day];
+    for (const otherId of conflicts) {
+      const other = this.model.blocks[otherId];
+      if (other.courseIdx !== block.courseIdx) continue;
+      const posIndex = this.blockPos[otherId];
+      if (posIndex < 0) continue;
+      if (this.positionsOf(otherId)[posIndex].day !== position.day) continue;
+      dayHours -= other.size;
+    }
+    return dayHours + block.size <= MAX_HOURS_PER_SUBJECT_PER_DAY;
   }
 
   // --- Kurulum -------------------------------------------------------------
@@ -732,7 +780,12 @@ export class Solver {
     let softViolations = 0;
     for (const course of this.model.courses) {
       for (let day = 0; day < 7; day++) {
-        if (this.courseDayHours[course.index * 7 + day] > 2) softViolations++;
+        if (
+          this.courseDayHours[course.index * 7 + day] >
+          MAX_HOURS_PER_SUBJECT_PER_DAY
+        ) {
+          softViolations++;
+        }
       }
     }
 
