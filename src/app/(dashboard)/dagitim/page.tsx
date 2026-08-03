@@ -35,6 +35,7 @@ export default function DagitimPage() {
   const [importLog, setImportLog] = useState<string[]>([]);
 
   const [rules, setRules] = useState<ScheduleRules>(DEFAULT_RULES);
+  const [maxRetries, setMaxRetries] = useState(500);
   const [scheduleResult, setScheduleResult] = useState<{
     lessons: GeneratedLesson[];
     errors: string[];
@@ -250,7 +251,7 @@ export default function DagitimPage() {
       teacherId: cs.teacher_id,
     }));
 
-    const MAX_RETRIES = 500;
+    const MAX_RETRIES = maxRetries;
     const SWAP_DEPTH = 30;
     let bestResult: {
       schedule: typeof scheduleResult;
@@ -442,7 +443,7 @@ export default function DagitimPage() {
             </h3>
             <div className="flex items-center gap-3 text-xs">
               <span className="text-gray-500">
-                Deneme: {attemptLogs.length}/500
+                Deneme: {attemptLogs.length}/{maxRetries}
               </span>
               {attemptLogs.length > 0 && (
                 <span className="font-semibold text-green-600">
@@ -962,6 +963,30 @@ export default function DagitimPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Deneme Sayısı
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Algoritma kaç farklı kombinasyon deneyecek. Daha fazla deneme daha
+              iyi sonuç verebilir ancak daha uzun sürer.
+            </p>
+            <div className="flex items-center gap-4">
+              <input
+                type="number"
+                min={1}
+                max={2000}
+                value={maxRetries}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 1 && v <= 2000) setMaxRetries(v);
+                }}
+                className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              />
+              <span className="text-xs text-gray-400">1 – 2000 arası</span>
             </div>
           </div>
 
