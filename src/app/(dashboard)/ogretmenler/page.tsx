@@ -1,41 +1,59 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Modal from "@/components/Modal";
+import { useAsyncData } from "@/hooks/use-async-data";
+import { useToast } from "@/components/Toast";
+import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES } from "@/lib/types";
 
+interface TeachersData {
+  teachers: Teacher[];
+  subjects: Subject[];
+  teacherSubjects: TeacherSubject[];
+}
+
+const EMPTY_FORM = {
+  name: "",
+  specialization: "",
+  phone: "",
+  email: "",
+  off_days: [] as number[],
+};
+
 export default function TeachersPage() {
   const supabase = createClient();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", off_days: [] as number[] });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
-  const fetchData = useCallback(async () => {
-    const [{ data: teacherData }, { data: subjectData }, { data: tsData }] =
-      await Promise.all([
-        supabase.from("teachers").select("*").order("name"),
-        supabase.from("subjects").select("*").order("name"),
-        supabase
-          .from("teacher_subjects")
-          .select("*, subject:subjects(*)"),
-      ]);
-    setTeachers(teacherData || []);
-    setSubjects(subjectData || []);
-    setTeacherSubjects(tsData || []);
-    setLoading(false);
+  const load = useCallback(async (): Promise<TeachersData> => {
+    const [teacherResult, subjectResult, tsResult] = await Promise.all([
+      supabase.from("teachers").select("*").order("name"),
+      supabase.from("subjects").select("*").order("name"),
+      supabase.from("teacher_subjects").select("*, subject:subjects(*)"),
+    ]);
+    throwIfDbError(teacherResult, "Öğretmenler okunamadı");
+    throwIfDbError(subjectResult, "Dersler okunamadı");
+    throwIfDbError(tsResult, "Öğretmen dersleri okunamadı");
+
+    return {
+      teachers: teacherResult.data ?? [],
+      subjects: subjectResult.data ?? [],
+      teacherSubjects: tsResult.data ?? [],
+    };
   }, [supabase]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, error, loading, reload } = useAsyncData(load);
+  const teachers = useMemo(() => data?.teachers ?? [], [data]);
+  const subjects = useMemo(() => data?.subjects ?? [], [data]);
+  const teacherSubjects = useMemo(() => data?.teacherSubjects ?? [], [data]);
 
   const getTeacherSubjects = (teacherId: string) => {
     return teacherSubjects
@@ -46,7 +64,7 @@ export default function TeachersPage() {
 
   const openCreate = () => {
     setEditingTeacher(null);
-    setForm({ name: "", phone: "", email: "", off_days: [] });
+    setForm(EMPTY_FORM);
     setSelectedSubjectIds([]);
     setModalOpen(true);
   };
@@ -55,6 +73,7 @@ export default function TeachersPage() {
     setEditingTeacher(teacher);
     setForm({
       name: teacher.name,
+      specialization: teacher.specialization || "",
       phone: teacher.phone || "",
       email: teacher.email || "",
       off_days: teacher.off_days || [],
@@ -76,63 +95,108 @@ export default function TeachersPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      name: form.name,
-      phone: form.phone || null,
-      email: form.email || null,
-      off_days: form.off_days,
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        specialization: form.specialization.trim() || null,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        off_days: form.off_days,
+      };
 
-    let teacherId: string;
+      let teacherId: string;
+      if (editingTeacher) {
+        throwIfDbError(
+          await supabase
+            .from("teachers")
+            .update(payload)
+            .eq("id", editingTeacher.id),
+          "Öğretmen güncellenemedi"
+        );
+        teacherId = editingTeacher.id;
+      } else {
+        const result = await supabase
+          .from("teachers")
+          .insert(payload)
+          .select("id")
+          .single();
+        throwIfDbError(result, "Öğretmen eklenemedi");
+        teacherId = result.data!.id;
+      }
 
-    if (editingTeacher) {
-      await supabase
-        .from("teachers")
-        .update(data)
-        .eq("id", editingTeacher.id);
-      teacherId = editingTeacher.id;
+      // Yalnızca değişen eşleşmelere dokunulur; hepsini silip yeniden yazmak
+      // hata durumunda öğretmeni derssiz bırakabiliyordu.
+      const current = teacherSubjects
+        .filter((ts) => ts.teacher_id === teacherId)
+        .map((ts) => ts.subject_id);
+      const removed = current.filter((id) => !selectedSubjectIds.includes(id));
+      const added = selectedSubjectIds.filter((id) => !current.includes(id));
 
-      await supabase
-        .from("teacher_subjects")
-        .delete()
-        .eq("teacher_id", teacherId);
-    } else {
-      const { data: inserted } = await supabase
-        .from("teachers")
-        .insert(data)
-        .select("id")
-        .single();
-      if (!inserted) return;
-      teacherId = inserted.id;
-    }
+      if (removed.length > 0) {
+        throwIfDbError(
+          await supabase
+            .from("teacher_subjects")
+            .delete()
+            .eq("teacher_id", teacherId)
+            .in("subject_id", removed),
+          "Ders eşleşmeleri kaldırılamadı"
+        );
+      }
+      if (added.length > 0) {
+        throwIfDbError(
+          await supabase.from("teacher_subjects").insert(
+            added.map((subjectId) => ({
+              teacher_id: teacherId,
+              subject_id: subjectId,
+            }))
+          ),
+          "Ders eşleşmeleri kaydedilemedi"
+        );
+      }
 
-    if (selectedSubjectIds.length > 0) {
-      await supabase.from("teacher_subjects").insert(
-        selectedSubjectIds.map((sid) => ({
-          teacher_id: teacherId,
-          subject_id: sid,
-        }))
+      setModalOpen(false);
+      reload();
+      toast.success(
+        editingTeacher ? "Öğretmen güncellendi." : "Öğretmen eklendi."
       );
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
     }
-
-    setModalOpen(false);
-    fetchData();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu öğretmeni silmek istediğinize emin misiniz?")) return;
-    const { error } = await supabase.from("teachers").delete().eq("id", id);
-    if (error) {
-      alert("Bu öğretmenin atandığı dersler var, önce dersleri kaldırın.");
+    const { error: deleteError } = await supabase
+      .from("teachers")
+      .delete()
+      .eq("id", id);
+    if (deleteError) {
+      toast.error(
+        deleteError.code === "23503"
+          ? "Bu öğretmenin programa yerleşmiş dersleri var. Önce ilgili ders saatlerini kaldırın."
+          : describeDbError(deleteError)
+      );
       return;
     }
-    fetchData();
+    reload();
+    toast.success("Öğretmen silindi.");
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        {error.message}
       </div>
     );
   }
@@ -179,6 +243,9 @@ export default function TeachersPage() {
                   Ad Soyad
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Branş
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Verdiği Dersler
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -202,6 +269,9 @@ export default function TeachersPage() {
                   <tr key={teacher.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       {teacher.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {teacher.specialization || "-"}
                     </td>
                     <td className="px-6 py-4">
                       {tSubjects.length === 0 ? (
@@ -283,6 +353,24 @@ export default function TeachersPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Branş
+            </label>
+            <input
+              type="text"
+              value={form.specialization}
+              onChange={(e) =>
+                setForm({ ...form, specialization: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
+              placeholder="Örnek: Matematik"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Bilgi amaçlıdır; program dağıtımında aşağıda seçilen dersler
+              kullanılır.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -399,9 +487,10 @@ export default function TeachersPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-pink-600 text-white py-2 rounded-lg font-medium hover:bg-pink-700 transition-colors"
+              disabled={saving}
+              className="flex-1 bg-pink-600 text-white py-2 rounded-lg font-medium hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingTeacher ? "Kaydet" : "Ekle"}
+              {saving ? "Kaydediliyor..." : editingTeacher ? "Kaydet" : "Ekle"}
             </button>
             <button
               type="button"

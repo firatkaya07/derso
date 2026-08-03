@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Modal from "@/components/Modal";
+import { useAsyncData } from "@/hooks/use-async-data";
+import { useToast } from "@/components/Toast";
+import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Subject } from "@/lib/types";
 import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS, SUBGROUPS } from "@/lib/types";
 
 export default function SubjectsPage() {
   const supabase = createClient();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [form, setForm] = useState({
@@ -22,18 +25,19 @@ export default function SubjectsPage() {
   });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
 
-  const fetchSubjects = useCallback(async () => {
-    const { data } = await supabase
-      .from("subjects")
-      .select("*")
-      .order("name");
-    setSubjects(data || []);
-    setLoading(false);
+  const loadSubjects = useCallback(async (): Promise<Subject[]> => {
+    const result = await supabase.from("subjects").select("*").order("name");
+    throwIfDbError(result, "Dersler okunamadı");
+    return result.data ?? [];
   }, [supabase]);
 
-  useEffect(() => {
-    fetchSubjects();
-  }, [fetchSubjects]);
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadSubjects,
+  } = useAsyncData(loadSubjects);
+  const subjects = useMemo(() => data ?? [], [data]);
 
   const openCreate = () => {
     setEditingSubject(null);
@@ -58,62 +62,149 @@ export default function SubjectsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      name: form.name,
-      short_name: form.short_name || null,
-      color: form.color,
-      level: form.level || null,
-      subgroups: form.subgroups || null,
-    };
 
-    let subjectId: string;
-
-    if (editingSubject) {
-      await supabase.from("subjects").update(data).eq("id", editingSubject.id);
-      subjectId = editingSubject.id;
-    } else {
-      const { data: inserted } = await supabase
-        .from("subjects")
-        .insert(data)
-        .select("id")
-        .single();
-      if (!inserted) return;
-      subjectId = inserted.id;
+    const subjectLevels = form.level
+      .split(",")
+      .map((level) => level.trim())
+      .filter(Boolean);
+    const invalidLevels = subjectLevels.filter(
+      (level) => !LEVELS.includes(level)
+    );
+    if (invalidLevels.length > 0) {
+      toast.error(
+        `Geçersiz seviye: ${invalidLevels.join(", ")}. Geçerli değerler: ${LEVELS.join(", ")}.`
+      );
+      return;
     }
 
-    if (form.level) {
-      const subjectLevels = form.level.split(",").map((l) => l.trim());
-      const subjectSubgroups = form.subgroups ? form.subgroups.split(",").map((sg) => sg.trim()) : [];
-      const { data: classes } = await supabase.from("classes").select("id, level, subgroup");
-      const matchingClasses = (classes || []).filter((c) => {
-        if (!c.level || !subjectLevels.includes(c.level)) return false;
-        if (subjectSubgroups.length > 0 && c.subgroup) {
-          return subjectSubgroups.includes(c.subgroup);
-        }
-        return true;
-      });
-      for (const cls of matchingClasses) {
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        short_name: form.short_name.trim() || null,
+        color: form.color,
+        level: subjectLevels.length > 0 ? subjectLevels.join(",") : null,
+        subgroups: form.subgroups || null,
+      };
+
+      let subjectId: string;
+      if (editingSubject) {
+        const result = await supabase
+          .from("subjects")
+          .update(payload)
+          .eq("id", editingSubject.id);
+        throwIfDbError(result, "Ders güncellenemedi");
+        subjectId = editingSubject.id;
+      } else {
+        const result = await supabase
+          .from("subjects")
+          .insert(payload)
+          .select("id")
+          .single();
+        throwIfDbError(result, "Ders eklenemedi");
+        subjectId = result.data!.id;
+      }
+
+      await syncClassSubjects(subjectId, subjectLevels);
+
+      setModalOpen(false);
+      reloadSubjects();
+      toast.success(editingSubject ? "Ders güncellendi." : "Ders eklendi.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Dersi, seviyesi ve alanı uyan sınıfların müfredatına 0 saatle ekler.
+   * Artık uymayan sınıflardan da kaldırır; ancak yalnızca saati 0 olan, yani
+   * kullanıcının elle saat girmediği satırlar silinir.
+   */
+  const syncClassSubjects = async (
+    subjectId: string,
+    subjectLevels: string[]
+  ) => {
+    const subjectSubgroups = form.subgroups
+      .split(",")
+      .map((subgroup) => subgroup.trim())
+      .filter(Boolean);
+
+    const classResult = await supabase
+      .from("classes")
+      .select("id, level, subgroup");
+    throwIfDbError(classResult, "Sınıflar okunamadı");
+
+    const matchingIds = new Set(
+      (classResult.data ?? [])
+        .filter((cls) => {
+          if (!cls.level || !subjectLevels.includes(cls.level)) return false;
+          if (subjectSubgroups.length > 0 && cls.subgroup) {
+            return subjectSubgroups.includes(cls.subgroup);
+          }
+          return true;
+        })
+        .map((cls) => cls.id)
+    );
+
+    const existingResult = await supabase
+      .from("class_subjects")
+      .select("id, class_id, weekly_hours")
+      .eq("subject_id", subjectId);
+    throwIfDbError(existingResult, "Sınıf dersleri okunamadı");
+
+    const existing = existingResult.data ?? [];
+    const existingClassIds = new Set(existing.map((cs) => cs.class_id));
+
+    const toAdd = [...matchingIds]
+      .filter((classId) => !existingClassIds.has(classId))
+      .map((classId) => ({
+        class_id: classId,
+        subject_id: subjectId,
+        weekly_hours: 0,
+      }));
+
+    if (toAdd.length > 0) {
+      throwIfDbError(
         await supabase
           .from("class_subjects")
-          .upsert(
-            { class_id: cls.id, subject_id: subjectId, weekly_hours: 0 },
-            { onConflict: "class_id,subject_id", ignoreDuplicates: true }
-          );
-      }
+          .upsert(toAdd, {
+            onConflict: "class_id,subject_id",
+            ignoreDuplicates: true,
+          }),
+        "Ders sınıflara eklenemedi"
+      );
     }
 
-    setModalOpen(false);
-    fetchSubjects();
+    const staleIds = existing
+      .filter((cs) => !matchingIds.has(cs.class_id) && cs.weekly_hours === 0)
+      .map((cs) => cs.id);
+
+    if (staleIds.length > 0) {
+      throwIfDbError(
+        await supabase.from("class_subjects").delete().in("id", staleIds),
+        "Eşleşmeyen sınıf dersleri kaldırılamadı"
+      );
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu dersi silmek istediğinize emin misiniz?")) return;
-    const { error } = await supabase.from("subjects").delete().eq("id", id);
-    if (error) {
-      alert("Bu ders programa atanmış, önce programdan kaldırın.");
+    const { error: deleteError } = await supabase
+      .from("subjects")
+      .delete()
+      .eq("id", id);
+    if (deleteError) {
+      toast.error(
+        deleteError.code === "23503"
+          ? "Bu ders programa yerleşmiş. Önce ilgili ders saatlerini kaldırın."
+          : describeDbError(deleteError)
+      );
       return;
     }
-    fetchSubjects();
+    reloadSubjects();
+    toast.success("Ders silindi.");
   };
 
   const filteredSubjects =
@@ -127,10 +218,18 @@ export default function SubjectsPage() {
 
   const filterTabs = ["Tümü", ...LEVELS];
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-gray-500">Yükleniyor...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        {error.message}
       </div>
     );
   }
@@ -413,9 +512,10 @@ export default function SubjectsPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+              disabled={saving}
+              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingSubject ? "Kaydet" : "Ekle"}
+              {saving ? "Kaydediliyor..." : editingSubject ? "Kaydet" : "Ekle"}
             </button>
             <button
               type="button"

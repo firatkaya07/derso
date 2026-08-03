@@ -30,17 +30,8 @@ const cards = [
   },
   {
     href: "/dagitim",
-    title: "Excel İçe Aktar",
-    description: "Excel dosyasından veri aktar",
-    icon: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12",
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    borderColor: "border-l-blue-400",
-  },
-  {
-    href: "/dagitim",
-    title: "Program Oluştur",
-    description: "Otomatik program oluştur",
+    title: "Otomatik Dağıtım",
+    description: "Excel ile içe aktar, programı otomatik oluştur",
     icon: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
     iconBg: "bg-purple-50",
     iconColor: "text-purple-600",
@@ -78,9 +69,9 @@ const cards = [
 export default function DashboardPage() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {cards.map((card, i) => (
+      {cards.map((card) => (
         <Link
-          key={i}
+          key={card.href}
           href={card.href}
           className={`bg-white rounded-xl border border-gray-200 border-l-4 ${card.borderColor} p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group`}
         >
