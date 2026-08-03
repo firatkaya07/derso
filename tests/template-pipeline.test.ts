@@ -7,7 +7,6 @@ import {
   DEFAULT_RULES,
   type ClassSubjectInput,
 } from "@/lib/scheduler";
-import { assignTeachersToSchedule } from "@/lib/teacher-assignment";
 import type {
   ClassGroup,
   ClassScheduleDay,
@@ -120,8 +119,7 @@ describe("şablondan programa uçtan uca", () => {
       teacherId: cs.teacher_id,
     }));
 
-    // Uygulama da farklı tohumlarla birçok kez deneyip en iyi sonucu seçer.
-    let schedule = autoSchedule(
+    const schedule = autoSchedule(
       db.classes,
       db.scheduleDays,
       db.subjects,
@@ -129,45 +127,25 @@ describe("şablondan programa uçtan uca", () => {
       DEFAULT_RULES,
       db.teacherSubjects,
       db.teachers,
-      0
+      1
     );
-    for (let seed = 1; seed < 10 && schedule.errors.length > 0; seed++) {
-      schedule = autoSchedule(
-        db.classes,
-        db.scheduleDays,
-        db.subjects,
-        inputs,
-        DEFAULT_RULES,
-        db.teacherSubjects,
-        db.teachers,
-        seed
-      );
-    }
+
     expect(schedule.errors).toEqual([]);
+    expect(schedule.unplaced).toEqual([]);
 
     const expectedHours = inputs.reduce(
       (sum, input) => sum + input.weeklyHours,
       0
     );
     expect(schedule.lessons).toHaveLength(expectedHours);
-
-    const assignment = assignTeachersToSchedule(
-      schedule.lessons,
-      db.teachers,
-      db.teacherSubjects,
-      db.subjects,
-      db.classSubjects
+    expect(schedule.lessons.every((lesson) => Boolean(lesson.teacherId))).toBe(
+      true
     );
-    expect(assignment.errors).toEqual([]);
-    expect(assignment.stats.failed).toBe(0);
-    expect(
-      assignment.lessons.every((lesson) => Boolean(lesson.teacherId))
-    ).toBe(true);
 
     // Veritabanındaki iki tekillik kısıtının ihlal edilmediğini doğrula.
     const classSlots = new Set<string>();
     const teacherSlots = new Set<string>();
-    for (const lesson of assignment.lessons) {
+    for (const lesson of schedule.lessons) {
       const slot = `${lesson.dayOfWeek}:${lesson.startTime}`;
       const classKey = `${lesson.classId}:${slot}`;
       const teacherKey = `${lesson.teacherId}:${slot}`;
@@ -177,14 +155,24 @@ describe("şablondan programa uçtan uca", () => {
       teacherSlots.add(teacherKey);
     }
 
+    // Bir sınıfın bir dersini tek öğretmen vermeli.
+    const teachersByCourse = new Map<string, Set<string>>();
+    for (const lesson of schedule.lessons) {
+      const key = `${lesson.classId}:${lesson.subjectId}`;
+      const set = teachersByCourse.get(key) ?? new Set<string>();
+      set.add(lesson.teacherId);
+      teachersByCourse.set(key, set);
+    }
+    for (const [, set] of teachersByCourse) expect(set.size).toBe(1);
+
     // Öğretmenler izin günlerinde ders almamalı.
-    for (const lesson of assignment.lessons) {
+    for (const lesson of schedule.lessons) {
       const teacher = db.teachers.find((t) => t.id === lesson.teacherId)!;
       expect(teacher.off_days).not.toContain(lesson.dayOfWeek);
     }
 
     // Dersler yalnızca sınıfın ders gördüğü gün ve saatlere yerleşmeli.
-    for (const lesson of assignment.lessons) {
+    for (const lesson of schedule.lessons) {
       const day = db.scheduleDays.find(
         (d) => d.class_id === lesson.classId && d.day_of_week === lesson.dayOfWeek
       );

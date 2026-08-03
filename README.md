@@ -79,6 +79,7 @@ erişim reddedilir.
 | `npm run lint` | ESLint |
 | `npm test` | Birim testleri (Vitest) |
 | `npm run test:watch` | Testleri izleme kipinde çalıştırır |
+| `npm run benchmark` | Çizelgeleme algoritmasını örnek senaryolarda ölçer |
 
 ## Uygulama akışı
 
@@ -149,26 +150,77 @@ kontrol eder, ancak son söz veritabanınındır.
 
 ## Çizelgeleme algoritması
 
-`src/lib/scheduler.ts` dersleri bloklara bölüp haftaya yerleştirir. Dikkate
-aldığı kısıtlar:
+`src/lib/scheduler/` altındaki çözücü, ders saatlerini haftaya yerleştirirken
+öğretmenlerini de aynı geçişte atar. Sonuç her zaman tutarlıdır: dönen
+programda sınıf çakışması, öğretmen çakışması veya izin gününde ders bulunmaz.
 
-- Sınıfın yalnızca kendi ders gün ve saatleri
-- Sınıfın aynı anda tek ders görmesi
-- Aynı gün aynı dersten en fazla 2 saat (gerekirse aşılır ve uyarı üretilir)
-- Aynı dersin bloklarının gün içinde bitişik durması
-- Sabit atanmış öğretmenin izin günleri ve doluluğu
-- Bir zaman diliminde eş zamanlı okutulan derslerin gerçekten yeterli
-  öğretmenle karşılanabilmesi (iki parçalı grafik eşleştirmesi ile denetlenir)
+### Kurallar
 
-Yerleştirilemeyen bloklar için takas denemeleri ve ardından bir düzeltme
-geçişi yapılır. `src/lib/teacher-assignment.ts` yerleşen derslere öğretmen
-atar: az öğretmeni olan dersler önceliklidir, yük dengelenir, `MATEMATİK 1/2`
-ve `TÜRKÇE/EDEBİYAT` gibi ders çiftleri aynı sınıfta farklı öğretmenlere
-verilir.
+Çiğnenemeyen kısıtlar:
 
-Algoritma tarayıcıda çalışır ve rastgele tohumlarla birçok kez denenerek en az
-hatalı sonuç seçilir. Deneme sayısı Kurallar sekmesinden ayarlanır;
-varsayılan 500'dür.
+- Ders yalnızca sınıfın kendi gün ve saatlerine yerleşir.
+- Bir sınıf aynı anda tek ders görür.
+- Bir öğretmen aynı anda tek sınıfta olur ve izin gününde ders vermez.
+- **Bir sınıfın bir dersini baştan sona tek öğretmen verir.** Öğretmen
+  yetmediğinde ders iki öğretmene bölünmez; yerleştirilemeyen saat açıkta
+  bırakılır ve nedeni raporlanır.
+- Sınıflar sayfasında bir derse sabit öğretmen belirlendiyse o atama korunur.
+
+Esnetilebilen, ihlal edilirse uyarı üretilen tercihler:
+
+- Aynı dersten günde en fazla 2 saat.
+- Aynı dersin saatleri gün içinde arka arkaya.
+- `MATEMATİK 1/2`, `TÜRKÇE/EDEBİYAT` gibi ders çiftleri aynı sınıfta farklı
+  öğretmenlere verilir.
+- Öğretmen yükleri dengeli dağıtılır.
+
+### Arama
+
+Önce açgözlü bir kurulum yapılır: dersler kısıtlılığa göre sıralanır (az
+öğretmeni olan ve çok saatli olanlar önce), her derse en uygun öğretmen seçilir
+ve blokları boş yerlere konur. Ardından yerleşemeyen bloklar için onarım
+döngüsü çalışır ve üç hamle kullanılır:
+
+1. **Yerleştirme:** blok, en az sayıda bloğu söktüren konuma konur; sökülenler
+   kuyruğa geri döner (ejection chain).
+2. **Öğretmen değiştirme:** dersin bütün saatlerini üstlenebilecek başka bir
+   öğretmen aranır.
+3. **Öğretmen takası:** iki ders öğretmenlerini karşılıklı değiştirir.
+
+İyileşme durduğunda çözüm rastgele sarsılır ve en iyi bilinen duruma dönülür.
+Program kapasitesinin tamamını kullandığında belirleyici olan gün içi
+parçalanma da cezalandırılır: dört slotluk bir güne iki saatlik blok ortadan
+konursa iki tekil boşluk kalır ve o gün bir daha doldurulamaz.
+
+Arama tarayıcıda çalışır. Kurallar sekmesindeki tur sayısı kaç kez sıfırdan
+denenmesi gerektiğini belirler; ulaşılabilir en yüksek saate varılırsa arama
+erken biter.
+
+### Neden %100 olmadığını anlamak
+
+Her program eksiksiz çözülemez ve bu çoğu zaman algoritmanın değil verinin
+sonucudur. Çözücü aramaya başlamadan önce bir olurluk incelemesi yapar ve
+ulaşılabilecek en yüksek saati hesaplar:
+
+- Sınıfın haftalık ders saati, programındaki yerden fazla mı?
+- Bir dersi verebilecek öğretmen tanımlı mı?
+- O dersi verebilen öğretmenlerin sınıf saatleriyle örtüşen müsait süresi
+  talebi karşılıyor mu?
+- Karşılıyor olsa bile dersler bölünemediği için artan boşluklar kullanılabilir
+  mi? Örneğin 16'şar saati boş dört öğretmen, 6'şar saatlik on dersin ancak
+  sekizini tam karşılayabilir; kalan iki ders için öğretmen başına 4'er saat
+  boş kalsa da bu boşluklar tek bir derse tahsis edilmek zorundadır.
+
+Sonuç ekranı bu nedenleri "3 öğretmen daha gerekli", "S07 için ders günü
+ekleyin" gibi uygulanabilir cümlelerle listeler.
+
+### Başarımı ölçmek
+
+`npm run benchmark`, `tests/helpers/scenarios.ts` içindeki senaryolarda
+çözücüyü çalıştırır ve her senaryo için yerleşen saat oranını, hesaplanan üst
+sınırı ve kısıt ihlallerini raporlar. İhlal sayısı her zaman sıfır olmalıdır.
+Aynı senaryolar `tests/scheduler-scenarios.test.ts` içinde regresyon testi
+olarak da koşar.
 
 ## Proje yapısı
 
@@ -180,8 +232,11 @@ src/
   components/           Ortak arayüz bileşenleri (Modal, Toast, ScheduleGrid)
   hooks/                useAsyncData
   lib/
-    scheduler.ts        Otomatik çizelgeleme
-    teacher-assignment.ts  Öğretmen atama
+    scheduler/
+      model.ts          Girdiyi çözücünün dizi tabanlı modeline çevirir
+      feasibility.ts    Ulaşılabilir en yüksek saati ve engelleri hesaplar
+      solver.ts         Yerleştirme + öğretmen atama araması
+      index.ts          autoSchedule ve sonuç raporu
     schedule-rules.ts   Elle yerleştirmenin kuralları
     excel-template.ts   Şablon tanımı ve üretimi
     excel-parser.ts     Şablon okuma ve doğrulama
@@ -201,8 +256,12 @@ tests/                  Vitest birim testleri
   engelliyse dosya HTML olarak iner.
 - **Tek kurumludur.** Giriş yapabilen her kullanıcı tüm veriyi görüp
   düzenleyebilir. Rol ayrımı gerekiyorsa RLS politikalarını daraltmak gerekir.
-- **Çizelgeleme tarayıcıda çalışır.** Çok sayıda sınıf ve yüksek deneme
-  sayısında arayüz yavaşlayabilir; işlem küçük gruplara bölünerek çalıştırılır.
+- **Çizelgeleme tarayıcıda çalışır.** Arama turları küçük parçalara bölünerek
+  koşar; 24 sınıf ve 8 dersten oluşan bir program bir turda yaklaşık 0,1
+  saniye sürer.
+- **Ulaşılabilir en yüksek saat bir tahmindir.** Ders başına hesaplanır ve iki
+  ders veren öğretmenlerin kapasitesini paylaştırmaz; birden çok branşa giren
+  kadrolarda gerçek sınır biraz daha düşük olabilir.
 - `npm audit`, Next.js'in kendi bağımlılıklarından gelen (`postcss`, `sharp`)
   uyarılar üretir. Bunlar ancak Next.js sürümüyle birlikte kapanır; `npm audit
   fix --force` Next.js'i eski bir sürüme düşüreceği için kullanılmamalıdır.

@@ -13,36 +13,37 @@ import { useToast } from "@/components/Toast";
 import {
   autoSchedule,
   DEFAULT_RULES,
+  type ScheduleResult,
   type ScheduleRules,
   type GeneratedLesson,
   type ClassSubjectInput,
 } from "@/lib/scheduler";
-import {
-  assignTeachersToSchedule,
-  type AssignmentResult,
-} from "@/lib/teacher-assignment";
 import type { Subject } from "@/lib/types";
 import { DAY_NAMES } from "@/lib/types";
 
 type Tab = "import" | "rules" | "schedule" | "atama";
 
-interface ScheduleOutput {
-  lessons: GeneratedLesson[];
-  errors: string[];
-  warnings: string[];
+interface RoundLog {
+  round: number;
+  placedHours: number;
+  bestHours: number;
 }
 
-interface AttemptLog {
-  attempt: number;
-  schedErrors: number;
-  assignFailed: number;
-  total: number;
-  best: number;
-}
+/** Bir turdaki onarım adımı üst sınırı. */
+const ITERATIONS_PER_ROUND = 40000;
+/** Bir turun süre sınırı; arayüzün donmaması için kısa tutulur. */
+const ROUND_TIME_LIMIT_MS = 1200;
 
-const SWAP_DEPTH = 30;
-/** Tarayıcı arayüzünün donmaması için denemeler küçük gruplar hâlinde çalışır. */
-const ATTEMPTS_PER_BATCH = 2;
+/** Daha çok saat yerleştiren, eşitlikte daha az uyarı üreten sonuç iyidir. */
+function isBetterSchedule(
+  candidate: ScheduleResult,
+  current: ScheduleResult
+): boolean {
+  if (candidate.stats.placedHours !== current.stats.placedHours) {
+    return candidate.stats.placedHours > current.stats.placedHours;
+  }
+  return candidate.warnings.length < current.warnings.length;
+}
 
 function toClassSubjectInputs(data: PlanningData): ClassSubjectInput[] {
   return data.classSubjects.map((cs) => ({
@@ -69,18 +70,15 @@ export default function DagitimPage() {
   const [importLog, setImportLog] = useState<string[]>([]);
 
   const [rules, setRules] = useState<ScheduleRules>(DEFAULT_RULES);
-  const [maxRetries, setMaxRetries] = useState(500);
-  const [scheduleResult, setScheduleResult] = useState<ScheduleOutput | null>(
+  const [rounds, setRounds] = useState(10);
+  const [scheduleResult, setScheduleResult] = useState<ScheduleResult | null>(
     null
   );
   const [generating, setGenerating] = useState(false);
-  const [attemptLogs, setAttemptLogs] = useState<AttemptLog[]>([]);
+  const [roundLogs, setRoundLogs] = useState<RoundLog[]>([]);
 
-  const [assignmentResult, setAssignmentResult] =
-    useState<AssignmentResult | null>(null);
-  const [assigning, setAssigning] = useState(false);
-  const [savingAssignment, setSavingAssignment] = useState(false);
-  const [assignmentSaved, setAssignmentSaved] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleSaved, setScheduleSaved] = useState(false);
 
   const loadDbData = useCallback(() => loadPlanningData(supabase), [supabase]);
   const { data: dbData, error: dbError, reload } = useAsyncData(loadDbData);
@@ -128,8 +126,9 @@ export default function DagitimPage() {
 
   const handleGenerate = async () => {
     setGenerating(true);
-    setAssignmentResult(null);
-    setAttemptLogs([]);
+    setScheduleResult(null);
+    setScheduleSaved(false);
+    setRoundLogs([]);
 
     let data: PlanningData;
     try {
@@ -149,126 +148,80 @@ export default function DagitimPage() {
     }
 
     const csInputs = toClassSubjectInputs(data);
-    let best: {
-      schedule: ScheduleOutput;
-      assignment: AssignmentResult;
-      totalFailed: number;
-    } | null = null;
+    let best: ScheduleResult | null = null;
 
-    const runBatch = (startAttempt: number) => {
+    // Turlar setTimeout ile ayrılır: hesaplama tek iş parçacığında koştuğu
+    // için aralık verilmezse arayüz kilitlenir.
+    const runRound = (round: number) => {
       setTimeout(() => {
-        const batchLogs: AttemptLog[] = [];
-        const end = Math.min(startAttempt + ATTEMPTS_PER_BATCH, maxRetries);
-        let solved = false;
-
-        for (let attempt = startAttempt; attempt < end; attempt++) {
-          const schedule = autoSchedule(
-            data.classes,
-            data.scheduleDays,
-            data.subjects,
-            csInputs,
-            rules,
-            data.teacherSubjects,
-            data.teachers,
-            attempt,
-            SWAP_DEPTH
-          );
-
-          const assignment = assignTeachersToSchedule(
-            schedule.lessons,
-            data.teachers,
-            data.teacherSubjects,
-            data.subjects,
-            data.classSubjects
-          );
-
-          const totalFailed = schedule.errors.length + assignment.stats.failed;
-          if (!best || totalFailed < best.totalFailed) {
-            best = { schedule, assignment, totalFailed };
+        const result = autoSchedule(
+          data.classes,
+          data.scheduleDays,
+          data.subjects,
+          csInputs,
+          rules,
+          data.teacherSubjects,
+          data.teachers,
+          round + 1,
+          {
+            restarts: 1,
+            maxIterations: ITERATIONS_PER_ROUND,
+            timeLimitMs: ROUND_TIME_LIMIT_MS,
           }
+        );
 
-          batchLogs.push({
-            attempt: attempt + 1,
-            schedErrors: schedule.errors.length,
-            assignFailed: assignment.stats.failed,
-            total: totalFailed,
-            best: best.totalFailed,
-          });
+        if (!best || isBetterSchedule(result, best)) best = result;
+        const bestSoFar = best as ScheduleResult;
 
-          if (totalFailed === 0) {
-            solved = true;
-            break;
-          }
-        }
+        setRoundLogs((prev) => [
+          ...prev,
+          {
+            round: round + 1,
+            placedHours: result.stats.placedHours,
+            bestHours: bestSoFar.stats.placedHours,
+          },
+        ]);
 
-        setAttemptLogs((prev) => [...prev, ...batchLogs]);
+        const reachedLimit =
+          bestSoFar.stats.placedHours >= bestSoFar.stats.maxPlaceableHours &&
+          bestSoFar.warnings.length === 0;
 
-        if (solved || end >= maxRetries) {
-          if (best) {
-            const winner = best as {
-              schedule: ScheduleOutput;
-              assignment: AssignmentResult;
-              totalFailed: number;
-            };
-            setScheduleResult({
-              ...winner.schedule,
-              lessons: winner.assignment.lessons,
-            });
-            setAssignmentResult(winner.assignment);
-            setAssignmentSaved(false);
-            if (winner.totalFailed === 0) {
-              toast.success("Tüm dersler yerleştirildi.");
-            } else {
-              toast.info(
-                `En iyi sonuçta ${winner.totalFailed} ders yerleştirilemedi. Ayrıntılar aşağıda.`
-              );
-            }
-          }
+        if (reachedLimit || round + 1 >= rounds) {
+          setScheduleResult(bestSoFar);
           setGenerating(false);
           setTab("schedule");
+
+          const { placedHours, totalHours, maxPlaceableHours } =
+            bestSoFar.stats;
+          if (placedHours === totalHours) {
+            toast.success("Tüm dersler yerleştirildi.");
+          } else if (placedHours >= maxPlaceableHours) {
+            toast.info(
+              `${placedHours}/${totalHours} saat yerleştirildi. Kalan saatler mevcut öğretmen ve ders saatleriyle yerleştirilemez; nedenleri aşağıda.`
+            );
+          } else {
+            toast.info(
+              `${placedHours}/${totalHours} saat yerleştirildi. Tur sayısını artırmayı deneyebilirsiniz.`
+            );
+          }
         } else {
-          runBatch(end);
+          runRound(round + 1);
         }
       }, 0);
     };
 
-    runBatch(0);
-  };
-
-  const handleAssign = async () => {
-    if (!scheduleResult) return;
-    setAssigning(true);
-    setAssignmentSaved(false);
-    try {
-      const data = await loadPlanningData(supabase);
-      const result = assignTeachersToSchedule(
-        scheduleResult.lessons,
-        data.teachers,
-        data.teacherSubjects,
-        data.subjects,
-        data.classSubjects
-      );
-      setAssignmentResult(result);
-      setScheduleResult({ ...scheduleResult, lessons: result.lessons });
-      toast.success(
-        `${result.stats.assigned} ders grubuna öğretmen atandı, ${result.stats.failed} grup atanamadı.`
-      );
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setAssigning(false);
-    }
+    runRound(0);
   };
 
   const handleSaveAll = async () => {
-    if (!assignmentResult) return;
-    setSavingAssignment(true);
+    if (!scheduleResult) return;
+    setSavingSchedule(true);
     try {
       const result = await saveGeneratedSchedule(
         supabase,
-        assignmentResult.lessons
+        scheduleResult.lessons
       );
-      setAssignmentSaved(true);
+      setScheduleSaved(true);
       reload();
       toast.success(
         result.skippedLessons > 0
@@ -278,7 +231,7 @@ export default function DagitimPage() {
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
-      setSavingAssignment(false);
+      setSavingSchedule(false);
     }
   };
 
@@ -335,7 +288,7 @@ export default function DagitimPage() {
             ["import", "İçe Aktarma"],
             ["rules", "Kurallar"],
             ["schedule", "Ders Programı"],
-            ["atama", "Öğretmen Atama"],
+            ["atama", "Öğretmen Yükleri"],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -352,19 +305,19 @@ export default function DagitimPage() {
         ))}
       </div>
 
-      {(generating || attemptLogs.length > 0) && (
+      {(generating || roundLogs.length > 0) && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-700">
-              {generating ? "Deneniyor..." : "Deneme Sonuçları"}
+              {generating ? "Program aranıyor..." : "Arama Sonuçları"}
             </h3>
             <div className="flex items-center gap-3 text-xs">
               <span className="text-gray-500">
-                Deneme: {attemptLogs.length}/{maxRetries}
+                Tur: {roundLogs.length}/{rounds}
               </span>
-              {attemptLogs.length > 0 && (
+              {roundLogs.length > 0 && (
                 <span className="font-semibold text-green-600">
-                  En iyi: {attemptLogs[attemptLogs.length - 1].best} hata
+                  En iyi: {roundLogs[roundLogs.length - 1].bestHours} saat
                 </span>
               )}
             </div>
@@ -373,25 +326,23 @@ export default function DagitimPage() {
             <div
               className="bg-blue-600 h-1.5 rounded-full transition-all"
               style={{
-                width: `${Math.min(100, (attemptLogs.length / maxRetries) * 100)}%`,
+                width: `${Math.min(100, (roundLogs.length / rounds) * 100)}%`,
               }}
             />
           </div>
-          <div className="max-h-48 overflow-y-auto text-xs font-mono space-y-0.5">
-            {[...attemptLogs].reverse().map((log) => (
+          <div className="max-h-40 overflow-y-auto text-xs font-mono space-y-0.5">
+            {[...roundLogs].reverse().map((log) => (
               <div
-                key={log.attempt}
-                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
-                  log.total === log.best
+                key={log.round}
+                className={`flex items-center gap-3 px-2 py-0.5 rounded ${
+                  log.placedHours === log.bestHours
                     ? "bg-green-50 text-green-700"
                     : "text-gray-500"
                 }`}
               >
-                <span className="w-12">#{log.attempt}</span>
-                <span className="w-28">Yerleştirme: {log.schedErrors}</span>
-                <span className="w-24">Atama: {log.assignFailed}</span>
-                <span className="w-20">Toplam: {log.total}</span>
-                {log.total === log.best && (
+                <span className="w-12">#{log.round}</span>
+                <span className="w-32">Yerleşen: {log.placedHours} saat</span>
+                {log.placedHours === log.bestHours && (
                   <span className="text-green-600 font-semibold">★ En iyi</span>
                 )}
               </div>
@@ -723,26 +674,36 @@ export default function DagitimPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Deneme Sayısı
+              Arama Turu Sayısı
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              Algoritma kaç farklı kombinasyon deneyecek. Daha fazla deneme daha
-              iyi sonuç verebilir ancak daha uzun sürer.
+              Her tur, programı sıfırdan kurup boşta kalan dersleri yerleştirmeye
+              çalışır ve en iyi sonuç saklanır. Ulaşılabilir en yüksek saate
+              varılırsa arama erken biter, bu yüzden turu artırmanın bedeli
+              yalnızca zor programlarda hissedilir.
             </p>
             <div className="flex items-center gap-4">
               <input
                 type="number"
                 min={1}
-                max={2000}
-                value={maxRetries}
+                max={100}
+                value={rounds}
                 onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v) && v >= 1 && v <= 2000) setMaxRetries(v);
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value) && value >= 1 && value <= 100) {
+                    setRounds(value);
+                  }
                 }}
                 className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
               />
-              <span className="text-xs text-gray-400">1 – 2000 arası</span>
+              <span className="text-xs text-gray-400">1 – 100 arası</span>
             </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+            Bir sınıfın bir dersinin bütün saatlerini tek öğretmen verir; program
+            bu dersi iki öğretmene bölerek doldurmaz. Öğretmen sayısı yetmediğinde
+            ders bölünmek yerine açıkta bırakılır ve nedeni raporlanır.
           </div>
 
           <button
@@ -771,38 +732,32 @@ export default function DagitimPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <div className="text-3xl font-bold text-green-600">
-                    {scheduleResult.lessons.length}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Yerleştirilen Ders
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <div className="text-3xl font-bold text-red-600">
-                    {scheduleResult.errors.length}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">Hata</div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <div className="text-3xl font-bold text-amber-600">
-                    {scheduleResult.warnings.length}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">Uyarı</div>
-                </div>
-              </div>
+              <CoverageCard result={scheduleResult} />
 
               {scheduleResult.errors.length > 0 && (
                 <div className="bg-red-50 rounded-xl border border-red-200 p-4">
                   <h3 className="text-sm font-semibold text-red-800 mb-2">
-                    Hatalar
+                    Yerleştirilemeyen dersler ve nedenleri
                   </h3>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {scheduleResult.errors.map((err, i) => (
+                  <div className="space-y-1 max-h-56 overflow-y-auto">
+                    {scheduleResult.errors.map((message, i) => (
                       <div key={i} className="text-xs text-red-700">
-                        {err}
+                        {message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {scheduleResult.warnings.length > 0 && (
+                <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
+                  <h3 className="text-sm font-semibold text-amber-800 mb-2">
+                    Uyarılar ({scheduleResult.warnings.length})
+                  </h3>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {scheduleResult.warnings.map((message, i) => (
+                      <div key={i} className="text-xs text-amber-700">
+                        {message}
                       </div>
                     ))}
                   </div>
@@ -813,10 +768,19 @@ export default function DagitimPage() {
 
               <div className="flex gap-3 items-center">
                 <button
-                  onClick={() => setTab("atama")}
-                  className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                  onClick={handleSaveAll}
+                  disabled={
+                    savingSchedule ||
+                    scheduleSaved ||
+                    scheduleResult.lessons.length === 0
+                  }
+                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Öğretmen Ata
+                  {savingSchedule
+                    ? "Kaydediliyor..."
+                    : scheduleSaved
+                      ? "Kaydedildi"
+                      : "Programı Kaydet"}
                 </button>
                 <button
                   onClick={handleGenerate}
@@ -834,47 +798,47 @@ export default function DagitimPage() {
       {tab === "atama" && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4 gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Öğretmen Atama
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Oluşturulan ders programına göre öğretmen atar. İzin günlerini,
-                  saat çakışmalarını ve eşli ders kurallarını (MATEMATİK 1/2,
-                  TÜRKÇE/EDEBİYAT) kontrol eder.
-                </p>
-              </div>
-              <button
-                onClick={handleAssign}
-                disabled={assigning || !scheduleResult}
-                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              >
-                {assigning ? "Atanıyor..." : "Otomatik Ata"}
-              </button>
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Öğretmen Yükleri
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Öğretmenler program oluşturulurken atanır: bir sınıfın bir dersini
+              baştan sona tek öğretmen verir, kimse izin gününde veya aynı saatte
+              iki sınıfta görünmez. Sınıflar sayfasında sabit öğretmen
+              belirlediyseniz o atama korunur.
+            </p>
             {!scheduleResult && (
-              <p className="text-sm text-amber-600">
-                Önce &quot;Ders Programı&quot; sekmesinden programı oluşturun.
+              <p className="text-sm text-amber-600 mt-3">
+                Önce Kurallar sekmesinden programı oluşturun.
               </p>
             )}
           </div>
 
-          {assignmentResult && (
+          {scheduleResult && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                   [
-                    "Ders-Sınıf Grubu",
-                    assignmentResult.stats.totalGroups,
+                    "Aktif Öğretmen",
+                    scheduleResult.stats.teacherLoads.length,
+                    "text-purple-600",
+                  ],
+                  [
+                    "En yüksek yük",
+                    scheduleResult.stats.teacherLoads[0]?.totalHours ?? 0,
                     "text-blue-600",
                   ],
-                  ["Atanan", assignmentResult.stats.assigned, "text-green-600"],
-                  ["Atanamayan", assignmentResult.stats.failed, "text-red-600"],
                   [
-                    "Aktif Öğretmen",
-                    assignmentResult.stats.teacherLoads.length,
-                    "text-purple-600",
+                    "En düşük yük",
+                    scheduleResult.stats.teacherLoads[
+                      scheduleResult.stats.teacherLoads.length - 1
+                    ]?.totalHours ?? 0,
+                    "text-green-600",
+                  ],
+                  [
+                    "Bölünmüş ders",
+                    0,
+                    "text-gray-400",
                   ],
                 ].map(([label, value, color]) => (
                   <div
@@ -887,86 +851,79 @@ export default function DagitimPage() {
                 ))}
               </div>
 
-              {assignmentResult.errors.length > 0 && (
-                <div className="bg-red-50 rounded-xl border border-red-200 p-4">
-                  <h3 className="text-sm font-semibold text-red-800 mb-2">
-                    Hatalar ({assignmentResult.errors.length})
-                  </h3>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {assignmentResult.errors.map((err, i) => (
-                      <div key={i} className="text-xs text-red-700">
-                        {err}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {assignmentResult.warnings.length > 0 && (
-                <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
-                  <h3 className="text-sm font-semibold text-amber-800 mb-2">
-                    Uyarılar ({assignmentResult.warnings.length})
-                  </h3>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {assignmentResult.warnings.map((w, i) => (
-                      <div key={i} className="text-xs text-amber-700">
-                        {w}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Öğretmen Yük Dağılımı
+                  Haftalık Ders Saati Dağılımı
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {assignmentResult.stats.teacherLoads.map((tl) => (
+                  {scheduleResult.stats.teacherLoads.map((load) => (
                     <div
-                      key={tl.teacherId}
+                      key={load.teacherId}
                       className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5"
                     >
                       <span className="text-sm font-medium text-gray-900">
-                        {tl.teacherName}
+                        {load.teacherName}
                       </span>
                       <span className="text-sm font-bold text-purple-600">
-                        {tl.totalHours} saat
+                        {load.totalHours} saat
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <ScheduleTable lessons={assignmentResult.lessons} />
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveAll}
-                  disabled={
-                    savingAssignment ||
-                    assignmentSaved ||
-                    assignmentResult.stats.assigned === 0
-                  }
-                  className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingAssignment
-                    ? "Kaydediliyor..."
-                    : assignmentSaved
-                      ? "Kaydedildi"
-                      : "Programı Kaydet"}
-                </button>
-                <button
-                  onClick={handleAssign}
-                  disabled={assigning}
-                  className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
-                >
-                  Yeniden Ata
-                </button>
-              </div>
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function CoverageCard({ result }: { result: ScheduleResult }) {
+  const { placedHours, totalHours, maxPlaceableHours, elapsedMs } = result.stats;
+  const percent = totalHours > 0 ? (placedHours / totalHours) * 100 : 100;
+  const atLimit = placedHours >= maxPlaceableHours;
+  const complete = placedHours === totalHours;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-end justify-between mb-3 gap-4">
+        <div>
+          <div className="text-4xl font-bold text-gray-900">
+            %{percent.toFixed(1)}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">
+            {placedHours} / {totalHours} ders saati yerleştirildi
+          </div>
+        </div>
+        <div className="text-right text-xs text-gray-400">
+          <div>{result.unplaced.length} ders eksik</div>
+          <div>{(elapsedMs / 1000).toFixed(1)} sn</div>
+        </div>
+      </div>
+
+      <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
+        <div
+          className={`h-2 rounded-full transition-all ${complete ? "bg-green-500" : atLimit ? "bg-blue-500" : "bg-amber-500"}`}
+          style={{ width: `${Math.min(100, percent)}%` }}
+        />
+      </div>
+
+      {complete ? (
+        <p className="text-sm text-green-700">
+          Bütün dersler yerleştirildi.
+        </p>
+      ) : atLimit ? (
+        <p className="text-sm text-blue-700">
+          Bu, mevcut ders saatleri ve öğretmen kadrosuyla ulaşılabilecek en
+          yüksek orandır ({maxPlaceableHours} saat). Daha fazlası için aşağıdaki
+          nedenleri giderin.
+        </p>
+      ) : (
+        <p className="text-sm text-amber-700">
+          Kısıtlara göre {maxPlaceableHours} saate kadar çıkılabilir. Arama turu
+          sayısını artırıp tekrar deneyebilirsiniz.
+        </p>
       )}
     </div>
   );
