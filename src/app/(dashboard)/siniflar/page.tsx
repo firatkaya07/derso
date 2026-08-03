@@ -12,7 +12,20 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useSettings } from "@/components/SettingsProvider";
+import SlotPreview from "@/components/SlotPreview";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
+import { slotTimingOf } from "@/lib/settings";
+import {
+  DEFAULT_DAY_WINDOW,
+  draftScheduleDays,
+  findOrphanLessons,
+  SCHEDULE_PRESETS,
+  slotCountForWindow,
+  slotsForWindow,
+  weeklySlotCapacity,
+  type DayWindow,
+} from "@/lib/slot-management";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
 
@@ -39,6 +52,8 @@ const inputClass =
 export default function ClassesPage() {
   const supabase = createClient();
   const toast = useToast();
+  const settings = useSettings();
+  const timing = slotTimingOf(settings);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -46,6 +61,8 @@ export default function ClassesPage() {
   const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClassGroup | null>(null);
+  const [orphanConfirmOpen, setOrphanConfirmOpen] = useState(false);
+  const [pendingOrphanIds, setPendingOrphanIds] = useState<string[]>([]);
   const [form, setForm] = useState({ name: "", description: "", level: "", subgroup: "" });
   const [levelFilter, setLevelFilter] = useState<string>("Tümü");
   const [search, setSearch] = useState("");
@@ -146,19 +163,65 @@ export default function ClassesPage() {
 
   const openSchedule = (cls: ClassGroup) => {
     setSelectedClass(cls);
+    setOrphanConfirmOpen(false);
+    setPendingOrphanIds([]);
     const classDays = scheduleDays.filter((d) => d.class_id === cls.id);
     const configs = Array.from({ length: 7 }, (_, i) => {
       const existing = classDays.find((d) => d.day_of_week === i);
       return {
         day: i,
         enabled: !!existing,
-        startTime: existing?.start_time?.slice(0, 5) || "09:00",
-        endTime: existing?.end_time?.slice(0, 5) || "13:00",
+        startTime:
+          existing?.start_time?.slice(0, 5) || DEFAULT_DAY_WINDOW.startTime,
+        endTime: existing?.end_time?.slice(0, 5) || DEFAULT_DAY_WINDOW.endTime,
       };
     });
     setDayConfigs(configs);
     setScheduleModalOpen(true);
   };
+
+  const applyPresetToDay = (dayIndex: number, window: DayWindow) => {
+    setDayConfigs((current) =>
+      current.map((config, idx) =>
+        idx === dayIndex
+          ? {
+              ...config,
+              enabled: true,
+              startTime: window.startTime,
+              endTime: window.endTime,
+            }
+          : config
+      )
+    );
+  };
+
+  const applyPresetToEnabled = (window: DayWindow) => {
+    setDayConfigs((current) =>
+      current.map((config) =>
+        config.enabled
+          ? {
+              ...config,
+              startTime: window.startTime,
+              endTime: window.endTime,
+            }
+          : config
+      )
+    );
+  };
+
+  const schedulePreview = useMemo(() => {
+    const enabled = dayConfigs.filter((d) => d.enabled);
+    const totalSlots = enabled.reduce(
+      (sum, day) =>
+        sum +
+        slotCountForWindow(
+          { startTime: day.startTime, endTime: day.endTime },
+          timing
+        ),
+      0
+    );
+    return { enabledCount: enabled.length, totalSlots };
+  }, [dayConfigs, timing]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,6 +300,40 @@ export default function ClassesPage() {
     }
   };
 
+  const persistSchedule = async (orphanLessonIds: string[]) => {
+    if (!selectedClass) return;
+
+    throwIfDbError(
+      await supabase
+        .from("class_schedule_days")
+        .delete()
+        .eq("class_id", selectedClass.id),
+      "Mevcut ders günleri temizlenemedi"
+    );
+
+    const enabledDays = dayConfigs.filter((day) => day.enabled);
+    if (enabledDays.length > 0) {
+      throwIfDbError(
+        await supabase.from("class_schedule_days").insert(
+          enabledDays.map((day) => ({
+            class_id: selectedClass.id,
+            day_of_week: day.day,
+            start_time: day.startTime,
+            end_time: day.endTime,
+          }))
+        ),
+        "Ders günleri kaydedilemedi"
+      );
+    }
+
+    if (orphanLessonIds.length > 0) {
+      throwIfDbError(
+        await supabase.from("lessons").delete().in("id", orphanLessonIds),
+        "Uyumsuz ders saatleri temizlenemedi"
+      );
+    }
+  };
+
   const handleSaveSchedule = async () => {
     if (!selectedClass) return;
 
@@ -249,33 +346,66 @@ export default function ClassesPage() {
       return;
     }
 
+    const zeroSlot = enabledDays.find(
+      (day) =>
+        slotCountForWindow(
+          { startTime: day.startTime, endTime: day.endTime },
+          timing
+        ) === 0
+    );
+    if (zeroSlot) {
+      toast.error(
+        `${DAY_NAMES[zeroSlot.day]}: seçilen sürelerle ders saati sığmıyor (${timing.lessonMinutes} dk ders).`
+      );
+      return;
+    }
+
     setSaving(true);
     try {
-      throwIfDbError(
-        await supabase
-          .from("class_schedule_days")
-          .delete()
-          .eq("class_id", selectedClass.id),
-        "Mevcut ders günleri temizlenemedi"
+      const draftDays = draftScheduleDays(selectedClass.id, dayConfigs);
+      const lessonsResult = await supabase
+        .from("lessons")
+        .select("id, class_id, day_of_week, start_time")
+        .eq("class_id", selectedClass.id);
+      throwIfDbError(lessonsResult, "Mevcut program okunamadı");
+
+      const orphans = findOrphanLessons(
+        lessonsResult.data ?? [],
+        draftDays,
+        timing
       );
 
-      if (enabledDays.length > 0) {
-        throwIfDbError(
-          await supabase.from("class_schedule_days").insert(
-            enabledDays.map((day) => ({
-              class_id: selectedClass.id,
-              day_of_week: day.day,
-              start_time: day.startTime,
-              end_time: day.endTime,
-            }))
-          ),
-          "Ders günleri kaydedilemedi"
-        );
+      if (orphans.length > 0) {
+        setPendingOrphanIds(orphans.map((lesson) => lesson.id));
+        setOrphanConfirmOpen(true);
+        setSaving(false);
+        return;
       }
 
+      await persistSchedule([]);
       setScheduleModalOpen(false);
       reload();
       toast.success("Ders günleri kaydedildi.");
+    } catch (err) {
+      toast.error((err as Error).message);
+      reload();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmSaveWithOrphanCleanup = async () => {
+    const cleaned = pendingOrphanIds.length;
+    setSaving(true);
+    try {
+      await persistSchedule(pendingOrphanIds);
+      setOrphanConfirmOpen(false);
+      setPendingOrphanIds([]);
+      setScheduleModalOpen(false);
+      reload();
+      toast.success(
+        `Ders günleri kaydedildi. ${cleaned} uyumsuz ders saati temizlendi.`
+      );
     } catch (err) {
       toast.error((err as Error).message);
       reload();
@@ -458,18 +588,33 @@ export default function ClassesPage() {
             Ders günü belirlenmemiş — ayarlamak için tıklayın
           </button>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {days.map((d) => (
-              <span
-                key={d.id}
-                className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full"
-              >
-                {DAY_NAMES[d.day_of_week]}
-                <span className="text-green-600/80">
-                  {d.start_time.slice(0, 5)}-{d.end_time.slice(0, 5)}
-                </span>
-              </span>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {days.map((d) => {
+                const count = slotCountForWindow(
+                  {
+                    startTime: d.start_time.slice(0, 5),
+                    endTime: d.end_time.slice(0, 5),
+                  },
+                  timing
+                );
+                return (
+                  <span
+                    key={d.id}
+                    className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full"
+                  >
+                    {DAY_NAMES[d.day_of_week]}
+                    <span className="text-green-600/80">
+                      {d.start_time.slice(0, 5)}–{d.end_time.slice(0, 5)}
+                    </span>
+                    <span className="text-green-800/70">· {count} slot</span>
+                  </span>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-gray-400">
+              Haftalık kapasite: {weeklySlotCapacity(days, timing)} ders saati
+            </p>
           </div>
         )}
 
@@ -753,61 +898,146 @@ export default function ClassesPage() {
 
       <Modal
         isOpen={scheduleModalOpen}
-        onClose={() => setScheduleModalOpen(false)}
+        onClose={() => {
+          setScheduleModalOpen(false);
+          setOrphanConfirmOpen(false);
+        }}
         title={`${selectedClass?.name ?? ""} — Ders Günleri`}
       >
-        <div className="space-y-3">
-          {dayConfigs.map((config, idx) => (
-            <div
-              key={config.day}
-              className={`flex flex-wrap items-center gap-3 p-3 rounded-lg border transition-colors ${
-                config.enabled
-                  ? "bg-green-50 border-green-200"
-                  : "bg-gray-50 border-gray-200"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={config.enabled}
-                onChange={(e) => {
-                  const updated = [...dayConfigs];
-                  updated[idx] = { ...config, enabled: e.target.checked };
-                  setDayConfigs(updated);
-                }}
-                className="w-4 h-4 text-green-600 rounded"
-              />
-              <span className="w-24 text-sm font-medium text-gray-700">
-                {DAY_NAMES[config.day]}
+        <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs font-medium text-gray-600 mb-2">
+              Hazır pencere uygula
+              <span className="font-normal text-gray-400">
+                {" "}
+                · {timing.lessonMinutes}+{timing.breakMinutes} dk
               </span>
-              {config.enabled && (
-                <div className="flex items-center gap-2 text-sm">
-                  <input
-                    type="time"
-                    value={config.startTime}
-                    onChange={(e) => {
-                      const updated = [...dayConfigs];
-                      updated[idx] = { ...config, startTime: e.target.value };
-                      setDayConfigs(updated);
-                    }}
-                    className="px-2 py-1 border border-gray-300 rounded text-gray-900"
-                  />
-                  <span className="text-gray-400">-</span>
-                  <input
-                    type="time"
-                    value={config.endTime}
-                    onChange={(e) => {
-                      const updated = [...dayConfigs];
-                      updated[idx] = { ...config, endTime: e.target.value };
-                      setDayConfigs(updated);
-                    }}
-                    className="px-2 py-1 border border-gray-300 rounded text-gray-900"
-                  />
-                </div>
-              )}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SCHEDULE_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  title={`${preset.description}: ${preset.startTime}–${preset.endTime}`}
+                  onClick={() =>
+                    applyPresetToEnabled({
+                      startTime: preset.startTime,
+                      endTime: preset.endTime,
+                    })
+                  }
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-800 transition-colors"
+                >
+                  {preset.label}
+                  <span className="text-gray-400 ml-1">
+                    {preset.startTime}–{preset.endTime}
+                  </span>
+                </button>
+              ))}
             </div>
-          ))}
+            <p className="text-[11px] text-gray-400 mt-2">
+              Seçili (işaretli) günlere uygulanır. Süreler Genel Tanımlar’dan gelir.
+            </p>
+          </div>
 
-          <div className="flex gap-3 pt-3">
+          {dayConfigs.map((config, idx) => {
+            const daySlots = config.enabled
+              ? slotsForWindow(
+                  { startTime: config.startTime, endTime: config.endTime },
+                  timing
+                )
+              : [];
+            return (
+              <div
+                key={config.day}
+                className={`rounded-lg border p-3 transition-colors ${
+                  config.enabled
+                    ? "bg-green-50 border-green-200"
+                    : "bg-gray-50 border-gray-200"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={config.enabled}
+                    onChange={(e) => {
+                      const updated = [...dayConfigs];
+                      updated[idx] = { ...config, enabled: e.target.checked };
+                      setDayConfigs(updated);
+                    }}
+                    className="w-4 h-4 text-green-600 rounded"
+                  />
+                  <span className="w-24 text-sm font-medium text-gray-700">
+                    {DAY_NAMES[config.day]}
+                  </span>
+                  {config.enabled && (
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <input
+                        type="time"
+                        value={config.startTime}
+                        onChange={(e) => {
+                          const updated = [...dayConfigs];
+                          updated[idx] = {
+                            ...config,
+                            startTime: e.target.value,
+                          };
+                          setDayConfigs(updated);
+                        }}
+                        className="px-2 py-1 border border-gray-300 rounded text-gray-900"
+                      />
+                      <span className="text-gray-400">–</span>
+                      <input
+                        type="time"
+                        value={config.endTime}
+                        onChange={(e) => {
+                          const updated = [...dayConfigs];
+                          updated[idx] = { ...config, endTime: e.target.value };
+                          setDayConfigs(updated);
+                        }}
+                        className="px-2 py-1 border border-gray-300 rounded text-gray-900"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {SCHEDULE_PRESETS.slice(0, 3).map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() =>
+                              applyPresetToDay(idx, {
+                                startTime: preset.startTime,
+                                endTime: preset.endTime,
+                              })
+                            }
+                            className="text-[10px] px-1.5 py-0.5 rounded border border-green-200 text-green-700 hover:bg-green-100"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {config.enabled && (
+                  <div className="mt-2 pl-7">
+                    <p className="text-[11px] text-gray-500 mb-1">
+                      {daySlots.length} ders saati
+                    </p>
+                    <SlotPreview slots={daySlots} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {schedulePreview.enabledCount > 0 && (
+            <p className="text-sm text-gray-600">
+              Toplam{" "}
+              <span className="font-semibold text-gray-900">
+                {schedulePreview.totalSlots}
+              </span>{" "}
+              slot / hafta ({schedulePreview.enabledCount} gün)
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={() => void handleSaveSchedule()}
@@ -818,7 +1048,10 @@ export default function ClassesPage() {
             </button>
             <button
               type="button"
-              onClick={() => setScheduleModalOpen(false)}
+              onClick={() => {
+                setScheduleModalOpen(false);
+                setOrphanConfirmOpen(false);
+              }}
               className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
               İptal
@@ -834,6 +1067,20 @@ export default function ClassesPage() {
         loading={deleting}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={orphanConfirmOpen}
+        title="Uyumsuz ders saatleri"
+        message={`${pendingOrphanIds.length} ders saati yeni gün penceresine sığmıyor. Kaydetmek için bu saatler programdan silinecek. Devam edilsin mi?`}
+        confirmLabel="Temizle ve kaydet"
+        loadingLabel="Kaydediliyor..."
+        loading={saving}
+        onConfirm={() => void confirmSaveWithOrphanCleanup()}
+        onCancel={() => {
+          setOrphanConfirmOpen(false);
+          setPendingOrphanIds([]);
+        }}
       />
     </div>
   );
