@@ -10,6 +10,7 @@ import type {
   Subject,
   Teacher,
   ClassSubject,
+  TeacherSubject,
 } from "@/lib/types";
 import { DAY_NAMES, DAY_NAMES_SHORT, generateTimeSlots } from "@/lib/types";
 
@@ -38,6 +39,7 @@ export default function ProgramPage() {
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [teacherAllLessons, setTeacherAllLessons] = useState<Lesson[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubject[]>([]);
 
   const [activeCard, setActiveCard] = useState<SubjectCard | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -90,6 +92,7 @@ export default function ProgramPage() {
       { data: lessonsData },
       { data: csData },
       { data: teachersData },
+      { data: tsData },
     ] = await Promise.all([
       supabase
         .from("class_schedule_days")
@@ -105,17 +108,24 @@ export default function ProgramPage() {
         .select("*, subject:subjects(*), teacher:teachers(*)")
         .eq("class_id", selectedClassId),
       supabase.from("teachers").select("*"),
+      supabase.from("teacher_subjects").select("*, teacher:teachers(*)"),
     ]);
 
     setScheduleDays(daysData || []);
     setLessons(lessonsData || []);
     setClassSubjects(csData || []);
     setTeachers(teachersData || []);
+    setTeacherSubjects(tsData || []);
 
+    const subjectIds = (csData || []).map((cs) => cs.subject_id);
+    const tsTeacherIds = (tsData || [])
+      .filter((t) => subjectIds.includes(t.subject_id))
+      .map((t) => t.teacher_id);
     const teacherIds = [
-      ...new Set(
-        (csData || []).map((cs) => cs.teacher_id).filter(Boolean)
-      ),
+      ...new Set([
+        ...(csData || []).map((cs) => cs.teacher_id).filter(Boolean),
+        ...tsTeacherIds,
+      ]),
     ] as string[];
     if (teacherIds.length > 0) {
       const { data: tLessons } = await supabase
@@ -167,22 +177,44 @@ export default function ProgramPage() {
       .map((cs) => {
         const subject = cs.subject as Subject;
         const teacher = cs.teacher as Teacher | undefined;
-        const placed = lessons.filter(
+        const subjectLessons = lessons.filter(
           (l) => l.subject_id === cs.subject_id
-        ).length;
+        );
+        const placed = subjectLessons.length;
+
+        let teacherId = cs.teacher_id || "";
+        let teacherName = teacher?.name || "Atanmamış";
+        if (!teacherId && subjectLessons.length > 0) {
+          const lt = subjectLessons[0].teacher as unknown as Teacher;
+          if (lt) {
+            teacherId = lt.id || subjectLessons[0].teacher_id;
+            teacherName = lt.name || "Atanmamış";
+          }
+        }
+        if (!teacherId) {
+          const ts = teacherSubjects.find(
+            (t) => t.subject_id === cs.subject_id
+          );
+          if (ts) {
+            const tsTeacher = ts.teacher as Teacher | undefined;
+            teacherId = ts.teacher_id;
+            teacherName = tsTeacher?.name || "Atanmamış";
+          }
+        }
+
         return {
           subjectId: cs.subject_id,
-          teacherId: cs.teacher_id || "",
+          teacherId,
           subjectName: subject.name,
           subjectShortName: subject.short_name,
           subjectColor: subject.color,
-          teacherName: teacher?.name || "Atanmamış",
+          teacherName,
           weeklyHours: cs.weekly_hours,
           placedCount: placed,
         };
       })
       .sort((a, b) => a.subjectName.localeCompare(b.subjectName, "tr"));
-  }, [classSubjects, lessons]);
+  }, [classSubjects, lessons, teacherSubjects]);
 
   const totalPlaced = cards.reduce((s, c) => s + c.placedCount, 0);
   const totalWeekly = cards.reduce((s, c) => s + c.weeklyHours, 0);
@@ -709,14 +741,13 @@ export default function ProgramPage() {
                   <button
                     key={`${card.subjectId}-${card.teacherId}`}
                     onClick={() => toggleCard(card)}
-                    disabled={!card.teacherId}
                     className={`w-full text-left rounded-xl p-3 mb-2 border-2 transition-all ${
                       isActive
                         ? "border-teal-400 shadow-md bg-teal-50/50"
                         : isComplete
                           ? "border-green-200 bg-green-50/30 hover:shadow-sm"
                           : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
-                    } ${!card.teacherId ? "opacity-50 cursor-not-allowed" : ""}`}
+                    }`}
                   >
                     <div className="flex items-start gap-2">
                       <div
