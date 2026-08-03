@@ -242,9 +242,14 @@ const INFO_LINES: string[][] = [
   ],
 ];
 
+// Örnek satırlar kendi içinde tutarlıdır: sınıfların ders saati kapasitesi
+// haftalık yüklerini karşılar ve her ders için birden çok öğretmen tanımlıdır.
+// Böylece şablon indirilip olduğu gibi yüklendiğinde çalışan bir program çıkar.
 const EXAMPLE_TEACHERS = [
   ["Ayşe Yılmaz", "Matematik", "Cumartesi, Pazar", "0555 111 22 33", "ayse@ornek.com", "Matematik 1, Matematik 2"],
+  ["Ali Şahin", "Matematik", "Pazar", "0555 333 44 55", "ali@ornek.com", "Matematik 1, Matematik 2"],
   ["Mehmet Demir", "Türkçe", "Pazar", "0555 222 33 44", "mehmet@ornek.com", "Türkçe, Edebiyat"],
+  ["Elif Arslan", "Edebiyat", "Cumartesi", "0555 444 55 66", "elif@ornek.com", "Türkçe, Edebiyat"],
   ["Zeynep Kaya", "Fen Bilimleri", "", "", "", "Fizik, Kimya"],
 ];
 
@@ -267,7 +272,8 @@ const EXAMPLE_SCHEDULE_DAYS = [
   ["12-A", "Pazartesi, Çarşamba, Cuma", "16:40", "19:50"],
   ["12-A", "Cumartesi", "08:30", "13:30"],
   ["12-B", "Salı, Perşembe", "16:40", "19:50"],
-  ["11-A", "Pazartesi, Çarşamba", "16:40", "19:50"],
+  ["12-B", "Cumartesi", "08:30", "13:30"],
+  ["11-A", "Pazartesi, Çarşamba, Cuma", "16:40", "19:50"],
 ];
 
 const EXAMPLE_DISTRIBUTION: (string | number)[][] = [
@@ -277,7 +283,7 @@ const EXAMPLE_DISTRIBUTION: (string | number)[][] = [
   ["Türkçe", 2, 3, 2],
   ["Edebiyat", "", 3, ""],
   ["Fizik", 3, "", 3],
-  ["Kimya", 2, "", 2],
+  ["Kimya", 2, "", ""],
 ];
 
 const EXAMPLE_ASSIGNMENTS = [["12-A", "Matematik 1", "Ayşe Yılmaz"]];

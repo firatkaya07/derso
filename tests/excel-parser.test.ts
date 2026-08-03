@@ -67,7 +67,7 @@ describe("parseExcelFile", () => {
     const parsed = parseExcelFile(toBuffer(buildTemplateWorkbook()));
 
     expect(parsed.errors).toEqual([]);
-    expect(parsed.teachers).toHaveLength(3);
+    expect(parsed.teachers).toHaveLength(5);
     expect(parsed.subjects).toHaveLength(6);
     expect(parsed.classes).toHaveLength(3);
 
