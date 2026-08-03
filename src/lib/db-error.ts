@@ -37,12 +37,21 @@ export function isMissingRelationError(error: PostgrestError | Error): boolean {
     "code" in error ? String(pgError.code ?? "") : ""
   }`.toLowerCase();
 
+  // Sütun eksikliği / şema uyumsuzluğu tablo yok demek değildir.
+  // (Örn. settings.id kaldırıldıktan sonra select("id") → PGRST204)
+  if (
+    pgError.code === "PGRST204" ||
+    haystack.includes("column") ||
+    /could not find the '[^']+' column/.test(haystack)
+  ) {
+    return false;
+  }
+
   return (
     pgError.code === "PGRST205" ||
     pgError.code === "42P01" ||
-    haystack.includes("schema cache") ||
-    haystack.includes("does not exist") ||
-    haystack.includes("could not find the table")
+    haystack.includes("could not find the table") ||
+    (haystack.includes("schema cache") && haystack.includes("table"))
   );
 }
 
@@ -62,9 +71,8 @@ export function describeDbError(error: PostgrestError | Error): string {
   if (isMissingRelationError(pgError)) {
     if (/settings/i.test(haystack)) {
       return (
-        "settings tablosu henüz oluşturulmamış. Supabase SQL Editor'de " +
-        "supabase/migrations/0003_settings.sql dosyasını çalıştırın; ardından " +
-        "bu sayfayı yenileyip tekrar kaydedin."
+        "settings tablosuna erişilemedi. Çok kurumlu migration (0004) " +
+        "uygulanmış olmalı; oturumunuzun kuruma bağlı olduğundan emin olun."
       );
     }
     return (

@@ -100,14 +100,15 @@ export async function loadSettings(
 /**
  * `settings` tablosunun API şemasında görünüp görünmediğini kontrol eder.
  * Migration henüz uygulanmamışsa `missing` döner.
+ *
+ * `id` seçilmez: çok kurumlu şemada PK `organization_id`'dir; eski sütunu
+ * sormak "tablo yok" sanılan bir sütun hatası üretir.
  */
 export async function probeSettingsTable(
   supabase: SupabaseClient
 ): Promise<"ok" | "missing" | "error"> {
-  const result = await supabase
-    .from("settings")
-    .select("organization_id")
-    .limit(1);
+  // Hem eski hem yeni şemada bulunan bir sütun.
+  const result = await supabase.from("settings").select("province").limit(1);
   if (!result.error) return "ok";
   if (isMissingRelationError(result.error)) return "missing";
   return "error";

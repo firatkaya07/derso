@@ -15,7 +15,7 @@ function settings(overrides: Partial<AppSettings> = {}): AppSettings {
 }
 
 describe("settings tablosu eksikliği", () => {
-  it("schema cache hatasını tanır", () => {
+  it("schema cache tablo hatasını tanır", () => {
     const error = {
       message: "Could not find the table 'public.settings' in the schema cache",
       details: null,
@@ -24,12 +24,23 @@ describe("settings tablosu eksikliği", () => {
       name: "PostgrestError",
     };
     expect(isMissingRelationError(error)).toBe(true);
-    expect(describeDbError(error)).toMatch(/0003_settings\.sql/);
+    expect(describeDbError(error)).toMatch(/0004|kuruma bağlı/i);
   });
 
-  it("kurulum SQL'i settings tablosunu oluşturur", () => {
-    expect(SETTINGS_SETUP_SQL).toContain("create table if not exists public.settings");
-    expect(SETTINGS_SETUP_SQL).toContain("settings_authenticated_all");
+  it("eksik sütun hatasını tablo yok sanmaz", () => {
+    const error = {
+      message: "Could not find the 'id' column of 'settings' in the schema cache",
+      details: null,
+      hint: null,
+      code: "PGRST204",
+      name: "PostgrestError",
+    };
+    expect(isMissingRelationError(error)).toBe(false);
+  });
+
+  it("kurulum notu çok kurumlu şemaya işaret eder", () => {
+    expect(SETTINGS_SETUP_SQL).toContain("organization_id");
+    expect(SETTINGS_SETUP_SQL).toContain("0004");
   });
 });
 
