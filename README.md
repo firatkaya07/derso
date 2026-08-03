@@ -108,7 +108,10 @@ erişim reddedilir.
 
 Ders saati varsayılan olarak 40 dakika, teneffüs 10 dakikadır; ikisi de Genel
 Tanımlar sayfasından değiştirilebilir. Bir sınıfın günlük slotları, o gün için
-girilen başlangıç saatinden itibaren bu sürelere göre otomatik hesaplanır.
+girilen başlangıç–bitiş penceresinden bu sürelere göre otomatik hesaplanır
+(katalog tablosu yoktur). Sınıflar sayfasında hazır pencereler (Akşam,
+Öğleden sonra, Cumartesi sabah, Sabah) ve canlı slot önizlemesi vardır; pencere
+değişince ızgara dışı kalan ders saatleri temizlenebilir.
 
 ## Excel şablonu
 
