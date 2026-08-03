@@ -62,8 +62,7 @@ görülen tipik hata: `Could not find the table 'public.settings' in the schema 
 
 Ardından giriş sayfasından **Kayıt Ol** ile hesap oluşturabilir veya
 Supabase panelinden (Authentication > Users) kullanıcı ekleyebilirsiniz.
-Supabase'de e-posta/şifre kaydı açık olmalıdır
-(Authentication > Providers > Email).
+E-posta doğrulaması kapalıdır; kayıt sonrası doğrudan giriş yapılır.
 
 ### Güvenlik notu
 
