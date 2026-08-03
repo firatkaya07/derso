@@ -1,5 +1,5 @@
 import { DAY_NAMES } from "./types";
-import { slotsForDay } from "./schedule-rules";
+import { buildTimeSlots, slotsForDay, type TimeSlot } from "./schedule-rules";
 import type { ClassScheduleDay, SlotTiming } from "./types";
 import {
   academicYearLabel,
@@ -104,53 +104,44 @@ function getActiveDays(lessons: LessonData[]): number[] {
   return [...days].sort((a, b) => a - b);
 }
 
-function getMaxSlots(lessons: LessonData[]): number {
-  let max = 0;
-  for (const l of lessons) {
-    if (l.slotIndex + 1 > max) max = l.slotIndex + 1;
-  }
-  return max;
-}
-
 /**
- * Belirli bir ders sırası için saat aralığı. Aynı sırada birden fazla saat
- * varsa (hafta içi / hafta sonu farkı) en sık görüleni tercih eder.
+ * Çıktı ızgarasının satırları. Önce sınıf saatlerinden üretilir; yoksa
+ * mevcut derslerin başlangıç–bitiş saatleri kullanılır.
  */
-function slotClockRange(
+function resolveTimeSlots(
+  scheduleDays: ClassScheduleDay[],
   lessons: LessonData[],
-  slotIndex: number
-): { start: string; end: string } | null {
-  const counts = new Map<string, { start: string; end: string; count: number }>();
+  timing?: SlotTiming
+): TimeSlot[] {
+  const fromSchedule = buildTimeSlots(scheduleDays, timing);
+  if (fromSchedule.length > 0) return fromSchedule;
+
+  const unique = new Map<string, TimeSlot>();
   for (const lesson of lessons) {
-    if (lesson.slotIndex !== slotIndex) continue;
-    const key = `${lesson.startTime}-${lesson.endTime}`;
-    const existing = counts.get(key);
-    if (existing) existing.count += 1;
-    else counts.set(key, { start: lesson.startTime, end: lesson.endTime, count: 1 });
+    unique.set(lesson.startTime, {
+      start: lesson.startTime,
+      end: lesson.endTime,
+    });
   }
-  let best: { start: string; end: string; count: number } | null = null;
-  for (const entry of counts.values()) {
-    if (!best || entry.count > best.count) best = entry;
-  }
-  return best ? { start: best.start, end: best.end } : null;
+  return [...unique.values()].sort((a, b) => a.start.localeCompare(b.start));
 }
 
-/** Program tablolarının sol sütunu: "1. Ders" + saat aralığı. */
-function slotRowHeader(slotIndex: number, lessons: LessonData[]): string {
-  const clock = slotClockRange(lessons, slotIndex);
-  const timeHtml = clock
-    ? `<div style="font-size:8px;font-weight:normal;color:#333;margin-top:1px">${esc(clock.start)}–${esc(clock.end)}</div>`
-    : "";
-  return `<td>${slotIndex + 1}. Ders${timeHtml}</td>`;
+/** Program tablolarının sol sütunu: sıra + gerçek saat aralığı. */
+function clockRowHeader(slotIndex: number, slot: TimeSlot): string {
+  return `<td>
+    <div>${slotIndex + 1}. Ders</div>
+    <div style="font-size:8px;font-weight:normal;color:#333;margin-top:1px">${esc(slot.start)}–${esc(slot.end)}</div>
+  </td>`;
 }
 
-/** Çarşaf listelerinin alt başlığı: sıra numarası + varsa başlangıç saati. */
-function carsafSlotHeader(slotIndex: number, lessons: LessonData[], width: string): string {
-  const clock = slotClockRange(lessons, slotIndex);
-  const timeHtml = clock
-    ? `<div style="font-size:7px;font-weight:normal;line-height:1.1">${esc(clock.start)}</div>`
-    : "";
-  return `<th style="width:${width}">${slotIndex + 1}${timeHtml}</th>`;
+/** Çarşaf listelerinin alt başlığı: sıra + başlangıç saati. */
+function carsafSlotHeader(slotIndex: number, slot: TimeSlot, width: string): string {
+  return `<th style="width:${width}">${slotIndex + 1}<div style="font-size:7px;font-weight:normal;line-height:1.1">${esc(slot.start)}</div></th>`;
+}
+
+export interface PdfScheduleContext {
+  scheduleDays?: ClassScheduleDay[];
+  timing?: SlotTiming;
 }
 
 export interface RawLessonRow {
@@ -257,22 +248,27 @@ const baseStyle = `
 // 1. SINIF ÇARŞAF LİSTESİ
 export function generateSinifCarsafPdf(
   lessons: LessonData[],
-  settings: AppSettings = DEFAULT_SETTINGS
+  settings: AppSettings = DEFAULT_SETTINGS,
+  context: PdfScheduleContext = {}
 ): PrintOutcome {
   const activeDays = getActiveDays(lessons);
-  const maxSlots = getMaxSlots(lessons);
+  const slots = resolveTimeSlots(
+    context.scheduleDays ?? [],
+    lessons,
+    context.timing
+  );
   const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
     a.localeCompare(b, "tr")
   );
 
   let tableHtml = `<tr><th rowspan="2" style="width:100px">Sınıf</th>`;
   for (const day of activeDays) {
-    tableHtml += `<th colspan="${maxSlots}">${DAY_NAMES_UPPER[day]}</th>`;
+    tableHtml += `<th colspan="${Math.max(slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
   tableHtml += `</tr><tr>`;
   for (let d = 0; d < activeDays.length; d++) {
-    for (let s = 0; s < maxSlots; s++) {
-      tableHtml += carsafSlotHeader(s, lessons, "30px");
+    for (let s = 0; s < slots.length; s++) {
+      tableHtml += carsafSlotHeader(s, slots[s], "30px");
     }
   }
   tableHtml += `</tr>`;
@@ -280,9 +276,12 @@ export function generateSinifCarsafPdf(
   for (const cls of classes) {
     tableHtml += `<tr><td style="font-size:10px">${esc(cls)}</td>`;
     for (const day of activeDays) {
-      for (let s = 0; s < maxSlots; s++) {
+      for (const slot of slots) {
         const lesson = lessons.find(
-          (l) => l.className === cls && l.dayOfWeek === day && l.slotIndex === s
+          (l) =>
+            l.className === cls &&
+            l.dayOfWeek === day &&
+            l.startTime === slot.start
         );
         tableHtml += `<td style="font-size:9px">${lesson ? esc(lesson.subjectShortName) : ""}</td>`;
       }
@@ -309,22 +308,27 @@ export function generateSinifCarsafPdf(
 // 2. ÖĞRETMEN ÇARŞAF LİSTESİ
 export function generateOgretmenCarsafPdf(
   lessons: LessonData[],
-  settings: AppSettings = DEFAULT_SETTINGS
+  settings: AppSettings = DEFAULT_SETTINGS,
+  context: PdfScheduleContext = {}
 ): PrintOutcome {
   const activeDays = getActiveDays(lessons);
-  const maxSlots = getMaxSlots(lessons);
+  const slots = resolveTimeSlots(
+    context.scheduleDays ?? [],
+    lessons,
+    context.timing
+  );
   const teacherNames = [
     ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
   ].sort((a, b) => a.localeCompare(b, "tr"));
 
   let tableHtml = `<tr><th rowspan="2" style="width:110px">Öğretmen</th>`;
   for (const day of activeDays) {
-    tableHtml += `<th colspan="${maxSlots}">${DAY_NAMES_UPPER[day]}</th>`;
+    tableHtml += `<th colspan="${Math.max(slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
   tableHtml += `</tr><tr>`;
   for (let d = 0; d < activeDays.length; d++) {
-    for (let s = 0; s < maxSlots; s++) {
-      tableHtml += carsafSlotHeader(s, lessons, "24px");
+    for (let s = 0; s < slots.length; s++) {
+      tableHtml += carsafSlotHeader(s, slots[s], "24px");
     }
   }
   tableHtml += `</tr>`;
@@ -332,12 +336,12 @@ export function generateOgretmenCarsafPdf(
   for (const teacher of teacherNames) {
     tableHtml += `<tr><td style="font-size:9px;text-align:left;padding-left:5px">${esc(teacher)}</td>`;
     for (const day of activeDays) {
-      for (let s = 0; s < maxSlots; s++) {
+      for (const slot of slots) {
         const lesson = lessons.find(
           (l) =>
             l.teacherName === teacher &&
             l.dayOfWeek === day &&
-            l.slotIndex === s
+            l.startTime === slot.start
         );
         tableHtml += `<td style="font-size:7px">${lesson ? esc(lesson.className) : ""}</td>`;
       }
@@ -363,19 +367,30 @@ export function generateOgretmenCarsafPdf(
 // 3. SINIF DERS PROGRAMLARI
 export function generateSinifDersProgramlariPdf(
   lessons: LessonData[],
-  settings: AppSettings = DEFAULT_SETTINGS
+  settings: AppSettings = DEFAULT_SETTINGS,
+  context: PdfScheduleContext = {}
 ): PrintOutcome {
   const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
     a.localeCompare(b, "tr")
   );
-  const activeDays = getActiveDays(lessons);
-  const maxSlots = getMaxSlots(lessons);
+  const scheduleDays = context.scheduleDays ?? [];
 
   let pagesHtml = "";
 
   for (let ci = 0; ci < classes.length; ci++) {
     const cls = classes[ci];
     const classLessons = lessons.filter((l) => l.className === cls);
+    const classId = classLessons[0]?.classId;
+    const classDays = classId
+      ? scheduleDays.filter((day) => day.class_id === classId)
+      : [];
+    const activeDays =
+      classDays.length > 0
+        ? [...new Set(classDays.map((day) => day.day_of_week))].sort(
+            (a, b) => a - b
+          )
+        : getActiveDays(classLessons);
+    const slots = resolveTimeSlots(classDays, classLessons, context.timing);
 
     let scheduleTable = `<tr><th style="width:72px">Saat</th>`;
     for (const day of activeDays) {
@@ -383,11 +398,12 @@ export function generateSinifDersProgramlariPdf(
     }
     scheduleTable += `</tr>`;
 
-    for (let s = 0; s < maxSlots; s++) {
-      scheduleTable += `<tr>${slotRowHeader(s, classLessons)}`;
+    for (let s = 0; s < slots.length; s++) {
+      const slot = slots[s];
+      scheduleTable += `<tr>${clockRowHeader(s, slot)}`;
       for (const day of activeDays) {
         const lesson = classLessons.find(
-          (l) => l.dayOfWeek === day && l.slotIndex === s
+          (l) => l.dayOfWeek === day && l.startTime === slot.start
         );
         if (lesson) {
           scheduleTable += `<td><div style="font-size:11px;font-weight:bold">${esc(lesson.subjectShortName)}</div><div style="font-size:9px;color:#333">${esc(lesson.teacherName)}</div></td>`;
@@ -451,13 +467,13 @@ export function generateSinifDersProgramlariPdf(
 // 4. ÖĞRETMEN PROGRAMLARI LİSTESİ
 export function generateOgretmenProgramlariPdf(
   lessons: LessonData[],
-  settings: AppSettings = DEFAULT_SETTINGS
+  settings: AppSettings = DEFAULT_SETTINGS,
+  context: PdfScheduleContext = {}
 ): PrintOutcome {
   const teacherNames = [
     ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
   ].sort((a, b) => a.localeCompare(b, "tr"));
-  const activeDays = getActiveDays(lessons);
-  const maxSlots = getMaxSlots(lessons);
+  const scheduleDays = context.scheduleDays ?? [];
   const academicYear = academicYearLabel(settings);
 
   let pagesHtml = "";
@@ -466,6 +482,15 @@ export function generateOgretmenProgramlariPdf(
     const teacher = teacherNames[ti];
     const tLessons = lessons.filter((l) => l.teacherName === teacher);
     const totalHours = tLessons.length;
+    const classIds = new Set(tLessons.map((l) => l.classId));
+    const teacherDays = scheduleDays.filter((day) => classIds.has(day.class_id));
+    const activeDays =
+      teacherDays.length > 0
+        ? [...new Set(teacherDays.map((day) => day.day_of_week))].sort(
+            (a, b) => a - b
+          )
+        : getActiveDays(tLessons);
+    const slots = resolveTimeSlots(teacherDays, tLessons, context.timing);
 
     let scheduleTable = `<tr><th style="width:72px">Saat</th>`;
     for (const day of activeDays) {
@@ -473,11 +498,12 @@ export function generateOgretmenProgramlariPdf(
     }
     scheduleTable += `</tr>`;
 
-    for (let s = 0; s < maxSlots; s++) {
-      scheduleTable += `<tr>${slotRowHeader(s, tLessons)}`;
+    for (let s = 0; s < slots.length; s++) {
+      const slot = slots[s];
+      scheduleTable += `<tr>${clockRowHeader(s, slot)}`;
       for (const day of activeDays) {
         const lesson = tLessons.find(
-          (l) => l.dayOfWeek === day && l.slotIndex === s
+          (l) => l.dayOfWeek === day && l.startTime === slot.start
         );
         if (lesson) {
           scheduleTable += `<td><div style="font-size:10px">${esc(lesson.className)}</div><div style="font-size:9px;color:#333">${esc(lesson.subjectShortName)}</div></td>`;

@@ -141,6 +141,10 @@ export default function IndirmePage() {
         data.scheduleDays,
         slotTimingOf(settings)
       );
+      const pdfContext = {
+        scheduleDays: data.scheduleDays,
+        timing: slotTimingOf(settings),
+      };
       const generator = {
         "sinif-carsaf": generateSinifCarsafPdf,
         "ogretmen-carsaf": generateOgretmenCarsafPdf,
@@ -148,7 +152,7 @@ export default function IndirmePage() {
         "ogretmen-program": generateOgretmenProgramlariPdf,
       }[id];
 
-      if (generator(prepared, settings) === "downloaded") {
+      if (generator(prepared, settings, pdfContext) === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
         );
