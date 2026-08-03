@@ -35,7 +35,8 @@ function lookupByName(rows: NamedRow[]): Map<string, string> {
  */
 export async function importWorkbook(
   supabase: SupabaseClient,
-  parsed: ParsedWorkbook
+  parsed: ParsedWorkbook,
+  organizationId: string
 ): Promise<string[]> {
   const log: string[] = [];
 
@@ -57,6 +58,7 @@ export async function importWorkbook(
   const subjectInserts = parsed.subjects
     .filter((subject) => !subjectIds.has(normalizeKey(subject.name)))
     .map((subject) => ({
+      organization_id: organizationId,
       name: subject.name,
       short_name: subject.shortName,
       color: subject.color,
@@ -96,6 +98,7 @@ export async function importWorkbook(
   const teacherInserts = parsed.teachers
     .filter((teacher) => !teacherIds.has(normalizeKey(teacher.name)))
     .map((teacher) => ({
+      organization_id: organizationId,
       name: teacher.name,
       specialization: teacher.specialization,
       phone: teacher.phone,
@@ -135,6 +138,7 @@ export async function importWorkbook(
   const classInserts = parsed.classes
     .filter((cls) => !classIds.has(normalizeKey(cls.name)))
     .map((cls) => ({
+      organization_id: organizationId,
       name: cls.name,
       level: cls.level,
       subgroup: cls.subgroup,
@@ -189,7 +193,15 @@ export async function importWorkbook(
       if (!teacherId) return [];
       return teacher.subjectNames.flatMap((subjectName) => {
         const subjectId = subjectIds.get(normalizeKey(subjectName));
-        return subjectId ? [{ teacher_id: teacherId, subject_id: subjectId }] : [];
+        return subjectId
+          ? [
+              {
+                organization_id: organizationId,
+                teacher_id: teacherId,
+                subject_id: subjectId,
+              },
+            ]
+          : [];
       });
     });
 
@@ -223,6 +235,7 @@ export async function importWorkbook(
       if (!classId) return [];
       return [
         {
+          organization_id: organizationId,
           class_id: classId,
           day_of_week: day.dayOfWeek,
           start_time: day.startTime,
@@ -250,6 +263,7 @@ export async function importWorkbook(
       : null;
     return [
       {
+        organization_id: organizationId,
         class_id: classId,
         subject_id: subjectId,
         weekly_hours: cs.weeklyHours,

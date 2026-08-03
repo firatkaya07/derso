@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
@@ -53,6 +54,7 @@ export default function TeacherSchedulesPage() {
   const supabase = createClient();
   const toast = useToast();
   const settings = useSettings();
+  const { organizationId } = useOrganization();
   const timing = useMemo(() => slotTimingOf(settings), [settings]);
 
   const [chosenTeacherId, setChosenTeacherId] = useState<string | null>(null);
@@ -281,6 +283,7 @@ export default function TeacherSchedulesPage() {
   const handlePlace = async (dayOfWeek: number, slot: TimeSlot) => {
     if (!activeCardState || !selectedTeacherId) return;
     const { error } = await supabase.from("lessons").insert({
+      organization_id: organizationId,
       class_id: activeCardState.classId,
       subject_id: activeCardState.subjectId,
       teacher_id: selectedTeacherId,

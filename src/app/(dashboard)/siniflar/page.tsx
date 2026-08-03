@@ -12,6 +12,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { ClassGroup, ClassScheduleDay, ClassSubject, Subject, Teacher, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES, LEVELS, SUBGROUPS } from "@/lib/types";
@@ -39,6 +40,7 @@ const inputClass =
 export default function ClassesPage() {
   const supabase = createClient();
   const toast = useToast();
+  const { organizationId } = useOrganization();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -184,7 +186,7 @@ export default function ClassesPage() {
       } else {
         const result = await supabase
           .from("classes")
-          .insert(payload)
+          .insert({ ...payload, organization_id: organizationId })
           .select("id")
           .single();
         throwIfDbError(result, "Sınıf eklenemedi");
@@ -195,6 +197,7 @@ export default function ClassesPage() {
         throwIfDbError(
           await supabase.from("class_subjects").upsert(
             classSubjectEdits.map((cs) => ({
+              organization_id: organizationId,
               class_id: classId,
               subject_id: cs.subject_id,
               weekly_hours: cs.weekly_hours,
@@ -263,6 +266,7 @@ export default function ClassesPage() {
         throwIfDbError(
           await supabase.from("class_schedule_days").insert(
             enabledDays.map((day) => ({
+              organization_id: organizationId,
               class_id: selectedClass.id,
               day_of_week: day.day,
               start_time: day.startTime,

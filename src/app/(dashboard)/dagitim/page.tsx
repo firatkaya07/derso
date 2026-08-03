@@ -8,6 +8,7 @@ import { saveGeneratedSchedule } from "@/lib/schedule-persistence";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import {
   autoSchedule,
@@ -61,6 +62,7 @@ export default function DagitimPage() {
   const supabase = createClient();
   const toast = useToast();
   const settings = useSettings();
+  const { organizationId } = useOrganization();
 
   const [tab, setTab] = useState<Tab>("rules");
 
@@ -176,7 +178,8 @@ export default function DagitimPage() {
     try {
       const result = await saveGeneratedSchedule(
         supabase,
-        scheduleResult.lessons
+        scheduleResult.lessons,
+        organizationId
       );
       setScheduleSaved(true);
       reload();

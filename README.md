@@ -269,8 +269,10 @@ tests/                  Vitest birim testleri
   yazdırma penceresi çıkar; oradan "PDF olarak kaydet" seçilir. Bu tercih
   Türkçe karakterler ve tablo düzeni için bilinçlidir. Açılır pencere
   engelliyse dosya HTML olarak iner.
-- **Tek kurumludur.** Giriş yapabilen her kullanıcı tüm veriyi görüp
-  düzenleyebilir. Rol ayrımı gerekiyorsa RLS politikalarını daraltmak gerekir.
+- **Çok kurumlu (multi-tenant).** Her kullanıcı `organization_members` üzerinden
+  bir kuruma bağlıdır; RLS yalnızca kendi kurumunun verisini gösterir. Logo ve
+  kurum bilgileri kurum bazlıdır. Kurumu olmayan kullanıcı onboarding ile kurum
+  oluşturur.
 - **Çizelgeleme tarayıcıda çalışır.** Arama turları küçük parçalara bölünerek
   koşar; 24 sınıf ve 8 dersten oluşan bir program bir turda yaklaşık 0,1
   saniye sürer.

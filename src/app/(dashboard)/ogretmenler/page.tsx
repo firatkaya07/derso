@@ -11,6 +11,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES } from "@/lib/types";
@@ -35,6 +36,7 @@ const inputClass =
 export default function TeachersPage() {
   const supabase = createClient();
   const toast = useToast();
+  const { organizationId } = useOrganization();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -144,7 +146,7 @@ export default function TeachersPage() {
       } else {
         const result = await supabase
           .from("teachers")
-          .insert(payload)
+          .insert({ ...payload, organization_id: organizationId })
           .select("id")
           .single();
         throwIfDbError(result, "Öğretmen eklenemedi");
@@ -171,6 +173,7 @@ export default function TeachersPage() {
         throwIfDbError(
           await supabase.from("teacher_subjects").insert(
             added.map((subjectId) => ({
+              organization_id: organizationId,
               teacher_id: teacherId,
               subject_id: subjectId,
             }))

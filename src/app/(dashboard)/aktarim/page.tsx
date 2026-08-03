@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/components/Toast";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { parseExcelFile, type ParsedWorkbook } from "@/lib/excel-parser";
 import { downloadTemplate, SHEET_NAMES } from "@/lib/excel-template";
 import { importWorkbook } from "@/lib/excel-import";
@@ -17,6 +18,7 @@ import { DAY_NAMES } from "@/lib/types";
 export default function AktarimPage() {
   const supabase = createClient();
   const toast = useToast();
+  const { organizationId } = useOrganization();
 
   const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
   const [fileName, setFileName] = useState("");
@@ -56,7 +58,7 @@ export default function AktarimPage() {
     if (!parsed || parsed.errors.length > 0) return;
     setImporting(true);
     try {
-      const log = await importWorkbook(supabase, parsed);
+      const log = await importWorkbook(supabase, parsed, organizationId);
       setImportLog(log);
       setImported(true);
       toast.success("Veriler veritabanına aktarıldı.");

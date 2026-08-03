@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSettings } from "@/components/SettingsProvider";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { useToast } from "@/components/Toast";
 import {
   academicYearLabel,
@@ -27,6 +28,7 @@ export default function GenelTanimlarPage() {
   const supabase = createClient();
   const router = useRouter();
   const toast = useToast();
+  const { organizationId } = useOrganization();
   const initial = useSettings();
 
   const [form, setForm] = useState<AppSettings>(initial);
@@ -99,7 +101,7 @@ export default function GenelTanimlarPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      await saveSettings(supabase, {
+      await saveSettings(supabase, organizationId, {
         ...form,
         province: form.province?.trim() || null,
         district: form.district?.trim() || null,

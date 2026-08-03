@@ -11,6 +11,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Subject } from "@/lib/types";
 import { SUBJECT_COLORS, LEVELS, LEVEL_PRESETS, SUBGROUPS } from "@/lib/types";
@@ -29,6 +30,7 @@ function levelChipLabel(level: string): string {
 export default function SubjectsPage() {
   const supabase = createClient();
   const toast = useToast();
+  const { organizationId } = useOrganization();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -160,6 +162,7 @@ export default function SubjectsPage() {
     const toAdd = [...matchingIds]
       .filter((classId) => !existingClassIds.has(classId))
       .map((classId) => ({
+        organization_id: organizationId,
         class_id: classId,
         subject_id: subjectId,
         weekly_hours: 0,
@@ -212,7 +215,7 @@ export default function SubjectsPage() {
       } else {
         const result = await supabase
           .from("subjects")
-          .insert(payload)
+          .insert({ ...payload, organization_id: organizationId })
           .select("id")
           .single();
         throwIfDbError(result, "Ders eklenemedi");

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMissingRelationError, throwIfDbError } from "./db-error";
 import { DEFAULT_SLOT_TIMING, type SlotTiming } from "./types";
 
-/** Kurum geneli tanımlar. Veritabanında tek satır olarak tutulur. */
+/** Kurum geneli tanımlar. Veritabanında kurum başına bir satır tutulur. */
 export interface AppSettings {
   province: string | null;
   district: string | null;
@@ -63,9 +63,9 @@ function fromRow(row: SettingsRow): AppSettings {
   };
 }
 
-function toRow(settings: AppSettings) {
+function toRow(organizationId: string, settings: AppSettings) {
   return {
-    id: true,
+    organization_id: organizationId,
     province: settings.province,
     district: settings.district,
     institution_name: settings.institutionName,
@@ -80,13 +80,18 @@ function toRow(settings: AppSettings) {
 }
 
 /**
- * Ayarları okur. Kayıt yoksa (henüz kurulmamış bir veritabanı) varsayılanlar
- * döner; ayarların eksikliği uygulamanın açılmasını engellememelidir.
+ * Ayarları okur. Kayıt yoksa varsayılanlar döner; ayarların eksikliği
+ * uygulamanın açılmasını engellememelidir.
  */
 export async function loadSettings(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  organizationId: string
 ): Promise<AppSettings> {
-  const result = await supabase.from("settings").select(COLUMNS).maybeSingle();
+  const result = await supabase
+    .from("settings")
+    .select(COLUMNS)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
   if (result.error) return DEFAULT_SETTINGS;
   if (!result.data) return DEFAULT_SETTINGS;
   return fromRow(result.data as unknown as SettingsRow);
@@ -99,7 +104,10 @@ export async function loadSettings(
 export async function probeSettingsTable(
   supabase: SupabaseClient
 ): Promise<"ok" | "missing" | "error"> {
-  const result = await supabase.from("settings").select("id").limit(1);
+  const result = await supabase
+    .from("settings")
+    .select("organization_id")
+    .limit(1);
   if (!result.error) return "ok";
   if (isMissingRelationError(result.error)) return "missing";
   return "error";
@@ -107,12 +115,25 @@ export async function probeSettingsTable(
 
 export async function saveSettings(
   supabase: SupabaseClient,
+  organizationId: string,
   settings: AppSettings
 ): Promise<void> {
   throwIfDbError(
-    await supabase.from("settings").upsert(toRow(settings), { onConflict: "id" }),
+    await supabase
+      .from("settings")
+      .upsert(toRow(organizationId, settings), {
+        onConflict: "organization_id",
+      }),
     "Genel tanımlar kaydedilemedi"
   );
+
+  const institutionName = settings.institutionName?.trim();
+  if (institutionName) {
+    await supabase
+      .from("organizations")
+      .update({ name: institutionName })
+      .eq("id", organizationId);
+  }
 }
 
 export function slotTimingOf(settings: AppSettings): SlotTiming {

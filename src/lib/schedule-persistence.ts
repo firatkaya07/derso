@@ -29,7 +29,8 @@ export interface SaveScheduleResult {
  */
 export async function saveGeneratedSchedule(
   supabase: SupabaseClient,
-  lessons: GeneratedLesson[]
+  lessons: GeneratedLesson[],
+  organizationId: string
 ): Promise<SaveScheduleResult> {
   const classIds = [...new Set(lessons.map((lesson) => lesson.classId))];
   if (classIds.length === 0) {
@@ -45,6 +46,7 @@ export async function saveGeneratedSchedule(
 
   const placeable = lessons.filter((lesson) => lesson.teacherId);
   const rows = placeable.map((lesson) => ({
+    organization_id: organizationId,
     class_id: lesson.classId,
     subject_id: lesson.subjectId,
     teacher_id: lesson.teacherId,
@@ -63,7 +65,8 @@ export async function saveGeneratedSchedule(
   const updatedAssignments = await syncClassSubjectTeachers(
     supabase,
     classIds,
-    placeable
+    placeable,
+    organizationId
   );
 
   return {
@@ -76,7 +79,8 @@ export async function saveGeneratedSchedule(
 async function syncClassSubjectTeachers(
   supabase: SupabaseClient,
   classIds: string[],
-  lessons: GeneratedLesson[]
+  lessons: GeneratedLesson[],
+  organizationId: string
 ): Promise<number> {
   const assignments = new Map<string, string>();
   for (const lesson of lessons) {
@@ -97,6 +101,7 @@ async function syncClassSubjectTeachers(
     if (!teacherId || teacherId === row.teacher_id) return [];
     return [
       {
+        organization_id: organizationId,
         class_id: row.class_id,
         subject_id: row.subject_id,
         weekly_hours: row.weekly_hours,

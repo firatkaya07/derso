@@ -1,5 +1,6 @@
 export interface Teacher {
   id: string;
+  organization_id?: string;
   name: string;
   phone: string | null;
   email: string | null;
@@ -10,6 +11,7 @@ export interface Teacher {
 
 export interface ClassSubject {
   id: string;
+  organization_id?: string;
   class_id: string;
   subject_id: string;
   weekly_hours: number;
@@ -21,6 +23,7 @@ export interface ClassSubject {
 
 export interface Subject {
   id: string;
+  organization_id?: string;
   name: string;
   short_name: string | null;
   color: string;
@@ -38,6 +41,7 @@ export const LEVEL_PRESETS = [
 
 export interface TeacherSubject {
   id: string;
+  organization_id?: string;
   teacher_id: string;
   subject_id: string;
   created_at: string;
@@ -47,6 +51,7 @@ export interface TeacherSubject {
 
 export interface ClassGroup {
   id: string;
+  organization_id?: string;
   name: string;
   description: string | null;
   level: string | null;
@@ -62,6 +67,7 @@ export const SUBGROUPS = ["TM", "MF", "SAY", "SÖZ", "DİL", "HİBRİT"];
 
 export interface ClassScheduleDay {
   id: string;
+  organization_id?: string;
   class_id: string;
   day_of_week: number;
   start_time: string;
@@ -70,6 +76,7 @@ export interface ClassScheduleDay {
 
 export interface Lesson {
   id: string;
+  organization_id?: string;
   class_id: string;
   subject_id: string;
   teacher_id: string;
