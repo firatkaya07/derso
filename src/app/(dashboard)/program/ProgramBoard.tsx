@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useSettings } from "@/components/SettingsProvider";
+import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import {
@@ -58,6 +60,8 @@ interface ProgramBoardProps {
 export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
   const supabase = createClient();
   const toast = useToast();
+  const settings = useSettings();
+  const timing = useMemo(() => slotTimingOf(settings), [settings]);
 
   const [chosenClassId, setChosenClassId] = useState<string | null>(
     initialClassId ?? null
@@ -181,7 +185,10 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     return classes.filter((c) => c.name.toLowerCase().includes(term));
   }, [classes, search]);
 
-  const timeSlots = useMemo(() => buildTimeSlots(scheduleDays), [scheduleDays]);
+  const timeSlots = useMemo(
+    () => buildTimeSlots(scheduleDays, timing),
+    [scheduleDays, timing]
+  );
 
   const cards = useMemo<SubjectCard[]>(() => {
     if (!detail.data) return [];
@@ -257,6 +264,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
       teacherOffDays: teacher?.off_days ?? [],
       weeklyHours: activeCardState.weeklyHours,
       placedCount: activeCardState.placedCount,
+      timing,
     });
   };
 
@@ -319,7 +327,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
   };
 
   const getCell = (dayOfWeek: number, slot: TimeSlot): GridCell => {
-    if (!isSlotWithinClassDay(scheduleDays, dayOfWeek, slot.start)) {
+    if (!isSlotWithinClassDay(scheduleDays, dayOfWeek, slot.start, timing)) {
       return { kind: "unavailable" };
     }
 

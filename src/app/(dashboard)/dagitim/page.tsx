@@ -10,6 +10,8 @@ import { loadPlanningData, type PlanningData } from "@/lib/planning-data";
 import { saveGeneratedSchedule } from "@/lib/schedule-persistence";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useSettings } from "@/components/SettingsProvider";
+import { slotTimingOf } from "@/lib/settings";
 import {
   autoSchedule,
   DEFAULT_RULES,
@@ -61,6 +63,7 @@ function toClassSubjectInputs(data: PlanningData): ClassSubjectInput[] {
 export default function DagitimPage() {
   const supabase = createClient();
   const toast = useToast();
+  const settings = useSettings();
 
   const [tab, setTab] = useState<Tab>("import");
   const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
@@ -167,6 +170,7 @@ export default function DagitimPage() {
             restarts: 1,
             maxIterations: ITERATIONS_PER_ROUND,
             timeLimitMs: ROUND_TIME_LIMIT_MS,
+            timing: slotTimingOf(settings),
           }
         );
 

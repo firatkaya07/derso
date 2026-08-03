@@ -1,6 +1,12 @@
 import { DAY_NAMES } from "./types";
 import { slotsForDay } from "./schedule-rules";
-import type { ClassScheduleDay } from "./types";
+import type { ClassScheduleDay, SlotTiming } from "./types";
+import {
+  academicYearLabel,
+  DEFAULT_SETTINGS,
+  locationLabel,
+  type AppSettings,
+} from "./settings";
 
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
@@ -48,6 +54,51 @@ function formatDate(): string {
   return `${String(now.getDate()).padStart(2, "0")}.${String(now.getMonth() + 1).padStart(2, "0")}.${now.getFullYear()}`;
 }
 
+/**
+ * Belgelerin ortak başlığı: T.C., il/ilçe, kurum adı ve varsa logo.
+ * Bilgiler Genel Tanımlar sayfasından gelir; girilmemiş alanlar atlanır,
+ * böylece kurulumunu tamamlamamış bir kurumda çıktı boş satırlarla dolmaz.
+ */
+function documentHeader(
+  settings: AppSettings,
+  options: { compact?: boolean } = {}
+): string {
+  const location = locationLabel(settings);
+  const name = settings.institutionName?.trim();
+  const logoSize = options.compact ? 34 : 52;
+  const nameSize = options.compact ? 12 : 14;
+
+  const lines = [
+    `<div style="font-size:${options.compact ? 9 : 11}px">T.C.</div>`,
+    location
+      ? `<div style="font-size:${options.compact ? 9 : 11}px">${esc(location.toLocaleUpperCase("tr"))}</div>`
+      : "",
+    name
+      ? `<div style="font-size:${nameSize}px;font-weight:bold">${esc(name.toLocaleUpperCase("tr"))}</div>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("");
+
+  const logo = settings.logoDataUrl
+    ? `<img src="${esc(settings.logoDataUrl)}" width="${logoSize}" height="${logoSize}" style="object-fit:contain" alt="" />`
+    : "";
+
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:${options.compact ? 4 : 8}px">
+    ${logo}
+    <div style="text-align:center;line-height:1.3">${lines}</div>
+  </div>`;
+}
+
+/** İmza bloğu; ad girilmemişse yalnızca unvan yazılır. */
+function signatureBlock(title: string, name: string | null): string {
+  return `<div style="text-align:center">
+    <div style="border-top:1px solid #000;width:150px;margin-bottom:5px"></div>
+    ${name?.trim() ? `<div style="font-size:10px">${esc(name.trim())}</div>` : ""}
+    <div style="font-weight:bold;font-size:10px">${esc(title)}</div>
+  </div>`;
+}
+
 function getActiveDays(lessons: LessonData[]): number[] {
   const days = new Set<number>();
   for (const l of lessons) days.add(l.dayOfWeek);
@@ -85,13 +136,14 @@ export interface RawLessonRow {
  */
 export function prepareLessons(
   rawLessons: RawLessonRow[],
-  scheduleDays: ClassScheduleDay[]
+  scheduleDays: ClassScheduleDay[],
+  timing?: SlotTiming
 ): LessonData[] {
   const slotsByClassDay = new Map<string, string[]>();
   for (const day of scheduleDays) {
     slotsByClassDay.set(
       `${day.class_id}:${day.day_of_week}`,
-      slotsForDay(day).map((slot) => slot.start)
+      slotsForDay(day, timing).map((slot) => slot.start)
     );
   }
 
@@ -163,7 +215,10 @@ const baseStyle = `
 `;
 
 // 1. SINIF ÇARŞAF LİSTESİ
-export function generateSinifCarsafPdf(lessons: LessonData[]): PrintOutcome {
+export function generateSinifCarsafPdf(
+  lessons: LessonData[],
+  settings: AppSettings = DEFAULT_SETTINGS
+): PrintOutcome {
   const activeDays = getActiveDays(lessons);
   const maxSlots = getMaxSlots(lessons);
   const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
@@ -202,8 +257,9 @@ export function generateSinifCarsafPdf(lessons: LessonData[]): PrintOutcome {
     .date { text-align: center; font-size: 12px; margin-bottom: 10px; }
     td, th { font-size: 9px; padding: 2px 3px; }
   </style></head><body>
+    ${documentHeader(settings, { compact: true })}
     <h1>SINIF ÇARŞAF LİSTESİ</h1>
-    <div class="date">Tarih: ${formatDate()}</div>
+    <div class="date">${esc(academicYearLabel(settings))} Eğitim-Öğretim Yılı · ${formatDate()}</div>
     <table>${tableHtml}</table>
   </body></html>`;
 
@@ -211,7 +267,10 @@ export function generateSinifCarsafPdf(lessons: LessonData[]): PrintOutcome {
 }
 
 // 2. ÖĞRETMEN ÇARŞAF LİSTESİ
-export function generateOgretmenCarsafPdf(lessons: LessonData[]): PrintOutcome {
+export function generateOgretmenCarsafPdf(
+  lessons: LessonData[],
+  settings: AppSettings = DEFAULT_SETTINGS
+): PrintOutcome {
   const activeDays = getActiveDays(lessons);
   const maxSlots = getMaxSlots(lessons);
   const teacherNames = [
@@ -252,8 +311,9 @@ export function generateOgretmenCarsafPdf(lessons: LessonData[]): PrintOutcome {
     h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
     .date { text-align: center; font-size: 12px; margin-bottom: 10px; }
   </style></head><body>
+    ${documentHeader(settings, { compact: true })}
     <h1>ÖĞRETMEN ÇARŞAF LİSTESİ</h1>
-    <div class="date">Tarih: ${formatDate()}</div>
+    <div class="date">${esc(academicYearLabel(settings))} Eğitim-Öğretim Yılı · ${formatDate()}</div>
     <table>${tableHtml}</table>
   </body></html>`;
 
@@ -261,7 +321,10 @@ export function generateOgretmenCarsafPdf(lessons: LessonData[]): PrintOutcome {
 }
 
 // 3. SINIF DERS PROGRAMLARI
-export function generateSinifDersProgramlariPdf(lessons: LessonData[]): PrintOutcome {
+export function generateSinifDersProgramlariPdf(
+  lessons: LessonData[],
+  settings: AppSettings = DEFAULT_SETTINGS
+): PrintOutcome {
   const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
     a.localeCompare(b, "tr")
   );
@@ -321,21 +384,15 @@ export function generateSinifDersProgramlariPdf(lessons: LessonData[]): PrintOut
     pagesHtml += `
       ${ci > 0 ? '<div class="page-break"></div>' : ""}
       <div class="page">
-        <div style="text-align:center;margin-bottom:3px;font-size:11px">T.C.</div>
+        ${documentHeader(settings)}
         <h2 style="text-align:center;font-size:15px;margin-bottom:3px">${esc(cls)} SINIFI HAFTALIK DERS PROGRAMI</h2>
-        <div style="text-align:center;font-size:10px;margin-bottom:12px">Tarih: ${formatDate()}</div>
+        <div style="text-align:center;font-size:10px;margin-bottom:12px">${esc(academicYearLabel(settings))} Eğitim-Öğretim Yılı · ${formatDate()}</div>
         <table style="margin-bottom:15px">${scheduleTable}</table>
         <div style="font-weight:bold;font-size:11px;margin-bottom:5px">Ders ve Öğretmen Bilgileri</div>
         <table style="width:auto;min-width:60%">${infoTable}</table>
         <div style="position:relative;margin-top:60px;display:flex;justify-content:space-between;padding:0 30px">
-          <div style="text-align:center">
-            <div style="border-top:1px solid #000;width:150px;margin-bottom:5px"></div>
-            <div style="font-weight:bold;font-size:10px">Sınıf Rehber Öğretmeni</div>
-          </div>
-          <div style="text-align:center">
-            <div style="border-top:1px solid #000;width:150px;margin-bottom:5px"></div>
-            <div style="font-weight:bold;font-size:10px">Okul Müdürü</div>
-          </div>
+          ${signatureBlock("Müdür Yardımcısı", settings.vicePrincipalName)}
+          ${signatureBlock("Kurum Müdürü", settings.principalName)}
         </div>
       </div>
     `;
@@ -352,13 +409,16 @@ export function generateSinifDersProgramlariPdf(lessons: LessonData[]): PrintOut
 }
 
 // 4. ÖĞRETMEN PROGRAMLARI LİSTESİ
-export function generateOgretmenProgramlariPdf(lessons: LessonData[]): PrintOutcome {
+export function generateOgretmenProgramlariPdf(
+  lessons: LessonData[],
+  settings: AppSettings = DEFAULT_SETTINGS
+): PrintOutcome {
   const teacherNames = [
     ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
   ].sort((a, b) => a.localeCompare(b, "tr"));
   const activeDays = getActiveDays(lessons);
   const maxSlots = getMaxSlots(lessons);
-  const yr = new Date().getFullYear();
+  const academicYear = academicYearLabel(settings);
 
   let pagesHtml = "";
 
@@ -391,7 +451,7 @@ export function generateOgretmenProgramlariPdf(lessons: LessonData[]): PrintOutc
     pagesHtml += `
       ${ti > 0 ? '<div class="page-break"></div>' : ""}
       <div class="page">
-        <div style="text-align:center;font-weight:bold;font-size:13px;margin-bottom:12px">T.C.</div>
+        ${documentHeader(settings)}
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <div>
             <div style="font-size:10px">Sayı  : .......................</div>
@@ -401,7 +461,7 @@ export function generateOgretmenProgramlariPdf(lessons: LessonData[]): PrintOutc
         </div>
         <div style="font-weight:bold;font-size:12px;margin:15px 0 8px">Sayın ${esc(teacher)},</div>
         <div style="font-size:10px;line-height:1.5;margin-bottom:5px">
-          ${yr - 1}-${yr} Eğitim-Öğretim Yılında ${formatDate()} tarihinden itibaren uygulanacak programda haftalık ders dağılımınız aşağıya çıkartılmıştır.
+          ${esc(academicYear)} Eğitim-Öğretim Yılında ${formatDate()} tarihinden itibaren uygulanacak programda haftalık ders dağılımınız aşağıya çıkartılmıştır.
         </div>
         <div style="font-size:10px;margin-bottom:12px">Bilgilerinizi ve gereğini rica ederim.</div>
         <table style="margin-bottom:12px">${scheduleTable}</table>
@@ -417,12 +477,14 @@ export function generateOgretmenProgramlariPdf(lessons: LessonData[]): PrintOutc
           <div style="text-align:center">
             <div style="font-weight:bold;font-size:10px">UYGUNDUR</div>
             <div style="font-size:9px;margin:4px 0">..... / ..... / .........</div>
+            ${settings.vicePrincipalName?.trim() ? `<div style="font-size:9px">${esc(settings.vicePrincipalName.trim())}</div>` : ""}
             <div style="font-weight:bold;font-size:9px">Müdür Yardımcısı</div>
           </div>
           <div style="text-align:center">
             <div style="font-weight:bold;font-size:10px">OLUR</div>
             <div style="font-size:9px;margin:4px 0">..... / ..... / .........</div>
-            <div style="font-weight:bold;font-size:9px">Okul Müdürü</div>
+            ${settings.principalName?.trim() ? `<div style="font-size:9px">${esc(settings.principalName.trim())}</div>` : ""}
+            <div style="font-weight:bold;font-size:9px">Kurum Müdürü</div>
           </div>
         </div>
       </div>

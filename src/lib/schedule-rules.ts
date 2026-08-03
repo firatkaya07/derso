@@ -1,5 +1,5 @@
 import { generateTimeSlots } from "./types";
-import type { ClassScheduleDay, Lesson } from "./types";
+import type { ClassScheduleDay, Lesson, SlotTiming } from "./types";
 
 export interface TimeSlot {
   start: string;
@@ -11,8 +11,15 @@ export function toSlotTime(value: string): string {
   return value.slice(0, 5);
 }
 
-export function slotsForDay(day: ClassScheduleDay): TimeSlot[] {
-  return generateTimeSlots(toSlotTime(day.start_time), toSlotTime(day.end_time));
+export function slotsForDay(
+  day: ClassScheduleDay,
+  timing?: SlotTiming
+): TimeSlot[] {
+  return generateTimeSlots(
+    toSlotTime(day.start_time),
+    toSlotTime(day.end_time),
+    timing
+  );
 }
 
 /**
@@ -20,10 +27,13 @@ export function slotsForDay(day: ClassScheduleDay): TimeSlot[] {
  * Farklı günler farklı saatlerde başlayabildiği için ızgara satırları bu
  * birleşim üzerinden çizilir.
  */
-export function buildTimeSlots(days: ClassScheduleDay[]): TimeSlot[] {
+export function buildTimeSlots(
+  days: ClassScheduleDay[],
+  timing?: SlotTiming
+): TimeSlot[] {
   const unique = new Map<string, TimeSlot>();
   for (const day of days) {
-    for (const slot of slotsForDay(day)) {
+    for (const slot of slotsForDay(day, timing)) {
       unique.set(slot.start, slot);
     }
   }
@@ -41,11 +51,12 @@ export function findScheduleDay(
 export function isSlotWithinClassDay(
   days: ClassScheduleDay[],
   dayOfWeek: number,
-  startTime: string
+  startTime: string,
+  timing?: SlotTiming
 ): boolean {
   const day = findScheduleDay(days, dayOfWeek);
   if (!day) return false;
-  return slotsForDay(day).some((slot) => slot.start === startTime);
+  return slotsForDay(day, timing).some((slot) => slot.start === startTime);
 }
 
 export function findLessonAt(
@@ -92,6 +103,8 @@ export interface PlacementCheck {
   teacherOffDays: number[];
   weeklyHours: number;
   placedCount: number;
+  /** Ders saati ızgarasının süreleri; verilmezse varsayılan kullanılır. */
+  timing?: SlotTiming;
 }
 
 /**
@@ -107,7 +120,12 @@ export function checkPlacement(check: PlacementCheck): PlacementBlocker | null {
   if (!check.teacherId) return "teacher-missing";
 
   if (
-    !isSlotWithinClassDay(check.scheduleDays, check.dayOfWeek, check.startTime)
+    !isSlotWithinClassDay(
+      check.scheduleDays,
+      check.dayOfWeek,
+      check.startTime,
+      check.timing
+    )
   ) {
     return "no-class-day";
   }

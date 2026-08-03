@@ -1,6 +1,7 @@
 import type {
   ClassGroup,
   ClassScheduleDay,
+  SlotTiming,
   Subject,
   Teacher,
   TeacherSubject,
@@ -77,8 +78,8 @@ export interface ScheduleResult {
 }
 
 export interface AutoScheduleOptions extends SolveOptions {
-  /** Program üretilmeden önce olurluk incelemesi yapılsın mı. */
-  analyze?: boolean;
+  /** Ders saati ızgarasının süreleri; verilmezse 40 dakika + 10 dakika. */
+  timing?: SlotTiming;
 }
 
 /**
@@ -109,6 +110,7 @@ export function autoSchedule(
     rules,
     teachers,
     teacherSubjects,
+    timing: options.timing,
   });
 
   const feasibility = analyzeFeasibility(model);

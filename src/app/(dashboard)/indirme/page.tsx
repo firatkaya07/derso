@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useSettings } from "@/components/SettingsProvider";
+import { slotTimingOf } from "@/lib/settings";
 import { throwIfDbError } from "@/lib/db-error";
 import {
   prepareLessons,
@@ -98,6 +100,7 @@ const COLOR_STYLES = {
 export default function IndirmePage() {
   const supabase = createClient();
   const toast = useToast();
+  const settings = useSettings();
   const [generating, setGenerating] = useState<DownloadId | null>(null);
 
   const load = useCallback(async (): Promise<DownloadData> => {
@@ -133,7 +136,11 @@ export default function IndirmePage() {
     if (!data || data.lessons.length === 0) return;
     setGenerating(id);
     try {
-      const prepared = prepareLessons(data.lessons, data.scheduleDays);
+      const prepared = prepareLessons(
+        data.lessons,
+        data.scheduleDays,
+        slotTimingOf(settings)
+      );
       const generator = {
         "sinif-carsaf": generateSinifCarsafPdf,
         "ogretmen-carsaf": generateOgretmenCarsafPdf,
@@ -141,7 +148,7 @@ export default function IndirmePage() {
         "ogretmen-program": generateOgretmenProgramlariPdf,
       }[id];
 
-      if (generator(prepared) === "downloaded") {
+      if (generator(prepared, settings) === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
         );
