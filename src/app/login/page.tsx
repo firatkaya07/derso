@@ -17,9 +17,6 @@ function describeAuthError(message: string, mode: Mode): string {
   if (normalized.includes("invalid login credentials")) {
     return "E-posta veya şifre hatalı.";
   }
-  if (normalized.includes("email not confirmed")) {
-    return "E-posta adresiniz henüz doğrulanmamış. Gelen kutunuzu kontrol edin.";
-  }
   if (normalized.includes("rate limit") || normalized.includes("too many")) {
     return "Çok fazla deneme yapıldı. Bir süre sonra tekrar deneyin.";
   }
@@ -43,7 +40,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -51,7 +47,6 @@ export default function LoginPage() {
   const switchMode = (next: Mode) => {
     setMode(next);
     setError("");
-    setNotice("");
     setPasswordConfirm("");
   };
 
@@ -93,7 +88,7 @@ export default function LoginPage() {
       return;
     }
 
-    // E-posta onayı kapalıysa oturum hemen gelir; açıksa kullanıcıyı bilgilendir.
+    // E-posta onayı kapalı / otomatik onaylı: oturum hemen veya ardından gelir.
     if (data.session) {
       finishAuth();
       return;
@@ -105,10 +100,7 @@ export default function LoginPage() {
     });
 
     if (loginError) {
-      setNotice(
-        "Hesap oluşturuldu. E-posta onayı gerekiyorsa gelen kutunuzu kontrol edin; ardından giriş yapın."
-      );
-      setMode("login");
+      setError(describeAuthError(loginError.message, "signup"));
       setLoading(false);
       return;
     }
@@ -119,7 +111,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setNotice("");
     setLoading(true);
 
     if (mode === "signup") {
@@ -228,12 +219,6 @@ export default function LoginPage() {
           {error && (
             <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
-            </div>
-          )}
-
-          {notice && (
-            <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm">
-              {notice}
             </div>
           )}
 
