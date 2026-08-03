@@ -42,6 +42,9 @@ export default function TeacherSchedulesPage() {
   );
   const [classes, setClasses] = useState<ClassGroup[]>([]);
 
+  const [activeCard, setActiveCard] = useState<TeacherCard | null>(null);
+  const [classLessonsForCard, setClassLessonsForCard] = useState<Lesson[]>([]);
+
   const [teacherTotals, setTeacherTotals] = useState<
     Map<string, { placed: number; total: number }>
   >(new Map());
@@ -92,6 +95,8 @@ export default function TeacherSchedulesPage() {
   const fetchTeacherData = useCallback(async () => {
     if (!selectedTeacherId) return;
     setTeacherLoading(true);
+    setActiveCard(null);
+    setClassLessonsForCard([]);
 
     const [{ data: lessonsData }, { data: csData }] = await Promise.all([
       supabase
@@ -183,6 +188,93 @@ export default function TeacherSchedulesPage() {
       .join("")
       .slice(0, 2)
       .toUpperCase();
+  };
+
+  const toggleCard = async (card: TeacherCard) => {
+    if (
+      activeCard?.classId === card.classId &&
+      activeCard?.subjectId === card.subjectId
+    ) {
+      setActiveCard(null);
+      setClassLessonsForCard([]);
+    } else {
+      setActiveCard(card);
+      const { data } = await supabase
+        .from("lessons")
+        .select("*")
+        .eq("class_id", card.classId);
+      setClassLessonsForCard(data || []);
+    }
+  };
+
+  const isSlotEligible = (day: number, startTime: string) => {
+    if (!activeCard) return false;
+    if (isOffDay(day)) return false;
+    if (getLessonAt(day, startTime)) return false;
+
+    const classDays = allScheduleDays.filter(
+      (d) => d.class_id === activeCard.classId
+    );
+    const daySchedule = classDays.find((d) => d.day_of_week === day);
+    if (!daySchedule) return false;
+
+    const classSlots = generateTimeSlots(
+      daySchedule.start_time.slice(0, 5),
+      daySchedule.end_time.slice(0, 5)
+    );
+    if (!classSlots.some((s) => s.start === startTime)) return false;
+
+    if (
+      classLessonsForCard.some(
+        (l) =>
+          l.day_of_week === day &&
+          l.start_time.slice(0, 5) === startTime
+      )
+    )
+      return false;
+
+    return true;
+  };
+
+  const handleRemove = async (lessonId: string) => {
+    if (!selectedTeacherId) return;
+    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
+    setTeacherTotals((prev) => {
+      const next = new Map(prev);
+      const e = next.get(selectedTeacherId!) || { placed: 0, total: 0 };
+      next.set(selectedTeacherId!, {
+        ...e,
+        placed: Math.max(0, e.placed - 1),
+      });
+      return next;
+    });
+    await supabase.from("lessons").delete().eq("id", lessonId);
+  };
+
+  const handlePlace = async (day: number, start: string, end: string) => {
+    if (!activeCard || !selectedTeacherId) return;
+    const { data } = await supabase
+      .from("lessons")
+      .insert({
+        class_id: activeCard.classId,
+        subject_id: activeCard.subjectId,
+        teacher_id: selectedTeacherId,
+        day_of_week: day,
+        start_time: start,
+        end_time: end,
+      })
+      .select("*, subject:subjects(*), teacher:teachers(*)")
+      .single();
+    if (data) {
+      setLessons((prev) => [...prev, data]);
+      setClassLessonsForCard((prev) => [...prev, data]);
+      setTeacherTotals((prev) => {
+        const next = new Map(prev);
+        const e = next.get(selectedTeacherId!) || { placed: 0, total: 0 };
+        next.set(selectedTeacherId!, { ...e, placed: e.placed + 1 });
+        return next;
+      });
+    }
   };
 
   if (loading) {
@@ -418,20 +510,23 @@ export default function TeacherSchedulesPage() {
                               return (
                                 <td key={dayIdx} className="p-1">
                                   <div
-                                    className="rounded-lg h-14 flex flex-col items-center justify-center border-2"
+                                    className="group rounded-lg h-14 flex flex-col items-center justify-center border-2 cursor-pointer transition-all hover:shadow-md"
                                     style={{
                                       borderColor:
                                         subject?.color || "#3B82F6",
                                       backgroundColor: `${subject?.color || "#3B82F6"}15`,
                                     }}
+                                    onClick={() =>
+                                      handleRemove(lesson.id)
+                                    }
                                   >
                                     <span
-                                      className="text-[10px] font-semibold text-gray-600"
+                                      className="text-[10px] font-semibold text-gray-600 group-hover:hidden"
                                     >
                                       {cls?.name || "?"}
                                     </span>
                                     <span
-                                      className="text-xs font-bold"
+                                      className="text-xs font-bold group-hover:hidden"
                                       style={{
                                         color:
                                           subject?.color || "#3B82F6",
@@ -439,7 +534,70 @@ export default function TeacherSchedulesPage() {
                                     >
                                       {abbr}
                                     </span>
+                                    <span className="hidden group-hover:flex items-center gap-1 text-red-500 text-[10px] font-bold">
+                                      <svg
+                                        className="w-3.5 h-3.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                      Kaldır
+                                    </span>
                                   </div>
+                                </td>
+                              );
+                            }
+
+                            if (activeCard) {
+                              const eligible = isSlotEligible(
+                                dayIdx,
+                                slot.start
+                              );
+                              if (eligible) {
+                                return (
+                                  <td key={dayIdx} className="p-1">
+                                    <button
+                                      className="w-full rounded-lg h-14 border-2 border-dashed transition-all hover:shadow-sm cursor-pointer"
+                                      style={{
+                                        borderColor:
+                                          activeCard.subjectColor,
+                                        backgroundColor: `${activeCard.subjectColor}10`,
+                                      }}
+                                      onClick={() =>
+                                        handlePlace(
+                                          dayIdx,
+                                          slot.start,
+                                          slot.end
+                                        )
+                                      }
+                                    >
+                                      <svg
+                                        className="w-4 h-4 mx-auto"
+                                        fill="none"
+                                        stroke={activeCard.subjectColor}
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 4v16m8-8H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={dayIdx} className="p-1">
+                                  <div className="rounded-lg h-14 bg-gray-50 opacity-40" />
                                 </td>
                               );
                             }
@@ -506,6 +664,9 @@ export default function TeacherSchedulesPage() {
               </p>
             ) : (
               cards.map((card) => {
+                const isActive =
+                  activeCard?.classId === card.classId &&
+                  activeCard?.subjectId === card.subjectId;
                 const isComplete =
                   card.placedCount >= card.weeklyHours &&
                   card.weeklyHours > 0;
@@ -518,12 +679,15 @@ export default function TeacherSchedulesPage() {
                     : 0;
 
                 return (
-                  <div
+                  <button
                     key={`${card.classId}-${card.subjectId}`}
-                    className={`rounded-xl p-3 mb-2 border-2 transition-all ${
-                      isComplete
-                        ? "border-green-200 bg-green-50/30"
-                        : "border-gray-100"
+                    onClick={() => toggleCard(card)}
+                    className={`w-full text-left rounded-xl p-3 mb-2 border-2 transition-all ${
+                      isActive
+                        ? "border-pink-400 shadow-md bg-pink-50/50"
+                        : isComplete
+                          ? "border-green-200 bg-green-50/30 hover:shadow-sm"
+                          : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
                     }`}
                   >
                     <div className="flex items-start gap-2">
@@ -576,7 +740,7 @@ export default function TeacherSchedulesPage() {
                         {card.placedCount} / {card.weeklyHours} saat
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })
             )}
