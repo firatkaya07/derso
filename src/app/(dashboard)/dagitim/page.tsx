@@ -354,17 +354,17 @@ export default function DagitimPage() {
               <input
                 type="number"
                 min={1}
-                max={100}
+                max={2000}
                 value={rounds}
                 onChange={(e) => {
                   const value = parseInt(e.target.value, 10);
-                  if (!isNaN(value) && value >= 1 && value <= 100) {
+                  if (!isNaN(value) && value >= 1 && value <= 2000) {
                     setRounds(value);
                   }
                 }}
                 className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
               />
-              <span className="text-xs text-gray-400">1 – 100 arası</span>
+              <span className="text-xs text-gray-400">1 – 2000 arası</span>
             </div>
           </div>
 
