@@ -37,7 +37,6 @@ Uygulama [http://localhost:3000](http://localhost:3000) adresinde çalışır.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Evet | Supabase proje adresi (Project Settings > API) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Evet | Supabase `anon public` anahtarı |
-| `NEXT_PUBLIC_ALLOW_SIGNUP` | Hayır | `true` ise giriş sayfasında hesap oluşturma düğmesi görünür. Varsayılan kapalı. |
 
 Değişkenlerden biri eksikse uygulama, ne yapılması gerektiğini söyleyen bir
 hatayla durur.
@@ -61,10 +60,10 @@ yalnızca `0001` / `0002` çalıştırdıysanız, Supabase SQL Editor'de
 `0003_settings.sql` içeriğini bir kez daha çalıştırmanız gerekir. Tablo yokken
 görülen tipik hata: `Could not find the table 'public.settings' in the schema cache`.
 
-Ardından uygulamayı kullanacak kişiler için Supabase panelinden
-(Authentication > Users) hesap açın; alternatif olarak
-`NEXT_PUBLIC_ALLOW_SIGNUP=true` ile ilk hesabı uygulamadan oluşturup değişkeni
-tekrar kapatabilirsiniz.
+Ardından giriş sayfasından **Kayıt Ol** ile hesap oluşturabilir veya
+Supabase panelinden (Authentication > Users) kullanıcı ekleyebilirsiniz.
+Supabase'de e-posta/şifre kaydı açık olmalıdır
+(Authentication > Providers > Email).
 
 ### Güvenlik notu
 

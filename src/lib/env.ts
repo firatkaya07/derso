@@ -24,11 +24,3 @@ export function getSupabaseAnonKey(): string {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
-
-/**
- * Giriş sayfasındaki "Yeni Hesap Oluştur" düğmesini açar. Derso kurum içi bir
- * uygulama olduğu için varsayılan kapalıdır; hesapları Supabase panelinden
- * açmak yerine uygulama üzerinden açmak isterseniz açık konuma alın.
- */
-export const signUpEnabled =
-  process.env.NEXT_PUBLIC_ALLOW_SIGNUP?.trim() === "true";
