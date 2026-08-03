@@ -93,28 +93,45 @@ export const DAY_NAMES = [
 
 export const DAY_NAMES_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
-export const LESSON_DURATION = 40;
-export const BREAK_DURATION = 10;
-export const SLOT_DURATION = LESSON_DURATION + BREAK_DURATION;
+/** Ders saati ızgarasının üretildiği süreler; Genel Tanımlar'dan yönetilir. */
+export interface SlotTiming {
+  lessonMinutes: number;
+  breakMinutes: number;
+}
 
+export const DEFAULT_SLOT_TIMING: SlotTiming = {
+  lessonMinutes: 40,
+  breakMinutes: 10,
+};
+
+/**
+ * Bir gün için ders saati dilimlerini üretir.
+ *
+ * Süreler kurum ayarlarından gelir; verilmezse 40 dakika ders ve 10 dakika
+ * teneffüs varsayılır.
+ */
 export function generateTimeSlots(
   startTime: string,
-  endTime: string
+  endTime: string,
+  timing: SlotTiming = DEFAULT_SLOT_TIMING
 ): { start: string; end: string }[] {
+  const lessonMinutes = Math.max(1, Math.round(timing.lessonMinutes));
+  const breakMinutes = Math.max(0, Math.round(timing.breakMinutes));
+
   const slots: { start: string; end: string }[] = [];
   const [startH, startM] = startTime.split(":").map(Number);
   const [endH, endM] = endTime.split(":").map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
 
+  const format = (minutes: number) =>
+    `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
   let current = startMinutes;
-  while (current + LESSON_DURATION <= endMinutes) {
-    const lessonEnd = current + LESSON_DURATION;
-    slots.push({
-      start: `${String(Math.floor(current / 60)).padStart(2, "0")}:${String(current % 60).padStart(2, "0")}`,
-      end: `${String(Math.floor(lessonEnd / 60)).padStart(2, "0")}:${String(lessonEnd % 60).padStart(2, "0")}`,
-    });
-    current = lessonEnd + BREAK_DURATION;
+  while (current + lessonMinutes <= endMinutes) {
+    const lessonEnd = current + lessonMinutes;
+    slots.push({ start: format(current), end: format(lessonEnd) });
+    current = lessonEnd + breakMinutes;
   }
 
   return slots;

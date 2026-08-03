@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useSettings } from "@/components/SettingsProvider";
+import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import {
@@ -50,6 +52,8 @@ interface TeacherDetail {
 export default function TeacherSchedulesPage() {
   const supabase = createClient();
   const toast = useToast();
+  const settings = useSettings();
+  const timing = useMemo(() => slotTimingOf(settings), [settings]);
 
   const [chosenTeacherId, setChosenTeacherId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -202,7 +206,10 @@ export default function TeacherSchedulesPage() {
     return teachers.filter((t) => t.name.toLowerCase().includes(term));
   }, [teachers, search]);
 
-  const timeSlots = useMemo(() => buildTimeSlots(scheduleDays), [scheduleDays]);
+  const timeSlots = useMemo(
+    () => buildTimeSlots(scheduleDays, timing),
+    [scheduleDays, timing]
+  );
 
   const cards = useMemo<TeacherCard[]>(() => {
     if (!detail.data) return [];
@@ -267,6 +274,7 @@ export default function TeacherSchedulesPage() {
       teacherOffDays: selectedTeacher?.off_days ?? [],
       weeklyHours: activeCardState.weeklyHours,
       placedCount: activeCardState.placedCount,
+      timing,
     });
   };
 

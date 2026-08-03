@@ -50,6 +50,7 @@ hatayla durur.
 | --- | --- |
 | `0001_initial_schema.sql` | Tablolar, kısıtlar, indeksler |
 | `0002_row_level_security.sql` | RLS politikaları |
+| `0003_settings.sql` | Kurum geneli tanımlar (tek satırlı `settings` tablosu) |
 
 Yeni bir Supabase projesinde dosyaları sırayla SQL Editor'e yapıştırıp
 çalıştırmanız yeterlidir. Supabase CLI kullanıyorsanız `supabase db push`
@@ -83,6 +84,10 @@ erişim reddedilir.
 
 ## Uygulama akışı
 
+0. **Genel Tanımlar** — Kurum bilgileri (il, ilçe, kurum adı, kurum müdürü,
+   müdür yardımcısı), kurum logosu, eğitim-öğretim yılı ile ders ve teneffüs
+   süreleri. Kurum bilgileri çıktıların başlığında ve imza alanlarında,
+   süreler ise ders saati ızgarasının hesabında kullanılır.
 1. **Dersler** — Ders tanımları: ad, kısaltma, renk, hangi sınıf seviyelerinde
    ve hangi alanlarda (TM, MF, SAY...) okutulduğu.
 2. **Öğretmenler** — Öğretmenler, verebildikleri dersler ve izin günleri.
@@ -96,8 +101,9 @@ erişim reddedilir.
 6. **Program Çıktıları** — Yazdırılabilir çarşaf listeleri ve resmî formatta
    sınıf/öğretmen programları.
 
-Ders saati 40 dakika, teneffüs 10 dakikadır. Bir sınıfın günlük slotları,
-o gün için girilen başlangıç saatinden itibaren otomatik hesaplanır.
+Ders saati varsayılan olarak 40 dakika, teneffüs 10 dakikadır; ikisi de Genel
+Tanımlar sayfasından değiştirilebilir. Bir sınıfın günlük slotları, o gün için
+girilen başlangıç saatinden itibaren bu sürelere göre otomatik hesaplanır.
 
 ## Excel şablonu
 
@@ -140,7 +146,8 @@ Gün numaralandırması her yerde aynıdır: `0` Pazartesi, `6` Pazar.
 | `class_schedule_days` | Sınıfın hangi gün hangi saat aralığında ders gördüğü |
 | `class_subjects` | Sınıf müfredatı: haftalık saat ve varsa sabit öğretmen |
 | `teacher_subjects` | Öğretmenin verebildiği dersler |
-| `lessons` | Yerleşmiş program; bir satır = bir 40 dakikalık ders saati |
+| `lessons` | Yerleşmiş program; bir satır = bir ders saati |
+| `settings` | Kurum bilgileri, logo, eğitim-öğretim yılı, ders/teneffüs süresi (tek satır) |
 
 `lessons` tablosundaki iki tekillik kısıtı çakışmayı veritabanı düzeyinde
 engeller: bir sınıf aynı anda tek ders görebilir
@@ -232,6 +239,8 @@ src/
   components/           Ortak arayüz bileşenleri (Modal, Toast, ScheduleGrid)
   hooks/                useAsyncData
   lib/
+    settings.ts         Kurum geneli tanımlar
+    image.ts            Logoyu 100x100 piksele ölçekleme
     scheduler/
       model.ts          Girdiyi çözücünün dizi tabanlı modeline çevirir
       feasibility.ts    Ulaşılabilir en yüksek saati ve engelleri hesaplar

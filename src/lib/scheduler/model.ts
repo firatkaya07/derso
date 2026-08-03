@@ -1,6 +1,7 @@
 import type {
   ClassGroup,
   ClassScheduleDay,
+  SlotTiming,
   Subject,
   Teacher,
   TeacherSubject,
@@ -126,6 +127,8 @@ export interface BuildModelInput {
   rules: ScheduleRules;
   teachers: Teacher[];
   teacherSubjects: TeacherSubject[];
+  /** Ders saati ızgarasının süreleri; verilmezse 40 + 10 dakika. */
+  timing?: SlotTiming;
 }
 
 /**
@@ -153,7 +156,8 @@ export function buildModel(input: BuildModelInput): Model {
   for (const day of input.scheduleDays) {
     for (const slot of generateTimeSlots(
       day.start_time.slice(0, 5),
-      day.end_time.slice(0, 5)
+      day.end_time.slice(0, 5),
+      input.timing
     )) {
       timeSet.add(slot.start);
     }
@@ -173,7 +177,8 @@ export function buildModel(input: BuildModelInput): Model {
     for (const day of days) {
       const slots = generateTimeSlots(
         day.start_time.slice(0, 5),
-        day.end_time.slice(0, 5)
+        day.end_time.slice(0, 5),
+        input.timing
       ).map((slot) => ({
         key: day.day_of_week * numTimes + timeIndex.get(slot.start)!,
         start: slot.start,
