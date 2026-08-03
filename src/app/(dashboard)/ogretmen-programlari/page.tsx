@@ -61,8 +61,8 @@ export default function TeacherSchedulesPage() {
         supabase.from("teachers").select("*").order("name"),
         supabase
           .from("class_subjects")
-          .select("teacher_id, weekly_hours"),
-        supabase.from("lessons").select("teacher_id"),
+          .select("class_id, subject_id, teacher_id, weekly_hours"),
+        supabase.from("lessons").select("teacher_id, class_id, subject_id"),
         supabase.from("classes").select("*").order("name"),
         supabase.from("class_schedule_days").select("*"),
       ]);
@@ -73,18 +73,45 @@ export default function TeacherSchedulesPage() {
       setAllScheduleDays(daysData || []);
       if (list.length > 0) setSelectedTeacherId(list[0].id);
 
-      const totals = new Map<string, { placed: number; total: number }>();
+      const csMap = new Map<string, number>();
       (csData || []).forEach((cs) => {
-        if (!cs.teacher_id) return;
-        const e = totals.get(cs.teacher_id) || { placed: 0, total: 0 };
-        e.total += cs.weekly_hours;
-        totals.set(cs.teacher_id, e);
+        csMap.set(`${cs.class_id}:${cs.subject_id}`, cs.weekly_hours);
       });
+
+      const totals = new Map<string, { placed: number; total: number }>();
+      const teacherKeys = new Map<string, Set<string>>();
+
       (lessonData || []).forEach((l) => {
         if (!l.teacher_id) return;
-        const e = totals.get(l.teacher_id);
-        if (e) e.placed += 1;
+        const e = totals.get(l.teacher_id) || { placed: 0, total: 0 };
+        e.placed += 1;
+        totals.set(l.teacher_id, e);
+
+        if (!teacherKeys.has(l.teacher_id))
+          teacherKeys.set(l.teacher_id, new Set());
+        teacherKeys.get(l.teacher_id)!.add(`${l.class_id}:${l.subject_id}`);
       });
+
+      (csData || []).forEach((cs) => {
+        if (cs.teacher_id) {
+          if (!teacherKeys.has(cs.teacher_id))
+            teacherKeys.set(cs.teacher_id, new Set());
+          teacherKeys
+            .get(cs.teacher_id)!
+            .add(`${cs.class_id}:${cs.subject_id}`);
+        }
+      });
+
+      teacherKeys.forEach((keys, teacherId) => {
+        const e = totals.get(teacherId) || { placed: 0, total: 0 };
+        let total = 0;
+        keys.forEach((key) => {
+          total += csMap.get(key) || 0;
+        });
+        e.total = total;
+        totals.set(teacherId, e);
+      });
+
       setTeacherTotals(totals);
 
       setLoading(false);
@@ -98,19 +125,39 @@ export default function TeacherSchedulesPage() {
     setActiveCard(null);
     setClassLessonsForCard([]);
 
-    const [{ data: lessonsData }, { data: csData }] = await Promise.all([
-      supabase
-        .from("lessons")
-        .select("*, subject:subjects(*), teacher:teachers(*)")
-        .eq("teacher_id", selectedTeacherId),
-      supabase
-        .from("class_subjects")
-        .select("*, subject:subjects(*)")
-        .eq("teacher_id", selectedTeacherId),
-    ]);
+    const { data: lessonsData } = await supabase
+      .from("lessons")
+      .select("*, subject:subjects(*), teacher:teachers(*)")
+      .eq("teacher_id", selectedTeacherId);
 
     setLessons(lessonsData || []);
-    setClassSubjects(csData || []);
+
+    const classIds = [
+      ...new Set((lessonsData || []).map((l) => l.class_id)),
+    ];
+
+    if (classIds.length > 0) {
+      const { data: csData } = await supabase
+        .from("class_subjects")
+        .select("*, subject:subjects(*)")
+        .in("class_id", classIds);
+
+      const lessonKeys = new Set(
+        (lessonsData || []).map((l) => `${l.class_id}:${l.subject_id}`)
+      );
+      const relevant = (csData || []).filter(
+        (cs) =>
+          cs.teacher_id === selectedTeacherId ||
+          lessonKeys.has(`${cs.class_id}:${cs.subject_id}`)
+      );
+      setClassSubjects(relevant);
+    } else {
+      const { data: csData } = await supabase
+        .from("class_subjects")
+        .select("*, subject:subjects(*)")
+        .eq("teacher_id", selectedTeacherId);
+      setClassSubjects(csData || []);
+    }
 
     setTeacherLoading(false);
   }, [supabase, selectedTeacherId]);
