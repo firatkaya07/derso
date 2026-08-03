@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  loadingLabel?: string;
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -20,6 +21,7 @@ export default function ConfirmDialog({
   message,
   confirmLabel = "Sil",
   cancelLabel = "İptal",
+  loadingLabel = "Siliniyor...",
   loading = false,
   onConfirm,
   onCancel,
@@ -34,7 +36,7 @@ export default function ConfirmDialog({
           disabled={loading}
           className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Siliniyor..." : confirmLabel}
+          {loading ? loadingLabel : confirmLabel}
         </button>
         <button
           type="button"
