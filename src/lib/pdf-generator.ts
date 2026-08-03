@@ -112,6 +112,47 @@ function getMaxSlots(lessons: LessonData[]): number {
   return max;
 }
 
+/**
+ * Belirli bir ders sırası için saat aralığı. Aynı sırada birden fazla saat
+ * varsa (hafta içi / hafta sonu farkı) en sık görüleni tercih eder.
+ */
+function slotClockRange(
+  lessons: LessonData[],
+  slotIndex: number
+): { start: string; end: string } | null {
+  const counts = new Map<string, { start: string; end: string; count: number }>();
+  for (const lesson of lessons) {
+    if (lesson.slotIndex !== slotIndex) continue;
+    const key = `${lesson.startTime}-${lesson.endTime}`;
+    const existing = counts.get(key);
+    if (existing) existing.count += 1;
+    else counts.set(key, { start: lesson.startTime, end: lesson.endTime, count: 1 });
+  }
+  let best: { start: string; end: string; count: number } | null = null;
+  for (const entry of counts.values()) {
+    if (!best || entry.count > best.count) best = entry;
+  }
+  return best ? { start: best.start, end: best.end } : null;
+}
+
+/** Program tablolarının sol sütunu: "1. Ders" + saat aralığı. */
+function slotRowHeader(slotIndex: number, lessons: LessonData[]): string {
+  const clock = slotClockRange(lessons, slotIndex);
+  const timeHtml = clock
+    ? `<div style="font-size:8px;font-weight:normal;color:#333;margin-top:1px">${esc(clock.start)}–${esc(clock.end)}</div>`
+    : "";
+  return `<td>${slotIndex + 1}. Ders${timeHtml}</td>`;
+}
+
+/** Çarşaf listelerinin alt başlığı: sıra numarası + varsa başlangıç saati. */
+function carsafSlotHeader(slotIndex: number, lessons: LessonData[], width: string): string {
+  const clock = slotClockRange(lessons, slotIndex);
+  const timeHtml = clock
+    ? `<div style="font-size:7px;font-weight:normal;line-height:1.1">${esc(clock.start)}</div>`
+    : "";
+  return `<th style="width:${width}">${slotIndex + 1}${timeHtml}</th>`;
+}
+
 export interface RawLessonRow {
   class_id: string;
   subject_id: string;
@@ -231,7 +272,7 @@ export function generateSinifCarsafPdf(
   tableHtml += `</tr><tr>`;
   for (let d = 0; d < activeDays.length; d++) {
     for (let s = 0; s < maxSlots; s++) {
-      tableHtml += `<th style="width:30px">${s + 1}</th>`;
+      tableHtml += carsafSlotHeader(s, lessons, "30px");
     }
   }
   tableHtml += `</tr>`;
@@ -283,7 +324,7 @@ export function generateOgretmenCarsafPdf(
   tableHtml += `</tr><tr>`;
   for (let d = 0; d < activeDays.length; d++) {
     for (let s = 0; s < maxSlots; s++) {
-      tableHtml += `<th style="width:24px;font-size:8px">${s + 1}</th>`;
+      tableHtml += carsafSlotHeader(s, lessons, "24px");
     }
   }
   tableHtml += `</tr>`;
@@ -336,14 +377,14 @@ export function generateSinifDersProgramlariPdf(
     const cls = classes[ci];
     const classLessons = lessons.filter((l) => l.className === cls);
 
-    let scheduleTable = `<tr><th style="width:60px">Saat</th>`;
+    let scheduleTable = `<tr><th style="width:72px">Saat</th>`;
     for (const day of activeDays) {
       scheduleTable += `<th>${DAY_NAMES[day]}</th>`;
     }
     scheduleTable += `</tr>`;
 
     for (let s = 0; s < maxSlots; s++) {
-      scheduleTable += `<tr><td>${s + 1}. Ders</td>`;
+      scheduleTable += `<tr>${slotRowHeader(s, classLessons)}`;
       for (const day of activeDays) {
         const lesson = classLessons.find(
           (l) => l.dayOfWeek === day && l.slotIndex === s
@@ -426,14 +467,14 @@ export function generateOgretmenProgramlariPdf(
     const tLessons = lessons.filter((l) => l.teacherName === teacher);
     const totalHours = tLessons.length;
 
-    let scheduleTable = `<tr><th style="width:60px">Saat</th>`;
+    let scheduleTable = `<tr><th style="width:72px">Saat</th>`;
     for (const day of activeDays) {
       scheduleTable += `<th>${DAY_NAMES[day]}</th>`;
     }
     scheduleTable += `</tr>`;
 
     for (let s = 0; s < maxSlots; s++) {
-      scheduleTable += `<tr><td>${s + 1}. Ders</td>`;
+      scheduleTable += `<tr>${slotRowHeader(s, tLessons)}`;
       for (const day of activeDays) {
         const lesson = tLessons.find(
           (l) => l.dayOfWeek === day && l.slotIndex === s
