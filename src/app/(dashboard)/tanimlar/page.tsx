@@ -278,6 +278,16 @@ export default function GenelTanimlarPage() {
               Çıktı başlığı önizlemesi
             </p>
             <div className="text-center leading-tight">
+              {form.logoDataUrl && (
+                <Image
+                  src={form.logoDataUrl}
+                  alt=""
+                  width={52}
+                  height={52}
+                  unoptimized
+                  className="mx-auto mb-1.5 object-contain"
+                />
+              )}
               <div className="text-[11px] text-gray-700">T.C.</div>
               <div className="text-[11px] text-gray-700">
                 {locationLabel(form) || "İL / İLÇE"}

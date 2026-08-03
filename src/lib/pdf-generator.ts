@@ -55,9 +55,10 @@ function formatDate(): string {
 }
 
 /**
- * Belgelerin ortak başlığı: T.C., il/ilçe, kurum adı ve varsa logo.
- * Bilgiler Genel Tanımlar sayfasından gelir; girilmemiş alanlar atlanır,
- * böylece kurulumunu tamamlamamış bir kurumda çıktı boş satırlarla dolmaz.
+ * Belgelerin ortak başlığı: logo (varsa), T.C., il/ilçe, kurum adı.
+ * Logo T.C. satırının üstünde, ortalanmış durur. Bilgiler Genel Tanımlar
+ * sayfasından gelir; girilmemiş alanlar atlanır, böylece kurulumunu
+ * tamamlamamış bir kurumda çıktı boş satırlarla dolmaz.
  */
 function documentHeader(
   settings: AppSettings,
@@ -68,7 +69,12 @@ function documentHeader(
   const logoSize = options.compact ? 34 : 52;
   const nameSize = options.compact ? 12 : 14;
 
+  const logo = settings.logoDataUrl
+    ? `<img src="${esc(settings.logoDataUrl)}" width="${logoSize}" height="${logoSize}" style="display:block;margin:0 auto ${options.compact ? 4 : 6}px;object-fit:contain" alt="" />`
+    : "";
+
   const lines = [
+    logo,
     `<div style="font-size:${options.compact ? 9 : 11}px">T.C.</div>`,
     location
       ? `<div style="font-size:${options.compact ? 9 : 11}px">${esc(location.toLocaleUpperCase("tr"))}</div>`
@@ -80,14 +86,7 @@ function documentHeader(
     .filter(Boolean)
     .join("");
 
-  const logo = settings.logoDataUrl
-    ? `<img src="${esc(settings.logoDataUrl)}" width="${logoSize}" height="${logoSize}" style="object-fit:contain" alt="" />`
-    : "";
-
-  return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:${options.compact ? 4 : 8}px">
-    ${logo}
-    <div style="text-align:center;line-height:1.3">${lines}</div>
-  </div>`;
+  return `<div style="text-align:center;line-height:1.3;margin-bottom:${options.compact ? 4 : 8}px">${lines}</div>`;
 }
 
 /** İmza bloğu; ad girilmemişse yalnızca unvan yazılır. */
