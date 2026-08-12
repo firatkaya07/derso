@@ -16,10 +16,20 @@ import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
 import { DAY_NAMES } from "@/lib/types";
 
+interface ClassAssignment {
+  class_id: string;
+  subject_id: string;
+  weekly_hours: number;
+  teacher_id: string | null;
+  class: { id: string; name: string } | null;
+  subject: { id: string; name: string; short_name: string | null; color: string } | null;
+}
+
 interface TeachersData {
   teachers: Teacher[];
   subjects: Subject[];
   teacherSubjects: TeacherSubject[];
+  classAssignments: ClassAssignment[];
 }
 
 const EMPTY_FORM = {
@@ -47,19 +57,25 @@ export default function TeachersPage() {
   const [search, setSearch] = useState("");
 
   const load = useCallback(async (): Promise<TeachersData> => {
-    const [teacherResult, subjectResult, tsResult] = await Promise.all([
+    const [teacherResult, subjectResult, tsResult, csResult] = await Promise.all([
       supabase.from("teachers").select("*").order("name"),
       supabase.from("subjects").select("*").order("name"),
       supabase.from("teacher_subjects").select("*, subject:subjects(*)"),
+      supabase
+        .from("class_subjects")
+        .select("class_id, subject_id, weekly_hours, teacher_id, class:classes(id, name), subject:subjects(id, name, short_name, color)")
+        .not("teacher_id", "is", null),
     ]);
     throwIfDbError(teacherResult, "Öğretmenler okunamadı");
     throwIfDbError(subjectResult, "Dersler okunamadı");
     throwIfDbError(tsResult, "Öğretmen dersleri okunamadı");
+    throwIfDbError(csResult, "Sınıf atamaları okunamadı");
 
     return {
       teachers: teacherResult.data ?? [],
       subjects: subjectResult.data ?? [],
       teacherSubjects: tsResult.data ?? [],
+      classAssignments: (csResult.data ?? []) as unknown as ClassAssignment[],
     };
   }, [supabase]);
 
@@ -67,12 +83,23 @@ export default function TeachersPage() {
   const teachers = useMemo(() => data?.teachers ?? [], [data]);
   const subjects = useMemo(() => data?.subjects ?? [], [data]);
   const teacherSubjects = useMemo(() => data?.teacherSubjects ?? [], [data]);
+  const classAssignments = useMemo(() => data?.classAssignments ?? [], [data]);
 
   const getTeacherSubjects = (teacherId: string) =>
     teacherSubjects
       .filter((ts) => ts.teacher_id === teacherId)
       .map((ts) => ts.subject as Subject)
       .filter(Boolean);
+
+  const getTeacherAssignments = (teacherId: string) =>
+    classAssignments
+      .filter((ca) => ca.teacher_id === teacherId && ca.class && ca.subject)
+      .sort((a, b) => (a.class!.name).localeCompare(b.class!.name, "tr"));
+
+  const getTeacherTotalHours = (teacherId: string) =>
+    classAssignments
+      .filter((ca) => ca.teacher_id === teacherId)
+      .reduce((sum, ca) => sum + ca.weekly_hours, 0);
 
   const filteredTeachers = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("tr");
@@ -81,13 +108,16 @@ export default function TeachersPage() {
       const subjectNames = getTeacherSubjects(teacher.id)
         .map((s) => s.name)
         .join(" ");
+      const classNames = getTeacherAssignments(teacher.id)
+        .map((ca) => ca.class!.name)
+        .join(" ");
       const haystack =
-        `${teacher.name} ${teacher.specialization ?? ""} ${teacher.phone ?? ""} ${teacher.email ?? ""} ${subjectNames}`.toLocaleLowerCase(
+        `${teacher.name} ${teacher.specialization ?? ""} ${teacher.phone ?? ""} ${teacher.email ?? ""} ${subjectNames} ${classNames}`.toLocaleLowerCase(
           "tr"
         );
       return haystack.includes(query);
     });
-  }, [teachers, search, teacherSubjects]);
+  }, [teachers, search, teacherSubjects, classAssignments]);
 
   const openCreate = () => {
     setEditingTeacher(null);
@@ -341,6 +371,31 @@ export default function TeachersPage() {
                         ))}
                     </div>
                   )}
+                  {(() => {
+                    const assignments = getTeacherAssignments(teacher.id);
+                    const totalHours = getTeacherTotalHours(teacher.id);
+                    if (assignments.length === 0) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="text-xs font-medium text-gray-500">Atandığı Sınıflar</div>
+                          <div className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                            Toplam {totalHours} saat
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {assignments.map((ca) => (
+                            <span
+                              key={`${ca.class_id}-${ca.subject_id}`}
+                              className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"
+                            >
+                              {ca.class!.name} · {ca.subject!.short_name || ca.subject!.name} ({ca.weekly_hours}s)
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {(teacher.phone || teacher.email) && (
                     <div className="mt-2 text-xs text-gray-500 space-y-0.5">
                       {teacher.phone && <div>{teacher.phone}</div>}
@@ -355,7 +410,7 @@ export default function TeachersPage() {
           {/* Masaüstü: tablo */}
           <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px]">
+              <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -366,6 +421,9 @@ export default function TeachersPage() {
                     </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Verdiği Dersler
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Atandığı Sınıflar
                     </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       İzin
@@ -415,6 +473,43 @@ export default function TeachersPage() {
                               )}
                             </div>
                           )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {(() => {
+                            const assignments = getTeacherAssignments(teacher.id);
+                            const totalHours = getTeacherTotalHours(teacher.id);
+                            if (assignments.length === 0) {
+                              return <span className="text-sm text-gray-400">—</span>;
+                            }
+                            const visible = assignments.slice(0, 4);
+                            const rest = assignments.length - visible.length;
+                            return (
+                              <div>
+                                <div className="flex flex-wrap gap-1">
+                                  {visible.map((ca) => (
+                                    <span
+                                      key={`${ca.class_id}-${ca.subject_id}`}
+                                      className="inline-flex text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"
+                                      title={`${ca.class!.name} - ${ca.subject!.name} (${ca.weekly_hours} saat)`}
+                                    >
+                                      {ca.class!.name} · {ca.subject!.short_name || ca.subject!.name} ({ca.weekly_hours}s)
+                                    </span>
+                                  ))}
+                                  {rest > 0 && (
+                                    <span
+                                      className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600"
+                                      title={assignments.slice(4).map((ca) => `${ca.class!.name} - ${ca.subject!.name} (${ca.weekly_hours}s)`).join(", ")}
+                                    >
+                                      +{rest}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs font-medium text-gray-500 mt-1">
+                                  Toplam {totalHours} saat
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-5 py-4">
                           {teacher.off_days && teacher.off_days.length > 0 ? (
