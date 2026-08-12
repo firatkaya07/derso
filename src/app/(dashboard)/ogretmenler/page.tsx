@@ -55,6 +55,7 @@ export default function TeachersPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [assignmentDetail, setAssignmentDetail] = useState<Teacher | null>(null);
 
   const load = useCallback(async (): Promise<TeachersData> => {
     const [teacherResult, subjectResult, tsResult, csResult] = await Promise.all([
@@ -375,6 +376,8 @@ export default function TeachersPage() {
                     const assignments = getTeacherAssignments(teacher.id);
                     const totalHours = getTeacherTotalHours(teacher.id);
                     if (assignments.length === 0) return null;
+                    const visible = assignments.slice(0, 4);
+                    const rest = assignments.length - visible.length;
                     return (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <div className="flex items-center justify-between mb-1.5">
@@ -384,7 +387,7 @@ export default function TeachersPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {assignments.map((ca) => (
+                          {visible.map((ca) => (
                             <span
                               key={`${ca.class_id}-${ca.subject_id}`}
                               className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"
@@ -392,6 +395,15 @@ export default function TeachersPage() {
                               {ca.class!.name} · {ca.subject!.short_name || ca.subject!.name} ({ca.weekly_hours}s)
                             </span>
                           ))}
+                          {rest > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setAssignmentDetail(teacher)}
+                              className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                            >
+                              +{rest}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -496,12 +508,13 @@ export default function TeachersPage() {
                                     </span>
                                   ))}
                                   {rest > 0 && (
-                                    <span
-                                      className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600"
-                                      title={assignments.slice(4).map((ca) => `${ca.class!.name} - ${ca.subject!.name} (${ca.weekly_hours}s)`).join(", ")}
+                                    <button
+                                      type="button"
+                                      onClick={() => setAssignmentDetail(teacher)}
+                                      className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
                                     >
                                       +{rest}
-                                    </span>
+                                    </button>
                                   )}
                                 </div>
                                 <div className="text-xs font-medium text-gray-500 mt-1">
@@ -733,11 +746,86 @@ export default function TeachersPage() {
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         title="Öğretmeni sil"
-        message={`“${deleteTarget?.name ?? ""}” öğretmenini silmek istediğinize emin misiniz?`}
+        message={`"${deleteTarget?.name ?? ""}" öğretmenini silmek istediğinize emin misiniz?`}
         loading={deleting}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {assignmentDetail && (() => {
+        const assignments = getTeacherAssignments(assignmentDetail.id);
+        const totalHours = getTeacherTotalHours(assignmentDetail.id);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setAssignmentDetail(null)}>
+            <div
+              className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 max-w-lg w-full mx-4 max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {assignmentDetail.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Atandığı Sınıflar · <span className="font-medium text-blue-700">{totalHours} saat</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAssignmentDetail(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="overflow-y-auto -mx-6 px-6">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Sınıf</th>
+                      <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Ders</th>
+                      <th className="text-right py-2 text-xs font-semibold text-gray-500 uppercase">Saat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {assignments.map((ca) => (
+                      <tr key={`${ca.class_id}-${ca.subject_id}`}>
+                        <td className="py-2.5 text-sm font-medium text-gray-900">{ca.class!.name}</td>
+                        <td className="py-2.5">
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: ca.subject!.color }}
+                          >
+                            {ca.subject!.name}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-sm text-gray-700 text-right">{ca.weekly_hours}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-200">
+                      <td colSpan={2} className="py-2.5 text-sm font-semibold text-gray-900">Toplam</td>
+                      <td className="py-2.5 text-sm font-semibold text-blue-700 text-right">{totalHours} saat</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setAssignmentDetail(null)}
+                  className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
