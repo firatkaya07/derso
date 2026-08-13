@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import ScheduleHeroVisual from "./ScheduleHeroVisual";
+import PricingSection from "./PricingSection";
 
 const STEPS = [
   {
@@ -45,6 +46,10 @@ const FAQS = [
     a: "Ders, öğretmen ve sınıf tanımlarını girin veya Excel ile aktarın; otomatik dağıtım kurallara göre yerleştirir, dilerseniz elle düzeltirsiniz.",
   },
   {
+    q: "Paketler nasıl faturalanır?",
+    a: "Aylık veya yıllık ödeme seçebilirsiniz. Yıllık planda 2 ay indirim uygulanır (12 ay yerine 10 ay tutarı). Fiyatlara KDV dahil değildir.",
+  },
+  {
     q: "Çıktılar nasıl alınır?",
     a: "Sınıf ve öğretmen programları ile çarşaf listeleri yazdırılabilir HTML olarak açılır; tarayıcıdan PDF kaydedebilirsiniz.",
   },
@@ -70,6 +75,7 @@ export default function LandingPage() {
           <nav className="landing-nav__links" aria-label="Sayfa bölümleri">
             <a href="#nasil">Nasıl çalışır</a>
             <a href="#ozellikler">Özellikler</a>
+            <a href="#ucretlendirme">Ücretlendirme</a>
             <a href="#sss">Sıkça sorulanlar</a>
           </nav>
 
@@ -103,8 +109,8 @@ export default function LandingPage() {
                 <Link href="/login" className="landing-btn landing-btn--accent">
                   Hemen deneyin
                 </Link>
-                <a href="#nasil" className="landing-btn landing-btn--line">
-                  Nasıl çalışır?
+                <a href="#ucretlendirme" className="landing-btn landing-btn--line">
+                  Paketleri gör
                 </a>
               </div>
             </div>
@@ -156,6 +162,8 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <PricingSection />
+
         <section id="sss" className="landing-section landing-faq">
           <div className="landing-section__inner">
             <p className="landing-kicker">SSS</p>
@@ -204,6 +212,7 @@ export default function LandingPage() {
           <nav className="landing-footer__nav" aria-label="Alt bilgi">
             <a href="#nasil">Nasıl çalışır</a>
             <a href="#ozellikler">Özellikler</a>
+            <a href="#ucretlendirme">Ücretlendirme</a>
             <a href="#sss">SSS</a>
             <Link href="/login">Giriş</Link>
           </nav>
