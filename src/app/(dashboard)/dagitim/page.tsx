@@ -16,7 +16,7 @@ export default function DagitimPage() {
   const toast = useToast();
 
   const [rules, setRules] = useState<ScheduleRules>(DEFAULT_RULES);
-  const [rounds, setRounds] = useState(10);
+  const [rounds, setRounds] = useState(1000);
   const [starting, setStarting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [existingLessonCount, setExistingLessonCount] = useState(0);
