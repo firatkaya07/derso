@@ -23,7 +23,7 @@ export default function OnboardingPage() {
     setError(null);
     try {
       await createOrganization(supabase, trimmed);
-      router.replace("/");
+      router.replace("/home");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

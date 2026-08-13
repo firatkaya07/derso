@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -51,7 +52,7 @@ export default function LoginPage() {
   };
 
   const finishAuth = () => {
-    router.push("/");
+    router.push("/home");
     router.refresh();
   };
 
@@ -124,14 +125,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50">
       <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(99,102,241,0.08)] border border-[var(--color-border)] p-8 w-full max-w-md mx-4">
         <div className="text-center mb-8">
-          <Image
-            src="/logo.png"
-            alt="Derso"
-            width={80}
-            height={80}
-            className="mx-auto mb-4 rounded-2xl"
-          />
-          <h1 className="text-3xl font-bold text-[var(--color-text)]">Derso</h1>
+          <Link href="/" className="inline-block">
+            <Image
+              src="/logo.png"
+              alt="Derso"
+              width={80}
+              height={80}
+              className="mx-auto mb-4 rounded-2xl"
+            />
+            <h1 className="text-3xl font-bold text-[var(--color-text)]">Derso</h1>
+          </Link>
           <p className="text-[var(--color-text-secondary)] mt-2">
             Kurs Merkezi Ders Programı Yönetimi
           </p>

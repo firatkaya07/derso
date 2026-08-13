@@ -190,7 +190,7 @@ export default function IndirmePage() {
     <div>
       <div className="flex items-center gap-2 mb-1">
         <Link
-          href="/"
+          href="/home"
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg

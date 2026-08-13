@@ -16,7 +16,7 @@ export default function PageHeader({
     <div className="flex items-start justify-between gap-4 mb-6">
       <div className="flex items-start gap-2.5 min-w-0">
         <Link
-          href="/"
+          href="/home"
           className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors duration-200 mt-0.5 shrink-0"
           aria-label="Ana sayfaya dön"
         >

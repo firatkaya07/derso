@@ -380,7 +380,7 @@ export default function TeacherSchedulesPage() {
     >
       <div className="flex items-center gap-2 mb-4">
         <Link
-          href="/"
+          href="/home"
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg

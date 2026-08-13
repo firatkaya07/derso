@@ -80,7 +80,7 @@ export default function DagitimPage() {
     <div>
       <div className="flex items-center gap-2 mb-6">
         <Link
-          href="/"
+          href="/home"
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg
