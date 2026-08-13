@@ -37,7 +37,7 @@ Uygulama [http://localhost:3000](http://localhost:3000) adresinde çalışır.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Evet | Supabase proje adresi (Project Settings > API) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Evet | Supabase `anon public` anahtarı |
-| `NEXT_PUBLIC_SITE_URL` | Hayır* | Canonical / sitemap / Open Graph kök adresi (örn. `https://derso.app`). Üretimde önerilir. |
+| `NEXT_PUBLIC_SITE_URL` | Hayır* | Canonical / sitemap / Open Graph kök adresi. Varsayılan üretim: `https://dersomatik.com`. |
 
 Değişkenlerden biri eksikse uygulama, ne yapılması gerektiğini söyleyen bir
 hatayla durur.

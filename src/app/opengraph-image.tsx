@@ -82,7 +82,7 @@ export default function OpenGraphImage() {
             fontWeight: 600,
           }}
         >
-          derso.app
+          dersomatik.com
         </div>
       </div>
     ),
