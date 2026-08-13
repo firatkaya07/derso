@@ -139,6 +139,50 @@ function carsafSlotHeader(slotIndex: number, slot: TimeSlot, width: string): str
   return `<th style="width:${width}">${slotIndex + 1}<div style="font-size:7px;font-weight:normal;line-height:1.1">${esc(slot.start)}</div></th>`;
 }
 
+/**
+ * Öğretmen çarşaf hücresi: sınıf + ders kısa adı.
+ * Aynı öğretmene aynı sınıfta birden fazla ders düşünce yalnızca sınıf adı
+ * hangi dersin olduğunu göstermez; kısa ad ayırt eder.
+ */
+export function formatTeacherCarsafCell(lesson: LessonData): string {
+  const subject = lesson.subjectShortName || lesson.subjectName;
+  if (!lesson.className && !subject) return "";
+  if (!subject) return esc(lesson.className);
+  if (!lesson.className) return esc(subject);
+  return `${esc(lesson.className)}<div style="font-size:6px;color:#333">${esc(subject)}</div>`;
+}
+
+/**
+ * Sınıf programındaki "Ders ve Öğretmen Bilgileri" satırları.
+ * subjectId ile gruplanır; böylece aynı adlı dersler karışmaz ve bir
+ * öğretmenin aynı sınıftaki farklı dersleri ayrı satırda kalır.
+ */
+export function buildSubjectTeacherRows(
+  classLessons: LessonData[]
+): { name: string; hours: number; teacher: string }[] {
+  const subjectMap = new Map<
+    string,
+    { name: string; hours: number; teacher: string }
+  >();
+  for (const lesson of classLessons) {
+    const key = lesson.subjectId || lesson.subjectName;
+    if (!key) continue;
+    const existing = subjectMap.get(key);
+    if (!existing) {
+      subjectMap.set(key, {
+        name: lesson.subjectName || lesson.subjectShortName || "—",
+        hours: 1,
+        teacher: lesson.teacherName || "-",
+      });
+    } else {
+      existing.hours += 1;
+    }
+  }
+  return [...subjectMap.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "tr")
+  );
+}
+
 export interface PdfScheduleContext {
   scheduleDays?: ClassScheduleDay[];
   timing?: SlotTiming;
@@ -343,7 +387,9 @@ export function generateOgretmenCarsafPdf(
             l.dayOfWeek === day &&
             l.startTime === slot.start
         );
-        tableHtml += `<td style="font-size:7px">${lesson ? esc(lesson.className) : ""}</td>`;
+        // Aynı sınıfa birden fazla ders giren öğretmenlerde yalnızca sınıf adı
+        // yetmez; ders kısa adı da yazılır (ör. 10-A + MAT1 / 10-A + PRB).
+        tableHtml += `<td style="font-size:7px">${lesson ? formatTeacherCarsafCell(lesson) : ""}</td>`;
       }
     }
     tableHtml += `</tr>`;
@@ -414,23 +460,7 @@ export function generateSinifDersProgramlariPdf(
       scheduleTable += `</tr>`;
     }
 
-    const subjectMap = new Map<
-      string,
-      { name: string; hours: number; teacher: string }
-    >();
-    for (const l of classLessons) {
-      if (!subjectMap.has(l.subjectName)) {
-        subjectMap.set(l.subjectName, {
-          name: l.subjectName,
-          hours: 0,
-          teacher: l.teacherName || "-",
-        });
-      }
-      subjectMap.get(l.subjectName)!.hours++;
-    }
-    const subjectRows = [...subjectMap.values()].sort((a, b) =>
-      a.name.localeCompare(b.name, "tr")
-    );
+    const subjectRows = buildSubjectTeacherRows(classLessons);
 
     let infoTable = `<tr><th style="text-align:left;padding-left:8px">Dersin Adı</th><th style="width:60px">HDS</th><th>Öğretmenin Adı</th></tr>`;
     for (const s of subjectRows) {
