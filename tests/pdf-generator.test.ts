@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSubjectTeacherRows,
+  buildTeacherClassSubjectRows,
   formatTeacherCarsafCell,
+  formatTeacherProgramCell,
   type LessonData,
 } from "@/lib/pdf-generator";
 
@@ -51,6 +53,21 @@ describe("formatTeacherCarsafCell", () => {
   });
 });
 
+describe("formatTeacherProgramCell", () => {
+  it("takvim hücresinde tam ders adını gösterir", () => {
+    const html = formatTeacherProgramCell(
+      lesson({
+        className: "9-A",
+        subjectName: "MATEMATİK 2",
+        subjectShortName: "MAT2",
+      })
+    );
+    expect(html).toContain("9-A");
+    expect(html).toContain("MATEMATİK 2");
+    expect(html).not.toContain("MAT2");
+  });
+});
+
 describe("öğretmen programı hücre eşlemesi", () => {
   it("aynı sınıfın farklı derslerini startTime ile doğru bulur", () => {
     const lessons: LessonData[] = [
@@ -86,10 +103,51 @@ describe("öğretmen programı hücre eşlemesi", () => {
     const at = (day: number, start: string) =>
       lessons.find((l) => l.dayOfWeek === day && l.startTime === start);
 
-    expect(at(3, "09:00")?.subjectShortName).toBe("MAT2");
-    expect(at(3, "11:30")?.subjectShortName).toBe("PRB");
-    expect(at(3, "12:20")?.subjectShortName).toBe("PRB");
+    expect(at(3, "09:00")?.subjectName).toBe("MATEMATİK 2");
+    expect(at(3, "11:30")?.subjectName).toBe("PROBLEM");
+    expect(at(3, "12:20")?.subjectName).toBe("PROBLEM");
     expect(at(3, "09:50")).toBeUndefined();
+  });
+});
+
+describe("buildTeacherClassSubjectRows", () => {
+  it("aynı sınıftaki farklı dersleri ayrı satırda ve doğru saatle listeler", () => {
+    const rows = buildTeacherClassSubjectRows([
+      lesson({
+        classId: "c10",
+        className: "10-A",
+        subjectId: "mat",
+        subjectName: "MATEMATİK 1",
+      }),
+      lesson({
+        classId: "c10",
+        className: "10-A",
+        subjectId: "mat",
+        subjectName: "MATEMATİK 1",
+        startTime: "09:50",
+      }),
+      lesson({
+        classId: "c10",
+        className: "10-A",
+        subjectId: "prb",
+        subjectName: "PROBLEM",
+        dayOfWeek: 2,
+        startTime: "11:30",
+      }),
+      lesson({
+        classId: "c9",
+        className: "9-A",
+        subjectId: "mat2",
+        subjectName: "MATEMATİK 2",
+        dayOfWeek: 3,
+      }),
+    ]);
+
+    expect(rows).toEqual([
+      { className: "10-A", subjectName: "MATEMATİK 1", hours: 2 },
+      { className: "10-A", subjectName: "PROBLEM", hours: 1 },
+      { className: "9-A", subjectName: "MATEMATİK 2", hours: 1 },
+    ]);
   });
 });
 
