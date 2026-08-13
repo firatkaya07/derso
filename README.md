@@ -241,9 +241,11 @@ olarak da koşar.
 ```
 src/
   app/
-    (dashboard)/        Uygulama sayfaları
+    (marketing)/        Açık landing / pazarlama
+    (dashboard)/        Uygulama sayfaları (/home ve alt sayfalar)
     login/              Giriş
   components/           Ortak arayüz bileşenleri (Modal, Toast, ScheduleGrid)
+    landing/            Pazarlama sayfası bileşenleri
   hooks/                useAsyncData
   lib/
     settings.ts         Kurum geneli tanımlar

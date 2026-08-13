@@ -230,7 +230,7 @@ export default function GenelTanimlarPage() {
       <div className="flex items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <Link
-            href="/"
+            href="/home"
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <svg
