@@ -76,6 +76,9 @@ export default function ClassesPage() {
   const [dayConfigs, setDayConfigs] = useState<
     { day: number; enabled: boolean; startTime: string; endTime: string }[]
   >([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set());
+  const [bulkScheduleMode, setBulkScheduleMode] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const load = useCallback(async (): Promise<ClassesData> => {
     const [
@@ -166,6 +169,7 @@ export default function ClassesPage() {
   };
 
   const openSchedule = (cls: ClassGroup) => {
+    setBulkScheduleMode(false);
     setSelectedClass(cls);
     setOrphanConfirmOpen(false);
     setPendingOrphanIds([]);
@@ -404,10 +408,16 @@ export default function ClassesPage() {
     const cleaned = pendingOrphanIds.length;
     setSaving(true);
     try {
-      await persistSchedule(pendingOrphanIds);
+      if (bulkScheduleMode) {
+        await bulkPersistSchedule(pendingOrphanIds);
+        setSelectedClassIds(new Set());
+      } else {
+        await persistSchedule(pendingOrphanIds);
+      }
       setOrphanConfirmOpen(false);
       setPendingOrphanIds([]);
       setScheduleModalOpen(false);
+      setBulkScheduleMode(false);
       reload();
       toast.success(
         `Ders günleri kaydedildi. ${cleaned} uyumsuz ders saati temizlendi.`
@@ -435,6 +445,175 @@ export default function ClassesPage() {
     setDeleteTarget(null);
     reload();
     toast.success("Sınıf silindi.");
+  };
+
+  /* ── Toplu seçim yardımcıları ── */
+
+  const toggleClassSelection = (classId: string) => {
+    setSelectedClassIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(classId)) next.delete(classId);
+      else next.add(classId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedClassIds.size === filteredClasses.length) {
+      setSelectedClassIds(new Set());
+    } else {
+      setSelectedClassIds(new Set(filteredClasses.map((c) => c.id)));
+    }
+  };
+
+  const openBulkSchedule = () => {
+    setBulkScheduleMode(true);
+    setSelectedClass(null);
+    setOrphanConfirmOpen(false);
+    setPendingOrphanIds([]);
+    const configs = Array.from({ length: 7 }, (_, i) => ({
+      day: i,
+      enabled: i <= 4,
+      startTime: DEFAULT_DAY_WINDOW.startTime,
+      endTime: DEFAULT_DAY_WINDOW.endTime,
+    }));
+    setDayConfigs(configs);
+    setScheduleModalOpen(true);
+  };
+
+  const bulkPersistSchedule = async (orphanLessonIds: string[]) => {
+    const classIds = [...selectedClassIds];
+    const enabledDays = dayConfigs.filter((day) => day.enabled);
+
+    throwIfDbError(
+      await supabase
+        .from("class_schedule_days")
+        .delete()
+        .in("class_id", classIds),
+      "Mevcut ders günleri temizlenemedi"
+    );
+
+    if (enabledDays.length > 0) {
+      const rows = classIds.flatMap((classId) =>
+        enabledDays.map((day) => ({
+          organization_id: organizationId,
+          class_id: classId,
+          day_of_week: day.day,
+          start_time: day.startTime,
+          end_time: day.endTime,
+        }))
+      );
+      throwIfDbError(
+        await supabase.from("class_schedule_days").insert(rows),
+        "Ders günleri kaydedilemedi"
+      );
+    }
+
+    if (orphanLessonIds.length > 0) {
+      throwIfDbError(
+        await supabase.from("lessons").delete().in("id", orphanLessonIds),
+        "Uyumsuz ders saatleri temizlenemedi"
+      );
+    }
+  };
+
+  const handleBulkSaveSchedule = async () => {
+    if (selectedClassIds.size === 0) return;
+
+    const enabledDays = dayConfigs.filter((day) => day.enabled);
+    const invalid = enabledDays.find((day) => day.endTime <= day.startTime);
+    if (invalid) {
+      toast.error(
+        `${DAY_NAMES[invalid.day]}: bitiş saati başlangıç saatinden sonra olmalı.`
+      );
+      return;
+    }
+
+    const zeroSlot = enabledDays.find(
+      (day) =>
+        slotCountForWindow(
+          { startTime: day.startTime, endTime: day.endTime },
+          timing
+        ) === 0
+    );
+    if (zeroSlot) {
+      toast.error(
+        `${DAY_NAMES[zeroSlot.day]}: seçilen sürelerle ders saati sığmıyor.`
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const classIds = [...selectedClassIds];
+
+      const lessonsResult = await supabase
+        .from("lessons")
+        .select("id, class_id, day_of_week, start_time")
+        .in("class_id", classIds);
+      throwIfDbError(lessonsResult, "Mevcut program okunamadı");
+
+      const allDraftDays = classIds.flatMap((classId) =>
+        draftScheduleDays(classId, dayConfigs)
+      );
+      const orphans = findOrphanLessons(
+        lessonsResult.data ?? [],
+        allDraftDays,
+        timing
+      );
+
+      if (orphans.length > 0) {
+        setPendingOrphanIds(orphans.map((l) => l.id));
+        setOrphanConfirmOpen(true);
+        setSaving(false);
+        return;
+      }
+
+      await bulkPersistSchedule([]);
+      setScheduleModalOpen(false);
+      setBulkScheduleMode(false);
+      setSelectedClassIds(new Set());
+      reload();
+      toast.success(`${classIds.length} sınıfın ders günleri güncellendi.`);
+    } catch (err) {
+      toast.error((err as Error).message);
+      reload();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    let deletedCount = 0;
+    let failedCount = 0;
+    try {
+      for (const classId of selectedClassIds) {
+        const { error: deleteError } = await supabase
+          .from("classes")
+          .delete()
+          .eq("id", classId);
+        if (deleteError) {
+          failedCount++;
+        } else {
+          deletedCount++;
+        }
+      }
+      setBulkDeleteOpen(false);
+      setSelectedClassIds(new Set());
+      reload();
+      if (failedCount > 0) {
+        toast.error(
+          `${deletedCount} sınıf silindi, ${failedCount} sınıf programa bağlı olduğu için silinemedi.`
+        );
+      } else {
+        toast.success(`${deletedCount} sınıf silindi.`);
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getTeachersForSubject = (subjectId: string) => {
@@ -537,14 +716,26 @@ export default function ClassesPage() {
   const renderClassCard = (cls: ClassGroup) => {
     const days = getClassDays(cls.id);
     const summary = getClassSubjectSummary(cls.id);
+    const isSelected = selectedClassIds.has(cls.id);
     return (
       <div
         key={cls.id}
-        className="bg-white rounded-2xl border border-[var(--color-border)] p-5 hover:border-[var(--color-primary-muted)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.06)] transition-all duration-200"
+        className={`bg-white rounded-2xl border p-5 transition-all duration-200 ${
+          isSelected
+            ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20 shadow-[0_4px_20px_rgba(99,102,241,0.1)]"
+            : "border-[var(--color-border)] hover:border-[var(--color-primary-muted)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.06)]"
+        }`}
       >
         <div className="flex items-start justify-between mb-3 gap-3">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900 text-base truncate">{cls.name}</h3>
+          <div className="flex items-start gap-3 min-w-0">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => toggleClassSelection(cls.id)}
+              className="mt-1 w-4 h-4 text-[var(--color-primary)] rounded shrink-0 cursor-pointer accent-[var(--color-primary)]"
+            />
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900 text-base truncate">{cls.name}</h3>
             <div className="flex flex-wrap gap-1 mt-1">
               {cls.subgroup && (
                 <span className="inline-block bg-violet-50 text-violet-700 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -555,6 +746,7 @@ export default function ClassesPage() {
             {cls.description && (
               <p className="text-sm text-gray-500 mt-1">{cls.description}</p>
             )}
+            </div>
           </div>
           <div className="flex gap-2 shrink-0">
             <button
@@ -689,7 +881,25 @@ export default function ClassesPage() {
           accentClassName="text-green-700"
         />
       ) : (
-        <div className="space-y-8">
+        <div className={`space-y-8 ${selectedClassIds.size > 0 ? "pb-24" : ""}`}>
+          {filteredClasses.length > 1 && (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedClassIds.size === filteredClasses.length && filteredClasses.length > 0}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded accent-[var(--color-primary)] cursor-pointer"
+                />
+                Tümünü seç
+              </label>
+              {selectedClassIds.size > 0 && (
+                <span className="text-xs bg-[var(--color-primary)] text-white px-2.5 py-0.5 rounded-full font-medium">
+                  {selectedClassIds.size} seçili
+                </span>
+              )}
+            </div>
+          )}
           {sortedGroups.map(({ level, subgroup, classes: groupClasses }) => (
             <div key={`${level}::${subgroup}`}>
               <div className="flex items-center gap-3 mb-4">
@@ -706,6 +916,53 @@ export default function ClassesPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Toplu işlem aksiyonbar ── */}
+      {selectedClassIds.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-[0_-4px_24px_rgba(0,0,0,0.1)] px-6 py-3.5">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+                <span className="text-sm font-bold text-[var(--color-primary)]">{selectedClassIds.size}</span>
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {selectedClassIds.size} sınıf seçili
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClassIds(new Set())}
+                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                >
+                  Temizle
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openBulkSchedule}
+                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--color-primary-hover)] transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Ders Günlerini Ayarla
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkDeleteOpen(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Sil
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -907,8 +1164,13 @@ export default function ClassesPage() {
         onClose={() => {
           setScheduleModalOpen(false);
           setOrphanConfirmOpen(false);
+          setBulkScheduleMode(false);
         }}
-        title={`${selectedClass?.name ?? ""} — Ders Günleri`}
+        title={
+          bulkScheduleMode
+            ? `${selectedClassIds.size} sınıf — Toplu Ders Günleri`
+            : `${selectedClass?.name ?? ""} — Ders Günleri`
+        }
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -1043,20 +1305,48 @@ export default function ClassesPage() {
             </p>
           )}
 
+          {bulkScheduleMode && (
+            <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800">
+              <strong>{selectedClassIds.size}</strong> sınıfa aynı ders günleri uygulanacak.
+              {(() => {
+                const names = classes
+                  .filter((c) => selectedClassIds.has(c.id))
+                  .map((c) => c.name)
+                  .slice(0, 5);
+                const rest = selectedClassIds.size - names.length;
+                return (
+                  <span className="text-indigo-600 ml-1">
+                    {names.join(", ")}
+                    {rest > 0 && ` ve ${rest} diğer`}
+                  </span>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-1">
             <button
               type="button"
-              onClick={() => void handleSaveSchedule()}
+              onClick={() =>
+                void (bulkScheduleMode
+                  ? handleBulkSaveSchedule()
+                  : handleSaveSchedule())
+              }
               disabled={saving}
               className="flex-1 bg-[var(--color-primary)] text-white py-2.5 rounded-xl font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
+              {saving
+                ? "Kaydediliyor..."
+                : bulkScheduleMode
+                  ? `${selectedClassIds.size} Sınıfa Uygula`
+                  : "Kaydet"}
             </button>
             <button
               type="button"
               onClick={() => {
                 setScheduleModalOpen(false);
                 setOrphanConfirmOpen(false);
+                setBulkScheduleMode(false);
               }}
               className="flex-1 bg-gray-100 text-[var(--color-text)] py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
             >
@@ -1087,6 +1377,16 @@ export default function ClassesPage() {
           setOrphanConfirmOpen(false);
           setPendingOrphanIds([]);
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={bulkDeleteOpen}
+        title="Seçili sınıfları sil"
+        message={`${selectedClassIds.size} sınıfı ve programlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        confirmLabel="Hepsini sil"
+        loading={deleting}
+        onConfirm={() => void handleBulkDelete()}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   );
