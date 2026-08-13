@@ -183,6 +183,52 @@ export function buildSubjectTeacherRows(
   );
 }
 
+/**
+ * Öğretmen programı alt özeti: her sınıf–ders çifti ve haftalık saati.
+ * Aynı sınıfa birden fazla ders giren öğretmenlerde her ders ayrı satırdır.
+ */
+export function buildTeacherClassSubjectRows(
+  teacherLessons: LessonData[]
+): { className: string; subjectName: string; hours: number }[] {
+  const map = new Map<
+    string,
+    { className: string; subjectName: string; hours: number }
+  >();
+  for (const lesson of teacherLessons) {
+    const key = `${lesson.classId}:${lesson.subjectId || lesson.subjectName}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        className: lesson.className || "—",
+        subjectName: lesson.subjectName || lesson.subjectShortName || "—",
+        hours: 1,
+      });
+    } else {
+      existing.hours += 1;
+    }
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      a.className.localeCompare(b.className, "tr") ||
+      a.subjectName.localeCompare(b.subjectName, "tr")
+  );
+}
+
+/** Öğretmen programı takvim hücresi: sınıf + ders adı (tam ad tercih). */
+export function formatTeacherProgramCell(lesson: LessonData): string {
+  const subject = lesson.subjectName || lesson.subjectShortName;
+  const classLine = lesson.className ? esc(lesson.className) : "";
+  const subjectLine = subject ? esc(subject) : "";
+  if (!classLine && !subjectLine) return "";
+  if (!subjectLine) {
+    return `<div style="font-size:10px">${classLine}</div>`;
+  }
+  if (!classLine) {
+    return `<div style="font-size:9px;color:#333">${subjectLine}</div>`;
+  }
+  return `<div style="font-size:10px">${classLine}</div><div style="font-size:9px;color:#333">${subjectLine}</div>`;
+}
+
 export interface PdfScheduleContext {
   scheduleDays?: ClassScheduleDay[];
   timing?: SlotTiming;
@@ -544,12 +590,19 @@ export function generateOgretmenProgramlariPdf(
           (l) => l.dayOfWeek === day && l.startTime === slot.start
         );
         if (lesson) {
-          scheduleTable += `<td><div style="font-size:10px">${esc(lesson.className)}</div><div style="font-size:9px;color:#333">${esc(lesson.subjectShortName)}</div></td>`;
+          scheduleTable += `<td>${formatTeacherProgramCell(lesson)}</td>`;
         } else {
           scheduleTable += `<td></td>`;
         }
       }
       scheduleTable += `</tr>`;
+    }
+
+    // Sınıf / Ders / Ders saati özeti — aynı sınıftaki farklı dersler ayrı satır
+    const workloadRows = buildTeacherClassSubjectRows(tLessons);
+    let workloadTable = `<tr><th style="text-align:left;padding-left:8px">Sınıf</th><th style="text-align:left;padding-left:8px">Ders</th><th style="width:70px">Ders Saati</th></tr>`;
+    for (const row of workloadRows) {
+      workloadTable += `<tr><td style="text-align:left;padding-left:8px">${esc(row.className)}</td><td style="text-align:left;padding-left:8px">${esc(row.subjectName)}</td><td>${row.hours}</td></tr>`;
     }
 
     // İzin günleri
@@ -581,6 +634,8 @@ export function generateOgretmenProgramlariPdf(
         </div>
         <div style="font-size:10px;margin-bottom:12px">Bilgilerinizi ve gereğini rica ederim.</div>
         <table style="margin-bottom:12px;table-layout:fixed">${scheduleTable}</table>
+        <div style="font-weight:bold;font-size:11px;margin:4px 0 5px">Sınıf / Ders Dağılımı</div>
+        <table style="width:auto;min-width:55%;margin-bottom:12px">${workloadTable}</table>
         <div style="font-size:10px;margin-bottom:3px">Toplam Ders Saati: <strong>${totalHours}</strong></div>
         <div style="font-size:10px;margin-bottom:3px">İzin Günleri: <strong>${esc(offDaysLabel)}</strong></div>
         <div style="font-size:10px;margin-bottom:3px">Sınıf Rehber Öğretmenliği: -</div>
