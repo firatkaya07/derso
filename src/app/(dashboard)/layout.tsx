@@ -3,10 +3,24 @@ import { getCurrentMembership } from "@/lib/org";
 import { loadSettings } from "@/lib/settings";
 import { fieldNamesOf, loadFields, DEFAULT_FIELD_NAMES } from "@/lib/fields";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import Header from "@/components/Header";
 import { SettingsProvider } from "@/components/SettingsProvider";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import { FieldsProvider } from "@/components/FieldsProvider";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+};
 
 export default async function DashboardLayout({
   children,

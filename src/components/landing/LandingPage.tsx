@@ -35,15 +35,30 @@ const HIGHLIGHTS = [
   },
 ];
 
+const FAQS = [
+  {
+    q: "Derso kimler için?",
+    a: "Kurs merkezleri, özel okullar ve haftalık ders programı hazırlayan eğitim kurumları için tasarlandı.",
+  },
+  {
+    q: "Programı nasıl oluştururum?",
+    a: "Ders, öğretmen ve sınıf tanımlarını girin veya Excel ile aktarın; otomatik dağıtım kurallara göre yerleştirir, dilerseniz elle düzeltirsiniz.",
+  },
+  {
+    q: "Çıktılar nasıl alınır?",
+    a: "Sınıf ve öğretmen programları ile çarşaf listeleri yazdırılabilir HTML olarak açılır; tarayıcıdan PDF kaydedebilirsiniz.",
+  },
+];
+
 export default function LandingPage() {
   return (
     <div className="landing">
       <header className="landing-nav">
         <div className="landing-nav__inner">
-          <Link href="/" className="landing-brand">
+          <Link href="/" className="landing-brand" aria-label="Derso ana sayfa">
             <Image
-              src="/logo.png"
-              alt=""
+              src="/logo.webp"
+              alt="Derso logosu"
               width={40}
               height={40}
               className="landing-brand__mark"
@@ -55,6 +70,7 @@ export default function LandingPage() {
           <nav className="landing-nav__links" aria-label="Sayfa bölümleri">
             <a href="#nasil">Nasıl çalışır</a>
             <a href="#ozellikler">Özellikler</a>
+            <a href="#sss">Sıkça sorulanlar</a>
           </nav>
 
           <div className="landing-nav__actions">
@@ -79,8 +95,9 @@ export default function LandingPage() {
                 <span> dakikalar içinde kurun</span>
               </h1>
               <p className="landing-hero__lede">
-                Kurs merkezleri ve okullar için: öğretmen, sınıf ve dersleri
-                yönetin; otomatik dağıtın, elle ince ayar yapın, yazdırın.
+                Kurs merkezleri ve okullar için ders programı yazılımı:
+                öğretmen, sınıf ve dersleri yönetin; otomatik dağıtın, elle ince
+                ayar yapın, yazdırın.
               </p>
               <div className="landing-hero__cta">
                 <Link href="/login" className="landing-btn landing-btn--accent">
@@ -103,7 +120,8 @@ export default function LandingPage() {
             <p className="landing-kicker">Üç adım</p>
             <h2 className="landing-section__title">Kurulumdan çıktıya net akış</h2>
             <p className="landing-section__lede">
-              Veriyi bir kez tanımlayın; dağıtım ve çıktı aynı sistemde kalsın.
+              Veriyi bir kez tanımlayın; ders dağıtımı ve program çıktısı aynı
+              sistemde kalsın.
             </p>
 
             <ol className="landing-steps__list">
@@ -138,12 +156,31 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section id="sss" className="landing-section landing-faq">
+          <div className="landing-section__inner">
+            <p className="landing-kicker">SSS</p>
+            <h2 className="landing-section__title">Sıkça sorulan sorular</h2>
+            <p className="landing-section__lede">
+              Ders programı yazılımı hakkında kısa cevaplar.
+            </p>
+
+            <div className="landing-faq__list">
+              {FAQS.map((item) => (
+                <details key={item.q} className="landing-faq__item">
+                  <summary>{item.q}</summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="landing-cta" aria-labelledby="landing-cta-title">
           <div className="landing-cta__inner">
             <h2 id="landing-cta-title">Bu dönem programı hazır olsun</h2>
             <p>
-              Kurumunuzu oluşturun, verilerinizi yükleyin; ilk dağıtımı aynı gün
-              alın.
+              Kurumunuzu oluşturun, verilerinizi yükleyin; ilk ders dağıtımını
+              aynı gün alın.
             </p>
             <Link href="/login" className="landing-btn landing-btn--accent">
               Ücretsiz hesap aç
@@ -156,14 +193,20 @@ export default function LandingPage() {
         <div className="landing-footer__inner">
           <Link href="/" className="landing-brand landing-brand--footer">
             <Image
-              src="/logo.png"
-              alt=""
+              src="/logo.webp"
+              alt="Derso logosu"
               width={28}
               height={28}
               className="landing-brand__mark"
             />
             <span className="landing-brand__name">Derso</span>
           </Link>
+          <nav className="landing-footer__nav" aria-label="Alt bilgi">
+            <a href="#nasil">Nasıl çalışır</a>
+            <a href="#ozellikler">Özellikler</a>
+            <a href="#sss">SSS</a>
+            <Link href="/login">Giriş</Link>
+          </nav>
           <p>Kurs ve okul ders programı yönetimi</p>
         </div>
       </footer>

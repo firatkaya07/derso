@@ -127,11 +127,12 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
             <Image
-              src="/logo.png"
-              alt="Derso"
+              src="/logo.webp"
+              alt="Derso logosu"
               width={80}
               height={80}
               className="mx-auto mb-4 rounded-2xl"
+              priority
             />
             <h1 className="text-3xl font-bold text-[var(--color-text)]">Derso</h1>
           </Link>

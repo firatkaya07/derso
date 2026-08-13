@@ -486,6 +486,58 @@
   max-width: 40rem;
 }
 
+/* ── FAQ ── */
+
+.landing-faq {
+  background: var(--landing-paper);
+}
+
+.landing-faq__list {
+  margin-top: 2.5rem;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--landing-line);
+}
+
+.landing-faq__item {
+  border-bottom: 1px solid var(--landing-line);
+  padding: 1.1rem 0;
+}
+
+.landing-faq__item summary {
+  font-family: var(--landing-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  list-style: none;
+  color: var(--landing-ink);
+}
+
+.landing-faq__item summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-faq__item summary::after {
+  content: "+";
+  float: right;
+  color: var(--landing-teal);
+  font-weight: 600;
+}
+
+.landing-faq__item[open] summary::after {
+  content: "–";
+}
+
+.landing-faq__item p {
+  margin-top: 0.65rem;
+  color: var(--landing-muted);
+  line-height: 1.55;
+  padding-right: 1.5rem;
+}
+
 /* ── Final CTA ── */
 
 .landing-cta {
@@ -533,15 +585,33 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.75rem 1.5rem;
 }
 
 .landing-brand--footer {
   color: #fff;
 }
 
+.landing-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.25rem;
+}
+
+.landing-footer__nav a {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 180ms ease;
+}
+
+.landing-footer__nav a:hover {
+  color: #fff;
+}
+
 .landing-footer p {
   font-size: 0.875rem;
+  width: 100%;
 }
 
 /* ── Motion ── */
