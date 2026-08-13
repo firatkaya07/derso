@@ -16,13 +16,13 @@ export default function EmptyState({
   onAction,
   secondaryLabel,
   onSecondary,
-  accentClassName = "text-teal-600",
+  accentClassName = "text-[var(--color-primary)]",
 }: EmptyStateProps) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-12 text-center">
-      <div className="mx-auto mb-3 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+    <div className="bg-white rounded-2xl border border-dashed border-[var(--color-border)] px-6 py-14 text-center">
+      <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)]">
         <svg
-          className="w-5 h-5"
+          className="w-6 h-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -31,22 +31,22 @@ export default function EmptyState({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={1.5}
-            d="M4 6h16M4 12h10M4 18h14"
+            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
           />
         </svg>
       </div>
-      <p className="text-sm font-medium text-gray-800">{title}</p>
+      <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
       {description && (
-        <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 max-w-sm mx-auto leading-relaxed">
           {description}
         </p>
       )}
-      <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+      <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
         {actionLabel && onAction && (
           <button
             type="button"
             onClick={onAction}
-            className={`text-sm font-medium ${accentClassName} hover:underline`}
+            className={`text-sm font-semibold ${accentClassName} hover:underline underline-offset-2`}
           >
             {actionLabel}
           </button>
@@ -55,7 +55,7 @@ export default function EmptyState({
           <button
             type="button"
             onClick={onSecondary}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 hover:underline"
+            className="text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:underline underline-offset-2"
           >
             {secondaryLabel}
           </button>

@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full bg-gray-50 font-[family-name:var(--font-geist-sans)]">
+      <body className="min-h-full bg-[var(--color-surface)] font-[family-name:var(--font-geist-sans)]">
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

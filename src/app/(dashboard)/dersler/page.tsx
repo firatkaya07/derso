@@ -286,7 +286,7 @@ export default function SubjectsPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-2"
+            className="bg-[var(--color-primary)] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 flex items-center gap-2 shadow-[0_2px_8px_rgba(99,102,241,0.2)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -332,7 +332,7 @@ export default function SubjectsPage() {
           {filteredSubjects.map((subject) => (
             <div
               key={subject.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-teal-200 transition-colors"
+              className="bg-white rounded-2xl border border-[var(--color-border)] p-5 hover:border-[var(--color-primary-muted)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.06)] transition-all duration-200"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -355,7 +355,7 @@ export default function SubjectsPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(subject)}
-                    className="text-teal-600 hover:text-teal-800 text-sm font-medium"
+                    className="text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] text-sm font-medium transition-colors duration-200"
                   >
                     Düzenle
                   </button>
@@ -532,14 +532,14 @@ export default function SubjectsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-[var(--color-primary)] text-white py-2.5 rounded-xl font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Kaydediliyor..." : editingSubject ? "Kaydet" : "Ekle"}
             </button>
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 bg-gray-100 text-[var(--color-text)] py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
             >
               İptal
             </button>

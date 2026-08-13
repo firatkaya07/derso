@@ -13,11 +13,11 @@ export default function PageHeader({
   action,
 }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-5">
-      <div className="flex items-start gap-2 min-w-0">
+    <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="flex items-start gap-2.5 min-w-0">
         <Link
           href="/"
-          className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5 shrink-0"
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors duration-200 mt-0.5 shrink-0"
           aria-label="Ana sayfaya dön"
         >
           <svg
@@ -35,9 +35,9 @@ export default function PageHeader({
           </svg>
         </Link>
         <div className="min-w-0">
-          <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+          <h1 className="text-xl font-bold text-[var(--color-text)]">{title}</h1>
           {description && (
-            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+            <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">{description}</p>
           )}
         </div>
       </div>

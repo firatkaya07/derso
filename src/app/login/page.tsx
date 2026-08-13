@@ -121,30 +121,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50">
+      <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(99,102,241,0.08)] border border-[var(--color-border)] p-8 w-full max-w-md mx-4">
         <div className="text-center mb-8">
           <Image
             src="/logo.png"
             alt="Derso"
-            width={100}
-            height={100}
-            className="mx-auto mb-4"
+            width={80}
+            height={80}
+            className="mx-auto mb-4 rounded-2xl"
           />
-          <h1 className="text-3xl font-bold text-gray-900">Derso</h1>
-          <p className="text-gray-500 mt-2">
+          <h1 className="text-3xl font-bold text-[var(--color-text)]">Derso</h1>
+          <p className="text-[var(--color-text-secondary)] mt-2">
             Kurs Merkezi Ders Programı Yönetimi
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 p-1 mb-6 bg-gray-100 rounded-lg">
+        <div className="grid grid-cols-2 gap-1 p-1 mb-6 bg-gray-100 rounded-xl">
           <button
             type="button"
             onClick={() => switchMode("login")}
-            className={`py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
               mode === "login"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
             }`}
           >
             Giriş Yap
@@ -152,10 +152,10 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => switchMode("signup")}
-            className={`py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
               mode === "signup"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
             }`}
           >
             Kayıt Ol
@@ -164,14 +164,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
               E-posta
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900"
+              className="w-full px-4 py-2.5 border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
               placeholder="ornek@kursmerkezi.com"
               required
               autoComplete="email"
@@ -179,14 +179,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
               Şifre
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900"
+              className="w-full px-4 py-2.5 border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
               placeholder={
                 mode === "signup" ? "En az 6 karakter" : "Şifrenizi girin"
               }
@@ -200,14 +200,14 @@ export default function LoginPage() {
 
           {mode === "signup" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
                 Şifre (tekrar)
               </label>
               <input
                 type="password"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900"
+                className="w-full px-4 py-2.5 border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
                 placeholder="Şifrenizi tekrar girin"
                 required
                 minLength={6}
@@ -217,7 +217,7 @@ export default function LoginPage() {
           )}
 
           {error && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm border border-red-200">
               {error}
             </div>
           )}
@@ -225,7 +225,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--color-primary)] text-white py-2.5 rounded-xl font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_2px_8px_rgba(99,102,241,0.25)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)]"
           >
             {loading
               ? mode === "signup"

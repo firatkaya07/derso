@@ -2,4 +2,75 @@
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
+
+  /* ── Design System Tokens (Soft UI Evolution · Indigo + Emerald) ── */
+  --color-primary: #6366F1;
+  --color-primary-hover: #4F46E5;
+  --color-primary-light: #EEF2FF;
+  --color-primary-muted: #C7D2FE;
+
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-light: #ECFDF5;
+
+  --color-surface: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-hover: #C7D2FE;
+
+  --color-text: #1E293B;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #94A3B8;
+
+  --color-destructive: #DC2626;
+  --color-warning: #D97706;
+  --color-success: #059669;
+  --color-info: #2563EB;
 }
+
+/* ── Genel stiller ── */
+
+/* Tüm etkileşimli öğelerde cursor-pointer */
+button, a, [role="button"], select, label[for], input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
+}
+
+/* Odak halkası — klavye navigasyonu için belirgin */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skeleton shimmer animasyonu */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Toast giriş animasyonu */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-enter {
+  animation: toast-in 250ms ease-out;
+}
+
+/* Modal giriş animasyonu */
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-panel-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-overlay-enter { animation: modal-overlay-in 200ms ease-out; }
+.modal-panel-enter { animation: modal-panel-in 250ms ease-out; }

@@ -267,7 +267,7 @@ export default function TeachersPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2"
+            className="bg-[var(--color-primary)] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 flex items-center gap-2 shadow-[0_2px_8px_rgba(99,102,241,0.2)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -312,7 +312,7 @@ export default function TeachersPage() {
               return (
                 <div
                   key={teacher.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+                  className="bg-white rounded-2xl border border-[var(--color-border)] p-4 hover:border-[var(--color-primary-muted)] transition-all duration-200"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -327,7 +327,7 @@ export default function TeachersPage() {
                       <button
                         type="button"
                         onClick={() => openEdit(teacher)}
-                        className="text-orange-600 hover:text-orange-800 text-sm font-medium"
+                        className="text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] text-sm font-medium transition-colors duration-200"
                       >
                         Düzenle
                       </button>
@@ -420,7 +420,7 @@ export default function TeachersPage() {
           </div>
 
           {/* Masaüstü: tablo */}
-          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white rounded-2xl border border-[var(--color-border)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px]">
                 <thead>
@@ -728,14 +728,14 @@ export default function TeachersPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-orange-500 text-white py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-[var(--color-primary)] text-white py-2.5 rounded-xl font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Kaydediliyor..." : editingTeacher ? "Kaydet" : "Ekle"}
             </button>
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 bg-gray-100 text-[var(--color-text)] py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
             >
               İptal
             </button>

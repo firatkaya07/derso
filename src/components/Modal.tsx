@@ -56,7 +56,7 @@ export default function Modal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 modal-overlay-enter"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -67,17 +67,17 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby="modal-title"
         tabIndex={-1}
-        className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto outline-none`}
+        className={`bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto outline-none modal-panel-enter border border-[var(--color-border)]`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b bg-white rounded-t-xl">
-          <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
+        <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b border-[var(--color-border)] bg-white rounded-t-2xl">
+          <h2 id="modal-title" className="text-lg font-semibold text-[var(--color-text)]">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Kapat"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-gray-100 transition-all duration-200"
           >
             <svg
               className="w-5 h-5"

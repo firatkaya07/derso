@@ -34,7 +34,7 @@ const AUTO_DISMISS_MS: Record<ToastKind, number> = {
 
 const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
   success: {
-    wrapper: "bg-white border-green-200 text-gray-800",
+    wrapper: "bg-white border-emerald-200 text-[var(--color-text)]",
     icon: (
       <svg
         className="w-5 h-5 text-green-500 shrink-0"
@@ -50,7 +50,7 @@ const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
     ),
   },
   error: {
-    wrapper: "bg-white border-red-200 text-gray-800",
+    wrapper: "bg-white border-red-200 text-[var(--color-text)]",
     icon: (
       <svg
         className="w-5 h-5 text-red-500 shrink-0"
@@ -66,7 +66,7 @@ const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
     ),
   },
   info: {
-    wrapper: "bg-white border-blue-200 text-gray-800",
+    wrapper: "bg-white border-indigo-200 text-[var(--color-text)]",
     icon: (
       <svg
         className="w-5 h-5 text-blue-500 shrink-0"
@@ -119,14 +119,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-start gap-2.5 rounded-xl border shadow-lg px-4 py-3 text-sm ${STYLES[toast.kind].wrapper}`}
+            className={`flex items-start gap-2.5 rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.08)] px-4 py-3 text-sm toast-enter ${STYLES[toast.kind].wrapper}`}
           >
             {STYLES[toast.kind].icon}
             <span className="flex-1 leading-snug">{toast.message}</span>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              className="text-gray-300 hover:text-gray-500 transition-colors shrink-0"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors duration-200 shrink-0"
               aria-label="Kapat"
             >
               <svg

@@ -28,13 +28,13 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title} size="sm">
-      <p className="text-sm text-gray-600 mb-5">{message}</p>
+      <p className="text-sm text-[var(--color-text-secondary)] mb-6 leading-relaxed">{message}</p>
       <div className="flex gap-3">
         <button
           type="button"
           onClick={onConfirm}
           disabled={loading}
-          className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 bg-[var(--color-destructive)] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? loadingLabel : confirmLabel}
         </button>
@@ -42,7 +42,7 @@ export default function ConfirmDialog({
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+          className="flex-1 bg-gray-100 text-[var(--color-text)] py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
         >
           {cancelLabel}
         </button>

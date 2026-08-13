@@ -7,7 +7,7 @@ interface LevelFilterProps {
   onChange: (value: string) => void;
   /** "Tümü" ve her seviye için sayı. Verilmezse sayaç gösterilmez. */
   counts?: Record<string, number>;
-  /** Aktif pill rengi; varsayılan teal. */
+  /** Aktif pill rengi; varsayılan primary. */
   activeClassName?: string;
 }
 
@@ -22,13 +22,13 @@ export default function LevelFilter({
   value,
   onChange,
   counts,
-  activeClassName = "bg-teal-600 text-white",
+  activeClassName = "bg-[var(--color-primary)] text-white",
 }: LevelFilterProps) {
   const tabs = ["Tümü", ...LEVELS];
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-      <span className="text-xs text-gray-500 shrink-0 flex items-center gap-1">
+      <span className="text-xs text-[var(--color-text-muted)] shrink-0 flex items-center gap-1">
         <svg
           className="w-3.5 h-3.5"
           fill="none"
@@ -52,10 +52,10 @@ export default function LevelFilter({
             key={tab}
             type="button"
             onClick={() => onChange(tab)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap ${
               active
                 ? activeClassName
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-100 text-[var(--color-text-secondary)] hover:bg-gray-200"
             }`}
           >
             {levelLabel(tab)}
