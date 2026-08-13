@@ -469,14 +469,14 @@ export default function GenelTanimlarPage() {
               {fields.map((field) => (
                 <span
                   key={field.id}
-                  className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-800 text-sm font-medium pl-3 pr-1.5 py-1 rounded-full"
+                  className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-800 text-sm font-medium pl-3 pr-1.5 py-1 rounded-full"
                 >
                   {field.name}
                   <button
                     type="button"
                     disabled={fieldBusy}
                     onClick={() => void handleDeleteField(field)}
-                    className="w-6 h-6 rounded-full text-violet-500 hover:bg-violet-100 hover:text-violet-800 disabled:opacity-50"
+                    className="w-6 h-6 rounded-full text-indigo-500 hover:bg-indigo-100 hover:text-indigo-800 disabled:opacity-50"
                     aria-label={`${field.name} alanını sil`}
                   >
                     ×
@@ -510,7 +510,7 @@ export default function GenelTanimlarPage() {
               type="button"
               onClick={() => void handleAddField()}
               disabled={fieldBusy || !newFieldName.trim()}
-              className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
             >
               Ekle
             </button>

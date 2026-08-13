@@ -111,7 +111,7 @@ export default function AktarimPage() {
               </svg>
               Şablonu İndir
             </button>
-            <label className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg cursor-pointer hover:bg-sky-700 transition-colors text-sm font-medium">
+            <label className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg cursor-pointer hover:bg-[var(--color-primary-hover)] transition-colors text-sm font-medium">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -187,13 +187,13 @@ export default function AktarimPage() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                ["Öğretmen", parsed.teachers.length, "text-orange-600"],
-                ["Ders", parsed.subjects.length, "text-teal-600"],
-                ["Sınıf", parsed.classes.length, "text-green-600"],
+                ["Öğretmen", parsed.teachers.length, "text-[var(--color-primary)]"],
+                ["Ders", parsed.subjects.length, "text-[var(--color-primary)]"],
+                ["Sınıf", parsed.classes.length, "text-[var(--color-primary)]"],
                 [
                   "Ders-Sınıf Kaydı",
                   parsed.classSubjects.length,
-                  "text-sky-600",
+                  "text-[var(--color-primary)]",
                 ],
               ].map(([label, value, color]) => (
                 <div
@@ -310,7 +310,7 @@ export default function AktarimPage() {
                                 {days.map((d) => (
                                   <span
                                     key={d.dayOfWeek}
-                                    className="bg-sky-50 text-sky-700 text-xs px-2 py-0.5 rounded"
+                                    className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded"
                                   >
                                     {DAY_NAMES[d.dayOfWeek]} {d.startTime}-
                                     {d.endTime}
@@ -335,7 +335,7 @@ export default function AktarimPage() {
                 type="button"
                 onClick={() => void handleImport()}
                 disabled={importing || imported || hasParseErrors}
-                className="px-6 py-2.5 bg-sky-600 text-white rounded-lg font-medium hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {importing
                   ? "İçe Aktarılıyor..."
@@ -351,7 +351,7 @@ export default function AktarimPage() {
               {imported && (
                 <Link
                   href="/dagitim"
-                  className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm"
+                  className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] transition-colors text-sm"
                 >
                   Otomatik dağıtıma geç
                 </Link>
@@ -375,7 +375,7 @@ export default function AktarimPage() {
           </>
         )}
 
-        <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-sky-900">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-900">
           Verileri tek tek de girebilirsiniz:{" "}
           <Link href="/dersler" className="font-medium underline">
             Dersler

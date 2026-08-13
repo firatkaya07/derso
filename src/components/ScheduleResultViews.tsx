@@ -29,7 +29,7 @@ export function CoverageCard({ result }: { result: ScheduleResult }) {
 
       <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
         <div
-          className={`h-2 rounded-full transition-all ${complete ? "bg-green-500" : atLimit ? "bg-blue-500" : "bg-amber-500"}`}
+          className={`h-2 rounded-full transition-all ${complete ? "bg-green-500" : atLimit ? "bg-indigo-500" : "bg-amber-500"}`}
           style={{ width: `${Math.min(100, percent)}%` }}
         />
       </div>
@@ -37,7 +37,7 @@ export function CoverageCard({ result }: { result: ScheduleResult }) {
       {complete ? (
         <p className="text-sm text-green-700">Bütün dersler yerleştirildi.</p>
       ) : atLimit ? (
-        <p className="text-sm text-blue-700">
+        <p className="text-sm text-indigo-700">
           Bu, mevcut ders saatleri ve öğretmen kadrosuyla ulaşılabilecek en
           yüksek orandır ({maxPlaceableHours} saat). Daha fazlası için aşağıdaki
           nedenleri giderin.
@@ -84,7 +84,7 @@ export function ScheduleTable({ lessons }: { lessons: GeneratedLesson[] }) {
                   {lesson.className}
                 </td>
                 <td className="py-1.5 px-3">
-                  <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded">
+                  <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded">
                     {DAY_NAMES[lesson.dayOfWeek]}
                   </span>
                 </td>
@@ -146,7 +146,7 @@ export function SearchProgressPanel({
 
       <div className="w-full bg-gray-100 rounded-full h-2.5 mb-4 overflow-hidden">
         <div
-          className={`h-2.5 rounded-full transition-all duration-300 ${generating ? "bg-blue-600" : "bg-green-500"}`}
+          className={`h-2.5 rounded-full transition-all duration-300 ${generating ? "bg-indigo-600" : "bg-green-500"}`}
           style={{ width: `${progress}%` }}
         />
       </div>

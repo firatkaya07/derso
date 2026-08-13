@@ -72,28 +72,28 @@ const DOWNLOADS: {
 
 const COLOR_STYLES = {
   blue: {
-    bg: "bg-blue-50",
-    icon: "text-blue-600",
-    border: "border-l-blue-400",
-    btn: "bg-blue-600 hover:bg-blue-700",
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    border: "border-l-indigo-400",
+    btn: "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]",
   },
   orange: {
-    bg: "bg-orange-50",
-    icon: "text-orange-500",
-    border: "border-l-orange-400",
-    btn: "bg-orange-500 hover:bg-orange-600",
+    bg: "bg-indigo-50",
+    icon: "text-indigo-500",
+    border: "border-l-indigo-300",
+    btn: "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]",
   },
   green: {
-    bg: "bg-green-50",
-    icon: "text-green-600",
-    border: "border-l-green-400",
-    btn: "bg-green-600 hover:bg-green-700",
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    border: "border-l-indigo-400",
+    btn: "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]",
   },
   purple: {
-    bg: "bg-purple-50",
-    icon: "text-purple-600",
-    border: "border-l-purple-400",
-    btn: "bg-purple-600 hover:bg-purple-700",
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    border: "border-l-indigo-500",
+    btn: "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]",
   },
 };
 
@@ -241,9 +241,9 @@ export default function IndirmePage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {[
-              ["Kayıtlı Ders", stats.lessonCount, "text-blue-600"],
-              ["Sınıf", stats.classCount, "text-green-600"],
-              ["Öğretmen", stats.teacherCount, "text-purple-600"],
+              ["Kayıtlı Ders", stats.lessonCount, "text-[var(--color-primary)]"],
+              ["Sınıf", stats.classCount, "text-[var(--color-primary)]"],
+              ["Öğretmen", stats.teacherCount, "text-[var(--color-primary)]"],
             ].map(([label, value, color]) => (
               <div
                 key={label as string}

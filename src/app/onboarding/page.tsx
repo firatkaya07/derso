@@ -33,9 +33,9 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <p className="text-center text-sm font-semibold tracking-wide text-teal-700 mb-2">
+        <p className="text-center text-sm font-semibold tracking-wide text-[var(--color-primary)] mb-2">
           Derso
         </p>
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
@@ -48,7 +48,7 @@ export default function OnboardingPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4"
+          className="bg-white border border-[var(--color-border)] rounded-2xl p-6 shadow-[0_20px_60px_rgba(99,102,241,0.08)] space-y-4"
         >
           <label className="block">
             <span className="text-sm font-medium text-gray-700">Kurum adı</span>
@@ -57,7 +57,7 @@ export default function OnboardingPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Örn. Anadolu Kurs Merkezi"
-              className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all duration-200"
               autoFocus
               disabled={saving}
             />
@@ -72,7 +72,7 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 transition-colors"
+            className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-60 text-white text-sm font-semibold py-2.5 transition-all duration-200 shadow-[0_2px_8px_rgba(99,102,241,0.25)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)]"
           >
             {saving ? "Oluşturuluyor…" : "Kurumu oluştur"}
           </button>

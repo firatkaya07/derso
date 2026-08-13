@@ -134,7 +134,7 @@ export default function DagitimPage() {
                   type="text"
                   value={(rules.splitRules[hours] || []).join("+")}
                   onChange={(e) => updateSplitRule(hours, e.target.value)}
-                  className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-900"
                 />
                 <span className="text-xs text-gray-400">
                   {(rules.splitRules[hours] || [])
@@ -167,13 +167,13 @@ export default function DagitimPage() {
                   setRounds(value);
                 }
               }}
-              className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+              className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-900"
             />
             <span className="text-xs text-gray-400">1 – 2000 arası</span>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800">
           Bir sınıfın bir dersinin bütün saatlerini tek öğretmen verir; program
           bu dersi iki öğretmene bölerek doldurmaz. Öğretmen sayısı yetmediğinde
           ders bölünmek yerine açıkta bırakılır ve nedeni raporlanır.
@@ -184,7 +184,7 @@ export default function DagitimPage() {
             type="button"
             onClick={handleStart}
             disabled={starting || plannedHours === 0}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {starting ? "Açılıyor..." : "Programı Oluştur"}
           </button>

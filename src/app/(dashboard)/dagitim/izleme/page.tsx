@@ -211,7 +211,7 @@ export default function DagitimIzlemePage() {
         </p>
         <Link
           href="/dagitim"
-          className="inline-flex px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="inline-flex px-5 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--color-primary-hover)]"
         >
           Kurallara dön
         </Link>
@@ -349,7 +349,7 @@ export default function DagitimIzlemePage() {
                     <span className="text-sm font-medium text-gray-900">
                       {load.teacherName}
                     </span>
-                    <span className="text-sm font-bold text-purple-600">
+                    <span className="text-sm font-bold text-[var(--color-primary)]">
                       {load.totalHours} saat
                     </span>
                   </div>
@@ -363,7 +363,7 @@ export default function DagitimIzlemePage() {
               type="button"
               onClick={() => void handleSave()}
               disabled={saving || saved || best.lessons.length === 0}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-[var(--color-success)] text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving
                 ? "Kaydediliyor..."
@@ -380,7 +380,7 @@ export default function DagitimIzlemePage() {
             {saved && (
               <Link
                 href="/program"
-                className="px-6 py-2.5 text-blue-700 font-medium text-sm hover:underline"
+                className="px-6 py-2.5 text-[var(--color-primary)] font-medium text-sm hover:underline"
               >
                 Program sayfasına git →
               </Link>

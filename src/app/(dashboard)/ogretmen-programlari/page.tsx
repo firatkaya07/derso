@@ -405,7 +405,7 @@ export default function TeacherSchedulesPage() {
           <div className="p-3 border-b border-gray-100">
             <div className="flex items-center gap-2 mb-2.5">
               <svg
-                className="w-4 h-4 text-pink-600"
+                className="w-4 h-4 text-[var(--color-primary)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -426,7 +426,7 @@ export default function TeacherSchedulesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Öğretmen Ara..."
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none text-gray-900"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-900"
             />
           </div>
           <div className="flex-1 overflow-y-auto p-1.5">
@@ -443,22 +443,22 @@ export default function TeacherSchedulesPage() {
                   }}
                   className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-all mb-0.5 ${
                     isSelected
-                      ? "bg-pink-50 border border-pink-200"
+                      ? "bg-indigo-50 border border-indigo-200"
                       : "hover:bg-gray-50 border border-transparent"
                   }`}
                 >
                   <span
                     className={`flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold flex-shrink-0 ${
                       isSelected
-                        ? "bg-pink-500 text-white"
-                        : "bg-orange-100 text-orange-600"
+                        ? "bg-indigo-500 text-white"
+                        : "bg-indigo-100 text-indigo-600"
                     }`}
                   >
                     {getInitials(teacher.name)}
                   </span>
                   <span
                     className={`text-xs font-medium truncate flex-1 ${
-                      isSelected ? "text-pink-700" : "text-gray-700"
+                      isSelected ? "text-indigo-700" : "text-gray-700"
                     }`}
                   >
                     {teacher.name}
@@ -561,7 +561,7 @@ export default function TeacherSchedulesPage() {
                     onClick={() => toggleCard(card)}
                     className={`w-full text-left rounded-xl p-3 mb-2 border-2 transition-all ${
                       isActive
-                        ? "border-pink-400 shadow-md bg-pink-50/50"
+                        ? "border-indigo-400 shadow-md bg-indigo-50/50"
                         : isComplete
                           ? "border-green-200 bg-green-50/30 hover:shadow-sm"
                           : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
@@ -616,7 +616,7 @@ export default function TeacherSchedulesPage() {
               </div>
               <div className="w-full bg-gray-100 rounded-full h-1.5">
                 <div
-                  className="h-1.5 rounded-full bg-pink-500 transition-all"
+                  className="h-1.5 rounded-full bg-indigo-500 transition-all"
                   style={{
                     width: `${totalWeekly > 0 ? Math.min(100, (totalPlaced / totalWeekly) * 100) : 0}%`,
                   }}
