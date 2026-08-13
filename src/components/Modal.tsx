@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
+/** Açık modal sayısını izler. Son modal kapanınca scroll geri açılır. */
+let openModalCount = 0;
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,8 +40,10 @@ export default function Modal({
     };
     document.addEventListener("keydown", handleEscape);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    openModalCount++;
+    if (openModalCount === 1) {
+      document.body.style.overflow = "hidden";
+    }
 
     // İlk odaklanabilir öğeye veya panele odaklan (yalnızca modal açılırken).
     const focusTarget =
@@ -49,7 +54,11 @@ export default function Modal({
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = previousOverflow;
+      openModalCount--;
+      if (openModalCount <= 0) {
+        openModalCount = 0;
+        document.body.style.overflow = "";
+      }
     };
   }, [isOpen]);
 
