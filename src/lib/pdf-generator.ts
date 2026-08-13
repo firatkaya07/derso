@@ -153,7 +153,7 @@ export interface RawLessonRow {
   end_time: string;
   class?: { id: string; name: string };
   subject?: { id: string; name: string; short_name: string | null };
-  teacher?: { id: string; name: string };
+  teacher?: { id: string; name: string; off_days?: number[] };
 }
 
 /**
@@ -468,7 +468,8 @@ export function generateSinifDersProgramlariPdf(
 export function generateOgretmenProgramlariPdf(
   lessons: LessonData[],
   settings: AppSettings = DEFAULT_SETTINGS,
-  context: PdfScheduleContext = {}
+  context: PdfScheduleContext = {},
+  teacherOffDays?: Map<string, number[]>
 ): PrintOutcome {
   const teacherNames = [
     ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
@@ -492,9 +493,16 @@ export function generateOgretmenProgramlariPdf(
         : getActiveDays(tLessons);
     const slots = resolveTimeSlots(teacherDays, tLessons, context.timing);
 
-    let scheduleTable = `<tr><th style="width:72px">Saat</th>`;
+    // Gün sütunları eşit genişlikte: "Saat" sütununa sabit genişlik, kalan
+    // alan gün sütunları arasında eşit bölünür.
+    const dayColWidth =
+      activeDays.length > 0
+        ? `${Math.floor((100 - 12) / activeDays.length)}%`
+        : "auto";
+
+    let scheduleTable = `<tr><th style="width:12%">Saat</th>`;
     for (const day of activeDays) {
-      scheduleTable += `<th>${DAY_NAMES[day]}</th>`;
+      scheduleTable += `<th style="width:${dayColWidth}">${DAY_NAMES[day]}</th>`;
     }
     scheduleTable += `</tr>`;
 
@@ -514,6 +522,18 @@ export function generateOgretmenProgramlariPdf(
       scheduleTable += `</tr>`;
     }
 
+    // İzin günleri
+    const teacherId = tLessons[0]?.teacherId;
+    const offDays = teacherId ? (teacherOffDays?.get(teacherId) ?? []) : [];
+    const offDaysLabel =
+      offDays.length > 0
+        ? offDays
+            .slice()
+            .sort((a, b) => a - b)
+            .map((d) => DAY_NAMES[d])
+            .join(", ")
+        : "-";
+
     pagesHtml += `
       ${ti > 0 ? '<div class="page-break"></div>' : ""}
       <div class="page">
@@ -530,8 +550,9 @@ export function generateOgretmenProgramlariPdf(
           ${esc(academicYear)} Eğitim-Öğretim Yılında ${formatDate()} tarihinden itibaren uygulanacak programda haftalık ders dağılımınız aşağıya çıkartılmıştır.
         </div>
         <div style="font-size:10px;margin-bottom:12px">Bilgilerinizi ve gereğini rica ederim.</div>
-        <table style="margin-bottom:12px">${scheduleTable}</table>
+        <table style="margin-bottom:12px;table-layout:fixed">${scheduleTable}</table>
         <div style="font-size:10px;margin-bottom:3px">Toplam Ders Saati: <strong>${totalHours}</strong></div>
+        <div style="font-size:10px;margin-bottom:3px">İzin Günleri: <strong>${esc(offDaysLabel)}</strong></div>
         <div style="font-size:10px;margin-bottom:3px">Sınıf Rehber Öğretmenliği: -</div>
         <div style="font-size:10px;margin-bottom:30px">Nöbet Görevi: -</div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:30px">
@@ -539,12 +560,6 @@ export function generateOgretmenProgramlariPdf(
             <div style="font-weight:bold;margin-bottom:4px">ASLINI ALDIM</div>
             <div>Tarih: ..... / ..... / .........</div>
             <div>İmza:</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-weight:bold;font-size:10px">UYGUNDUR</div>
-            <div style="font-size:9px;margin:4px 0">..... / ..... / .........</div>
-            ${settings.vicePrincipalName?.trim() ? `<div style="font-size:9px">${esc(settings.vicePrincipalName.trim())}</div>` : ""}
-            <div style="font-weight:bold;font-size:9px">Müdür Yardımcısı</div>
           </div>
           <div style="text-align:center">
             <div style="font-weight:bold;font-size:10px">OLUR</div>

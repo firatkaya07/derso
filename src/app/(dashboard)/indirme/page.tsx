@@ -145,14 +145,28 @@ export default function IndirmePage() {
         scheduleDays: data.scheduleDays,
         timing: slotTimingOf(settings),
       };
-      const generator = {
-        "sinif-carsaf": generateSinifCarsafPdf,
-        "ogretmen-carsaf": generateOgretmenCarsafPdf,
-        "sinif-program": generateSinifDersProgramlariPdf,
-        "ogretmen-program": generateOgretmenProgramlariPdf,
-      }[id];
 
-      if (generator(prepared, settings, pdfContext) === "downloaded") {
+      let result: ReturnType<typeof generateSinifCarsafPdf>;
+
+      if (id === "ogretmen-program") {
+        // Öğretmenlerin izin günlerini raw veriden çıkar
+        const teacherOffDays = new Map<string, number[]>();
+        for (const row of data.lessons) {
+          if (row.teacher?.id && row.teacher.off_days && !teacherOffDays.has(row.teacher.id)) {
+            teacherOffDays.set(row.teacher.id, row.teacher.off_days);
+          }
+        }
+        result = generateOgretmenProgramlariPdf(prepared, settings, pdfContext, teacherOffDays);
+      } else {
+        const generator = {
+          "sinif-carsaf": generateSinifCarsafPdf,
+          "ogretmen-carsaf": generateOgretmenCarsafPdf,
+          "sinif-program": generateSinifDersProgramlariPdf,
+        }[id];
+        result = generator(prepared, settings, pdfContext);
+      }
+
+      if (result === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
         );
