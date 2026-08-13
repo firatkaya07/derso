@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
@@ -106,7 +107,9 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     return { classes: classResult.data ?? [], totals };
   }, [supabase, organizationId]);
 
-  const overview = useAsyncData(loadOverview);
+  const overview = useAsyncData(loadOverview, {
+    cacheKey: clientCacheKeys.programOverview(organizationId),
+  });
   const classes = useMemo(
     () => overview.data?.classes ?? [],
     [overview.data]

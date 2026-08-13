@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import { throwIfDbError } from "@/lib/db-error";
@@ -125,7 +126,9 @@ export default function IndirmePage() {
     };
   }, [supabase, organizationId]);
 
-  const { data, error, loading } = useAsyncData(load);
+  const { data, error, loading } = useAsyncData(load, {
+    cacheKey: clientCacheKeys.lessons(organizationId),
+  });
 
   const stats = useMemo(() => {
     const lessons = data?.lessons ?? [];

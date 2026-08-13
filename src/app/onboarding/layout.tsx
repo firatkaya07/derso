@@ -1,14 +1,12 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentMembership } from "@/lib/org";
+import { getRequestMembership } from "@/lib/cache/request";
 
 export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const membership = await getCurrentMembership(supabase);
+  const membership = await getRequestMembership();
   if (membership) {
     redirect("/home");
   }

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSettings } from "@/components/SettingsProvider";
 import { useOrganization } from "@/components/OrganizationProvider";
+import { invalidateOrgClientCache } from "@/lib/cache";
 import { useToast } from "@/components/Toast";
 import SlotPreview from "@/components/SlotPreview";
 import {
@@ -86,6 +87,7 @@ export default function GenelTanimlarPage() {
       const row = await createField(supabase, organizationId, name);
       setFields((current) => [...current, row]);
       setNewFieldName("");
+      invalidateOrgClientCache(organizationId);
       router.refresh();
       toast.success(`“${row.name}” alanı eklendi.`);
     } catch (error) {
@@ -100,6 +102,7 @@ export default function GenelTanimlarPage() {
     try {
       await deleteField(supabase, field.id);
       setFields((current) => current.filter((row) => row.id !== field.id));
+      invalidateOrgClientCache(organizationId);
       router.refresh();
       toast.success(`“${field.name}” alanı silindi.`);
     } catch (error) {
@@ -219,6 +222,7 @@ export default function GenelTanimlarPage() {
       });
       // Ayarlar sayfa yerleşiminde sunucuda okunuyor; yenilemeden diğer
       // sayfalar eski değerleri görürdü.
+      invalidateOrgClientCache(organizationId);
       router.refresh();
       toast.success("Genel tanımlar kaydedildi.");
     } catch (error) {

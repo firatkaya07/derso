@@ -11,6 +11,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
 import type { Teacher, Subject, TeacherSubject } from "@/lib/types";
@@ -92,7 +93,9 @@ export default function TeachersPage() {
     };
   }, [supabase, organizationId]);
 
-  const { data, error, loading, reload } = useAsyncData(load);
+  const { data, error, loading, reload } = useAsyncData(load, {
+    cacheKey: clientCacheKeys.teachers(organizationId),
+  });
   const teachers = useMemo(() => data?.teachers ?? [], [data]);
   const subjects = useMemo(() => data?.subjects ?? [], [data]);
   const teacherSubjects = useMemo(() => data?.teacherSubjects ?? [], [data]);

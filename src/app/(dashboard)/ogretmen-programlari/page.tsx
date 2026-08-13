@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
@@ -119,7 +120,9 @@ export default function TeacherSchedulesPage() {
     return { teachers: teacherResult.data ?? [], totals };
   }, [supabase, organizationId]);
 
-  const overview = useAsyncData(loadOverview);
+  const overview = useAsyncData(loadOverview, {
+    cacheKey: clientCacheKeys.teacherOverview(organizationId),
+  });
   const teachers = useMemo(
     () => overview.data?.teachers ?? [],
     [overview.data]

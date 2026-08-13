@@ -9,6 +9,7 @@ import { saveGeneratedSchedule } from "@/lib/schedule-persistence";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
 import { useOrganization } from "@/components/OrganizationProvider";
+import { invalidateOrgClientCache } from "@/lib/cache";
 import { slotTimingOf } from "@/lib/settings";
 import { autoSchedule, type ScheduleResult } from "@/lib/scheduler";
 import {
@@ -175,6 +176,7 @@ export default function DagitimIzlemePage() {
         organizationId
       );
       setSaved(true);
+      invalidateOrgClientCache(organizationId);
       toast.success(
         result.skippedLessons > 0
           ? `${result.savedLessons} ders saati kaydedildi. Öğretmeni atanamayan ${result.skippedLessons} saat kaydedilmedi.`

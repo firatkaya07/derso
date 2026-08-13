@@ -12,6 +12,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useSettings } from "@/components/SettingsProvider";
 import { useFields } from "@/components/FieldsProvider";
@@ -134,7 +135,9 @@ export default function ClassesPage() {
     };
   }, [supabase, organizationId]);
 
-  const { data, error, loading, reload } = useAsyncData(load);
+  const { data, error, loading, reload } = useAsyncData(load, {
+    cacheKey: clientCacheKeys.classes(organizationId),
+  });
   const classes = useMemo(() => data?.classes ?? [], [data]);
   const scheduleDays = useMemo(() => data?.scheduleDays ?? [], [data]);
   const allClassSubjects = useMemo(() => data?.classSubjects ?? [], [data]);

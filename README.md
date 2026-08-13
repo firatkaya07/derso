@@ -90,6 +90,12 @@ RPC’si ile yapılır (`0007`); istemciden doğrudan self-join kapalıdır.
 | `npm run test:watch` | Testleri izleme kipinde çalıştırır |
 | `npm run benchmark` | Çizelgeleme algoritmasını örnek senaryolarda ölçer |
 
+### Önbellek (`src/lib/cache`)
+
+- **İstek içi:** `getRequestMembership` / `getRequestSettings` / `getRequestFields` React `cache()` ile aynı RSC isteğinde tek DB turu.
+- **İstemci:** `useAsyncData(..., { cacheKey })` 30 sn TTL bellek önbelleği (stale-while-revalidate).
+- **Invalidasyon:** Excel aktarım, program kaydı ve genel tanımlar sonrası `invalidateOrgClientCache(organizationId)`.
+
 ## Uygulama akışı
 
 0. **Genel Tanımlar** — Kurum bilgileri (il, ilçe, kurum adı, kurum müdürü,

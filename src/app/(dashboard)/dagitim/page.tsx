@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { loadPlanningData } from "@/lib/planning-data";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler";
 import { writeScheduleJob } from "@/lib/schedule-job";
@@ -27,7 +28,9 @@ export default function DagitimPage() {
     () => loadPlanningData(supabase, organizationId),
     [supabase, organizationId]
   );
-  const { data: dbData, error: dbError } = useAsyncData(loadDbData);
+  const { data: dbData, error: dbError } = useAsyncData(loadDbData, {
+    cacheKey: clientCacheKeys.planning(organizationId),
+  });
 
   const plannedHours = dbData?.classSubjects.length ?? 0;
 
