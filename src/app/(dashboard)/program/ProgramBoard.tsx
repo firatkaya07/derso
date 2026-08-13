@@ -74,9 +74,19 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
 
   const loadOverview = useCallback(async (): Promise<ClassOverview> => {
     const [classResult, csResult, lessonResult] = await Promise.all([
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("class_subjects").select("class_id, weekly_hours"),
-      supabase.from("lessons").select("class_id"),
+      supabase
+        .from("classes")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("class_subjects")
+        .select("class_id, weekly_hours")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("lessons")
+        .select("class_id")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(classResult, "Sınıflar okunamadı");
     throwIfDbError(csResult, "Sınıf dersleri okunamadı");
@@ -94,7 +104,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     }
 
     return { classes: classResult.data ?? [], totals };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const overview = useAsyncData(loadOverview);
   const classes = useMemo(
@@ -127,8 +137,11 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
           .from("class_subjects")
           .select("*, subject:subjects(*), teacher:teachers(*)")
           .eq("class_id", selectedClassId),
-        supabase.from("teachers").select("*"),
-        supabase.from("teacher_subjects").select("*, teacher:teachers(*)"),
+        supabase.from("teachers").select("*").eq("organization_id", organizationId),
+        supabase
+          .from("teacher_subjects")
+          .select("*, teacher:teachers(*)")
+          .eq("organization_id", organizationId),
       ]);
 
     throwIfDbError(daysResult, "Ders günleri okunamadı");
@@ -170,7 +183,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
       teacherSubjects,
       teacherLessons,
     };
-  }, [supabase, selectedClassId]);
+  }, [supabase, selectedClassId, organizationId]);
 
   const detail = useAsyncData(loadClassDetail);
 

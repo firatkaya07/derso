@@ -89,14 +89,33 @@ export default function ClassesPage() {
       teacherResult,
       tsResult,
     ] = await Promise.all([
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("class_schedule_days").select("*"),
+      supabase
+        .from("classes")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("class_schedule_days")
+        .select("*")
+        .eq("organization_id", organizationId),
       supabase
         .from("class_subjects")
-        .select("*, subject:subjects(*), teacher:teachers(*)"),
-      supabase.from("subjects").select("*").order("name"),
-      supabase.from("teachers").select("*").order("name"),
-      supabase.from("teacher_subjects").select("*"),
+        .select("*, subject:subjects(*), teacher:teachers(*)")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("subjects")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("teachers")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("teacher_subjects")
+        .select("*")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(classResult, "Sınıflar okunamadı");
     throwIfDbError(dayResult, "Ders günleri okunamadı");
@@ -113,7 +132,7 @@ export default function ClassesPage() {
       teachers: teacherResult.data ?? [],
       teacherSubjects: tsResult.data ?? [],
     };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const { data, error, loading, reload } = useAsyncData(load);
   const classes = useMemo(() => data?.classes ?? [], [data]);

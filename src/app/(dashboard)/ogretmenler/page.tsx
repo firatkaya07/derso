@@ -59,12 +59,24 @@ export default function TeachersPage() {
 
   const load = useCallback(async (): Promise<TeachersData> => {
     const [teacherResult, subjectResult, tsResult, csResult] = await Promise.all([
-      supabase.from("teachers").select("*").order("name"),
-      supabase.from("subjects").select("*").order("name"),
-      supabase.from("teacher_subjects").select("*, subject:subjects(*)"),
+      supabase
+        .from("teachers")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("subjects")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("teacher_subjects")
+        .select("*, subject:subjects(*)")
+        .eq("organization_id", organizationId),
       supabase
         .from("class_subjects")
         .select("class_id, subject_id, weekly_hours, teacher_id, class:classes(id, name), subject:subjects(id, name, short_name, color)")
+        .eq("organization_id", organizationId)
         .not("teacher_id", "is", null),
     ]);
     throwIfDbError(teacherResult, "Öğretmenler okunamadı");
@@ -78,7 +90,7 @@ export default function TeachersPage() {
       teacherSubjects: tsResult.data ?? [],
       classAssignments: (csResult.data ?? []) as unknown as ClassAssignment[],
     };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const { data, error, loading, reload } = useAsyncData(load);
   const teachers = useMemo(() => data?.teachers ?? [], [data]);

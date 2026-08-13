@@ -103,6 +103,11 @@ export function normalizeKey(value: string): string {
     .trim();
 }
 
+/** Türkçe büyük harf (İ/I doğru). Alan adları için toUpperCase yerine bunu kullanın. */
+export function trUpper(value: string): string {
+  return String(value ?? "").toLocaleUpperCase("tr-TR");
+}
+
 const DAY_LOOKUP: Map<string, number> = (() => {
   const map = new Map<string, number>();
   DAY_NAMES.forEach((name, index) => {

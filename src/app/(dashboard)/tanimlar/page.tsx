@@ -157,8 +157,14 @@ export default function GenelTanimlarPage() {
     let cancelled = false;
     void (async () => {
       const [lessonsResult, daysResult] = await Promise.all([
-        supabase.from("lessons").select("id, class_id, day_of_week, start_time"),
-        supabase.from("class_schedule_days").select("*"),
+        supabase
+          .from("lessons")
+          .select("id, class_id, day_of_week, start_time")
+          .eq("organization_id", organizationId),
+        supabase
+          .from("class_schedule_days")
+          .select("*")
+          .eq("organization_id", organizationId),
       ]);
       if (cancelled) return;
       if (lessonsResult.error || daysResult.error) {
@@ -175,7 +181,7 @@ export default function GenelTanimlarPage() {
     return () => {
       cancelled = true;
     };
-  }, [timingChanged, timing, supabase]);
+  }, [timingChanged, timing, supabase, organizationId]);
 
   const handleLogoChange = async (
     event: React.ChangeEvent<HTMLInputElement>

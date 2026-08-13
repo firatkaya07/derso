@@ -50,6 +50,10 @@ hatayla durur.
 | `0001_initial_schema.sql` | Tablolar, kısıtlar, indeksler |
 | `0002_row_level_security.sql` | RLS politikaları |
 | `0003_settings.sql` | Kurum geneli tanımlar (tek satırlı `settings` tablosu) |
+| `0004_multi_tenancy.sql` | Çok kurumlu yapı ve org izolasyonu |
+| `0005_fields.sql` | Kurum alanları (TM, MF, …) |
+| `0006_disable_email_confirm.sql` | E-posta onayını kapatma |
+| `0007_lock_membership_insert.sql` | Self-join ve açık kurum insert kapatma |
 
 Yeni bir Supabase projesinde dosyaları sırayla SQL Editor'e yapıştırıp
 çalıştırmanız yeterlidir. Supabase CLI kullanıyorsanız `supabase db push`
@@ -69,9 +73,9 @@ E-posta doğrulaması kapalıdır; kayıt sonrası doğrudan giriş yapılır.
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` tanımı gereği herkese açıktır; tarayıcıya
 gönderilir. Verinin tek gerçek koruması RLS politikalarıdır. Tabloların
 herhangi birinde RLS kapatılırsa o tablo anahtarı bilen herkese açılır.
-`0002_row_level_security.sql` giriş yapmış (`authenticated`) kullanıcılara tam
-yetki verir; `anon` rolü için hiçbir politika tanımlı olmadığından oturumsuz
-erişim reddedilir.
+`0004` sonrası politikalar kuruma göre izolasyon uygular; `anon` rolü için
+politika yoktur. Kurum ve üyelik oluşturma yalnızca `create_organization`
+RPC’si ile yapılır (`0007`); istemciden doğrudan self-join kapalıdır.
 
 ## Komutlar
 

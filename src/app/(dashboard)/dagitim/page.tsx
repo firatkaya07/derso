@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { loadPlanningData } from "@/lib/planning-data";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler";
 import { writeScheduleJob } from "@/lib/schedule-job";
 
@@ -14,14 +15,18 @@ export default function DagitimPage() {
   const supabase = createClient();
   const router = useRouter();
   const toast = useToast();
+  const { organizationId } = useOrganization();
 
   const [rules, setRules] = useState<ScheduleRules>(DEFAULT_RULES);
   const [rounds, setRounds] = useState(10);
   const [starting, setStarting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [existingLessonCount, setExistingLessonCount] = useState(0);
 
-  const loadDbData = useCallback(() => loadPlanningData(supabase), [supabase]);
+  const loadDbData = useCallback(
+    () => loadPlanningData(supabase, organizationId),
+    [supabase, organizationId]
+  );
   const { data: dbData, error: dbError } = useAsyncData(loadDbData);
 
   const plannedHours = dbData?.classSubjects.length ?? 0;
@@ -39,14 +44,8 @@ export default function DagitimPage() {
     }
   };
 
-  const proceedWithGeneration = async () => {
-    setShowDeleteConfirm(false);
-
-    // Mevcut dersleri sil
-    if (existingLessonCount > 0) {
-      await supabase.from("lessons").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    }
-
+  const proceedWithGeneration = () => {
+    setShowReplaceConfirm(false);
     setStarting(true);
     writeScheduleJob({
       rules,
@@ -57,19 +56,25 @@ export default function DagitimPage() {
   };
 
   const handleStart = async () => {
+    if (starting) return;
     if (plannedHours === 0) {
       toast.error("Önce Excel içe aktarma yapın veya sınıflara ders tanımlayın.");
       return;
     }
 
-    // Mevcut ders sayısını kontrol et
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from("lessons")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId);
+
+    if (error) {
+      toast.error("Mevcut program kontrol edilemedi.");
+      return;
+    }
 
     if (count && count > 0) {
       setExistingLessonCount(count);
-      setShowDeleteConfirm(true);
+      setShowReplaceConfirm(true);
     } else {
       setExistingLessonCount(0);
       proceedWithGeneration();
@@ -210,40 +215,46 @@ export default function DagitimPage() {
         )}
       </div>
 
-      {showDeleteConfirm && (
+      {showReplaceConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 max-w-md w-full mx-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Mevcut Program Silinecek
+                  Mevcut program korunacak
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
-                  Veritabanında <span className="font-bold text-red-600">{existingLessonCount}</span> adet ders kaydı bulunuyor.
-                  Yeni program oluşturmak için mevcut dersler silinecektir.
+                  Veritabanında{" "}
+                  <span className="font-bold text-amber-700">
+                    {existingLessonCount}
+                  </span>{" "}
+                  ders kaydı var. Arama sırasında bunlar silinmez; yalnızca
+                  sonucu &quot;Programı Kaydet&quot; ile yazdığınızda yerine
+                  geçer.
                 </p>
               </div>
             </div>
             <div className="flex gap-3 justify-end mt-6">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                type="button"
+                onClick={() => setShowReplaceConfirm(false)}
+                disabled={starting}
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 İptal
               </button>
               <button
+                type="button"
                 onClick={proceedWithGeneration}
-                className="px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
+                disabled={starting}
+                className="px-5 py-2.5 bg-[var(--color-primary)] text-white rounded-lg font-medium hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Sil ve Oluştur
+                Anladım, devam et
               </button>
             </div>
           </div>

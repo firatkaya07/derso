@@ -10,7 +10,7 @@ export default async function OnboardingLayout({
   const supabase = await createClient();
   const membership = await getCurrentMembership(supabase);
   if (membership) {
-    redirect("/");
+    redirect("/home");
   }
   return children;
 }

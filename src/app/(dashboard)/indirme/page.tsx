@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import { throwIfDbError } from "@/lib/db-error";
 import {
@@ -101,14 +102,19 @@ export default function IndirmePage() {
   const supabase = createClient();
   const toast = useToast();
   const settings = useSettings();
+  const { organizationId } = useOrganization();
   const [generating, setGenerating] = useState<DownloadId | null>(null);
 
   const load = useCallback(async (): Promise<DownloadData> => {
     const [lessonResult, dayResult] = await Promise.all([
       supabase
         .from("lessons")
-        .select("*, class:classes(*), subject:subjects(*), teacher:teachers(*)"),
-      supabase.from("class_schedule_days").select("*"),
+        .select("*, class:classes(*), subject:subjects(*), teacher:teachers(*)")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("class_schedule_days")
+        .select("*")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(lessonResult, "Program okunamadı");
     throwIfDbError(dayResult, "Ders günleri okunamadı");
@@ -117,7 +123,7 @@ export default function IndirmePage() {
       lessons: (lessonResult.data ?? []) as unknown as RawLessonRow[],
       scheduleDays: dayResult.data ?? [],
     };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const { data, error, loading } = useAsyncData(load);
 

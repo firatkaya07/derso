@@ -42,9 +42,18 @@ export async function importWorkbook(
 
   const [existingTeachers, existingSubjects, existingClasses] =
     await Promise.all([
-      supabase.from("teachers").select("id, name"),
-      supabase.from("subjects").select("id, name"),
-      supabase.from("classes").select("id, name"),
+      supabase
+        .from("teachers")
+        .select("id, name")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("classes")
+        .select("id, name")
+        .eq("organization_id", organizationId),
     ]);
   throwIfDbError(existingTeachers, "Mevcut öğretmenler okunamadı");
   throwIfDbError(existingSubjects, "Mevcut dersler okunamadı");
@@ -280,6 +289,36 @@ export async function importWorkbook(
       "Sınıf dersleri kaydedilemedi"
     );
   }
+
+  // Dağılım sayfasında geçen sınıfların dosyada olmayan ders satırlarını kaldır.
+  const classesInDistribution = [
+    ...new Set(classSubjectRows.map((row) => row.class_id)),
+  ];
+  if (classesInDistribution.length > 0) {
+    const keepKeys = new Set(
+      classSubjectRows.map((row) => `${row.class_id}:${row.subject_id}`)
+    );
+    for (const batch of chunk(classesInDistribution, 200)) {
+      const existing = await supabase
+        .from("class_subjects")
+        .select("id, class_id, subject_id")
+        .eq("organization_id", organizationId)
+        .in("class_id", batch);
+      throwIfDbError(existing, "Mevcut ders dağılımı okunamadı");
+
+      const staleIds = (existing.data ?? [])
+        .filter((row) => !keepKeys.has(`${row.class_id}:${row.subject_id}`))
+        .map((row) => row.id);
+      for (const idBatch of chunk(staleIds, 200)) {
+        if (idBatch.length === 0) continue;
+        throwIfDbError(
+          await supabase.from("class_subjects").delete().in("id", idBatch),
+          "Eski ders dağılımı temizlenemedi"
+        );
+      }
+    }
+  }
+
   log.push(`Ders dağılımı: ${classSubjectRows.length} kayıt.`);
 
   return log;

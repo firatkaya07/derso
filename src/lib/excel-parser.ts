@@ -11,6 +11,7 @@ import {
   parseDayName,
   parseTimeCell,
   splitList,
+  trUpper,
 } from "./excel-template";
 import { DAY_NAMES, LEVELS, SUBJECT_COLORS } from "./types";
 import { DEFAULT_FIELD_NAMES } from "./fields";
@@ -315,10 +316,7 @@ function parseSubjects(
     const subgroups = subgroupCol >= 0 ? splitList(row[subgroupCol]) : [];
     const unknownSubgroups = subgroups.filter(
       (subgroup) =>
-        !allowedFields.some(
-          (field) =>
-            field.toLocaleUpperCase("tr-TR") === subgroup.toUpperCase()
-        )
+        !allowedFields.some((field) => trUpper(field) === trUpper(subgroup))
     );
     if (unknownSubgroups.length > 0) {
       issues.warn(
@@ -335,7 +333,7 @@ function parseSubjects(
       levels: levels.length > 0 ? levels.join(",") : null,
       subgroups:
         subgroups.length > 0
-          ? subgroups.map((s) => s.toUpperCase()).join(",")
+          ? subgroups.map((s) => trUpper(s)).join(",")
           : null,
     });
   });
@@ -394,12 +392,10 @@ function parseClasses(
       );
     }
 
-    const subgroup = subgroupCol >= 0 ? text(row[subgroupCol]).toUpperCase() : "";
+    const subgroup = subgroupCol >= 0 ? trUpper(text(row[subgroupCol])) : "";
     if (
       subgroup &&
-      !allowedFields.some(
-        (field) => field.toLocaleUpperCase("tr-TR") === subgroup
-      )
+      !allowedFields.some((field) => trUpper(field) === subgroup)
     ) {
       issues.warn(
         table.name,

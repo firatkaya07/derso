@@ -7,6 +7,7 @@ import {
   parseDayName,
   parseTimeCell,
   splitList,
+  trUpper,
 } from "@/lib/excel-template";
 
 function toBuffer(workbook: XLSX.WorkBook): ArrayBuffer {
@@ -59,6 +60,14 @@ describe("splitList", () => {
     expect(splitList("Matematik, Fizik")).toEqual(["Matematik", "Fizik"]);
     expect(splitList("Cumartesi - Pazar")).toEqual(["Cumartesi", "Pazar"]);
     expect(splitList(null)).toEqual([]);
+  });
+});
+
+describe("trUpper", () => {
+  it("Türkçe i/İ dönüşümünü doğru yapar", () => {
+    expect(trUpper("dil")).toBe("DİL");
+    expect(trUpper("söz")).toBe("SÖZ");
+    expect(trUpper("DİL")).toBe("DİL");
   });
 });
 

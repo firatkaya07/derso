@@ -49,10 +49,14 @@ export default function SubjectsPage() {
   const [search, setSearch] = useState("");
 
   const loadSubjects = useCallback(async (): Promise<Subject[]> => {
-    const result = await supabase.from("subjects").select("*").order("name");
+    const result = await supabase
+      .from("subjects")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name");
     throwIfDbError(result, "Dersler okunamadı");
     return result.data ?? [];
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const {
     data,
