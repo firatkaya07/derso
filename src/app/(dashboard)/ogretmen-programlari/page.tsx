@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import ScheduleGrid, { type GridCell } from "@/components/ScheduleGrid";
@@ -63,11 +64,19 @@ export default function TeacherSchedulesPage() {
 
   const loadOverview = useCallback(async (): Promise<TeacherOverview> => {
     const [teacherResult, csResult, lessonResult] = await Promise.all([
-      supabase.from("teachers").select("*").order("name"),
+      supabase
+        .from("teachers")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
       supabase
         .from("class_subjects")
-        .select("class_id, subject_id, teacher_id, weekly_hours"),
-      supabase.from("lessons").select("teacher_id, class_id, subject_id"),
+        .select("class_id, subject_id, teacher_id, weekly_hours")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("lessons")
+        .select("teacher_id, class_id, subject_id")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(teacherResult, "Öğretmenler okunamadı");
     throwIfDbError(csResult, "Sınıf dersleri okunamadı");
@@ -109,9 +118,11 @@ export default function TeacherSchedulesPage() {
     }
 
     return { teachers: teacherResult.data ?? [], totals };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
-  const overview = useAsyncData(loadOverview);
+  const overview = useAsyncData(loadOverview, {
+    cacheKey: clientCacheKeys.teacherOverview(organizationId),
+  });
   const teachers = useMemo(
     () => overview.data?.teachers ?? [],
     [overview.data]
@@ -129,9 +140,17 @@ export default function TeacherSchedulesPage() {
       supabase
         .from("lessons")
         .select("*, subject:subjects(*), teacher:teachers(*)")
+        .eq("organization_id", organizationId)
         .eq("teacher_id", selectedTeacherId),
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("class_schedule_days").select("*"),
+      supabase
+        .from("classes")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("class_schedule_days")
+        .select("*")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(lessonsResult, "Program okunamadı");
     throwIfDbError(classesResult, "Sınıflar okunamadı");
@@ -148,12 +167,14 @@ export default function TeacherSchedulesPage() {
         ? await supabase
             .from("class_subjects")
             .select("*, subject:subjects(*)")
+            .eq("organization_id", organizationId)
             .or(
               `teacher_id.eq.${selectedTeacherId},class_id.in.(${classIdsFromLessons.join(",")})`
             )
         : await supabase
             .from("class_subjects")
             .select("*, subject:subjects(*)")
+            .eq("organization_id", organizationId)
             .eq("teacher_id", selectedTeacherId);
     throwIfDbError(csResult, "Sınıf dersleri okunamadı");
 
@@ -185,7 +206,7 @@ export default function TeacherSchedulesPage() {
       scheduleDays: daysResult.data ?? [],
       classLessons,
     };
-  }, [supabase, selectedTeacherId]);
+  }, [supabase, selectedTeacherId, organizationId]);
 
   const detail = useAsyncData(loadDetail);
 
@@ -380,7 +401,7 @@ export default function TeacherSchedulesPage() {
     >
       <div className="flex items-center gap-2 mb-4">
         <Link
-          href="/"
+          href="/home"
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg

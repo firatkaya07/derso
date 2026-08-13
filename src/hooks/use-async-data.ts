@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  CLIENT_CACHE_TTL_MS,
+  readClientCache,
+  writeClientCache,
+} from "@/lib/cache/client";
 
 interface LoadResult<T> {
   /** Sonucu üreten yükleyici; kimliği değişince veri başka bir sorguya aittir. */
@@ -8,6 +13,16 @@ interface LoadResult<T> {
   attempt: number;
   data: T | null;
   error: Error | null;
+}
+
+export interface AsyncDataOptions {
+  /**
+   * Verilirse sonuç tarayıcı bellek önbelleğine yazılır ve sonraki mount’ta
+   * anında gösterilir (stale-while-revalidate).
+   */
+  cacheKey?: string;
+  /** Varsayılan 30 sn. */
+  cacheTtlMs?: number;
 }
 
 export interface AsyncData<T> {
@@ -34,21 +49,33 @@ function toError(value: unknown): Error {
  * kayıt eklendikten sonra tablo boşalıp yeniden çizilmez. Sorgunun kendisi
  * değiştiğinde ise veri temizlenir; aksi halde bir önceki sınıfın programı
  * kısa süreliğine yanlış başlık altında görünürdü.
+ *
+ * `cacheKey` verilirse soft navigasyonda anlık cache hit + arka plan yenileme.
  */
-export function useAsyncData<T>(load: () => Promise<T>): AsyncData<T> {
+export function useAsyncData<T>(
+  load: () => Promise<T>,
+  options: AsyncDataOptions = {}
+): AsyncData<T> {
+  const { cacheKey, cacheTtlMs = CLIENT_CACHE_TTL_MS } = options;
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<LoadResult<T>>({
-    loader: null,
-    attempt: -1,
-    data: null,
-    error: null,
+  const [result, setResult] = useState<LoadResult<T>>(() => {
+    const cached =
+      cacheKey !== undefined ? readClientCache<T>(cacheKey) : undefined;
+    return {
+      loader: cached !== undefined ? load : null,
+      attempt: cached !== undefined ? 0 : -1,
+      data: cached ?? null,
+      error: null,
+    };
   });
 
   useEffect(() => {
     let active = true;
     load().then(
       (data) => {
-        if (active) setResult({ loader: load, attempt, data, error: null });
+        if (!active) return;
+        if (cacheKey) writeClientCache(cacheKey, data, cacheTtlMs);
+        setResult({ loader: load, attempt, data, error: null });
       },
       (error: unknown) => {
         if (active)
@@ -63,15 +90,23 @@ export function useAsyncData<T>(load: () => Promise<T>): AsyncData<T> {
     return () => {
       active = false;
     };
-  }, [load, attempt]);
+  }, [load, attempt, cacheKey, cacheTtlMs]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
   const loaderChanged = result.loader !== load;
-  const loading = loaderChanged || result.attempt !== attempt;
+  const cachedWhileChanging =
+    loaderChanged && cacheKey
+      ? readClientCache<T>(cacheKey)
+      : undefined;
+  const loading =
+    (loaderChanged && cachedWhileChanging === undefined) ||
+    result.attempt !== attempt;
 
   return {
-    data: loaderChanged ? null : result.data,
+    data: loaderChanged
+      ? (cachedWhileChanging ?? null)
+      : result.data,
     error: loaderChanged ? null : result.error,
     loading,
     reload,

@@ -25,9 +25,13 @@ export interface PlanningData {
  * okuduğu veriyi aynı fonksiyon içinde güvenle kullanabilir. Daha önce bu veri
  * state üzerinden okunduğu için, yenileme çağrısının hemen ardından çalışan
  * kod bir render eskisi veriyle işlem yapıyordu.
+ *
+ * organizationId zorunludur: RLS birden fazla üyeliği gösterebilir; aktif
+ * kurumun verisi açıkça süzülür.
  */
 export async function loadPlanningData(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  organizationId: string
 ): Promise<PlanningData> {
   const [
     teachers,
@@ -37,16 +41,33 @@ export async function loadPlanningData(
     classSubjects,
     teacherSubjects,
   ] = await Promise.all([
-    supabase.from("teachers").select("*").order("name"),
-    supabase.from("subjects").select("*").order("name"),
-    supabase.from("classes").select("*").order("name"),
-    supabase.from("class_schedule_days").select("*"),
+    supabase
+      .from("teachers")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name"),
+    supabase
+      .from("subjects")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name"),
+    supabase
+      .from("classes")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name"),
+    supabase
+      .from("class_schedule_days")
+      .select("*")
+      .eq("organization_id", organizationId),
     supabase
       .from("class_subjects")
-      .select("*, subject:subjects(*), teacher:teachers(*)"),
+      .select("*, subject:subjects(*), teacher:teachers(*)")
+      .eq("organization_id", organizationId),
     supabase
       .from("teacher_subjects")
-      .select("*, subject:subjects(*), teacher:teachers(*)"),
+      .select("*, subject:subjects(*), teacher:teachers(*)")
+      .eq("organization_id", organizationId),
   ]);
 
   throwIfDbError(teachers, "Öğretmenler okunamadı");

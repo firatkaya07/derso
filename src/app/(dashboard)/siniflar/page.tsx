@@ -12,6 +12,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useSettings } from "@/components/SettingsProvider";
 import { useFields } from "@/components/FieldsProvider";
@@ -89,14 +90,33 @@ export default function ClassesPage() {
       teacherResult,
       tsResult,
     ] = await Promise.all([
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("class_schedule_days").select("*"),
+      supabase
+        .from("classes")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("class_schedule_days")
+        .select("*")
+        .eq("organization_id", organizationId),
       supabase
         .from("class_subjects")
-        .select("*, subject:subjects(*), teacher:teachers(*)"),
-      supabase.from("subjects").select("*").order("name"),
-      supabase.from("teachers").select("*").order("name"),
-      supabase.from("teacher_subjects").select("*"),
+        .select("*, subject:subjects(*), teacher:teachers(*)")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("subjects")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("teachers")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("name"),
+      supabase
+        .from("teacher_subjects")
+        .select("*")
+        .eq("organization_id", organizationId),
     ]);
     throwIfDbError(classResult, "Sınıflar okunamadı");
     throwIfDbError(dayResult, "Ders günleri okunamadı");
@@ -113,9 +133,11 @@ export default function ClassesPage() {
       teachers: teacherResult.data ?? [],
       teacherSubjects: tsResult.data ?? [],
     };
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
-  const { data, error, loading, reload } = useAsyncData(load);
+  const { data, error, loading, reload } = useAsyncData(load, {
+    cacheKey: clientCacheKeys.classes(organizationId),
+  });
   const classes = useMemo(() => data?.classes ?? [], [data]);
   const scheduleDays = useMemo(() => data?.scheduleDays ?? [], [data]);
   const allClassSubjects = useMemo(() => data?.classSubjects ?? [], [data]);

@@ -9,6 +9,7 @@ import { saveGeneratedSchedule } from "@/lib/schedule-persistence";
 import { useToast } from "@/components/Toast";
 import { useSettings } from "@/components/SettingsProvider";
 import { useOrganization } from "@/components/OrganizationProvider";
+import { invalidateOrgClientCache } from "@/lib/cache";
 import { slotTimingOf } from "@/lib/settings";
 import { autoSchedule, type ScheduleResult } from "@/lib/scheduler";
 import {
@@ -45,10 +46,11 @@ export default function DagitimIzlemePage() {
   const [saved, setSaved] = useState(false);
 
   const cancelledRef = useRef(false);
-  const startedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
     cancelledRef.current = false;
+
     const config = readScheduleJob();
     if (!config) {
       setPhase("missing-job");
@@ -56,20 +58,18 @@ export default function DagitimIzlemePage() {
     }
     setJob(config);
 
-    if (startedRef.current) return;
-    startedRef.current = true;
-
     const run = async () => {
       let data: PlanningData;
       try {
-        data = await loadPlanningData(supabase);
+        data = await loadPlanningData(supabase, organizationId);
       } catch (error) {
+        if (cancelled) return;
         setErrorMessage((error as Error).message);
         setPhase("error");
         return;
       }
 
-      if (cancelledRef.current) return;
+      if (cancelled || cancelledRef.current) return;
 
       if (data.classSubjects.length === 0) {
         setErrorMessage(
@@ -85,10 +85,10 @@ export default function DagitimIzlemePage() {
       const timing = slotTimingOf(settings);
 
       const runRound = (round: number) => {
-        if (cancelledRef.current) return;
+        if (cancelled || cancelledRef.current) return;
 
         window.setTimeout(() => {
-          if (cancelledRef.current) return;
+          if (cancelled || cancelledRef.current) return;
 
           const result = autoSchedule(
             data.classes,
@@ -159,6 +159,7 @@ export default function DagitimIzlemePage() {
     void run();
 
     return () => {
+      cancelled = true;
       cancelledRef.current = true;
     };
     // Tek seferlik başlatma: ayarlar/oturum değişince yeniden koşmasın.
@@ -175,6 +176,7 @@ export default function DagitimIzlemePage() {
         organizationId
       );
       setSaved(true);
+      invalidateOrgClientCache(organizationId);
       toast.success(
         result.skippedLessons > 0
           ? `${result.savedLessons} ders saati kaydedildi. Öğretmeni atanamayan ${result.skippedLessons} saat kaydedilmedi.`

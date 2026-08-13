@@ -1,29 +1,44 @@
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentMembership } from "@/lib/org";
-import { loadSettings } from "@/lib/settings";
-import { fieldNamesOf, loadFields, DEFAULT_FIELD_NAMES } from "@/lib/fields";
+import {
+  getRequestMembership,
+  getRequestSettings,
+  getRequestFields,
+} from "@/lib/cache/request";
+import { fieldNamesOf, DEFAULT_FIELD_NAMES } from "@/lib/fields";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import Header from "@/components/Header";
 import { SettingsProvider } from "@/components/SettingsProvider";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import { FieldsProvider } from "@/components/FieldsProvider";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+};
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const membership = await getCurrentMembership(supabase);
+  const membership = await getRequestMembership();
 
   if (!membership) {
     redirect("/onboarding");
   }
 
   const [settings, fieldRows] = await Promise.all([
-    loadSettings(supabase, membership.organizationId),
-    loadFields(supabase, membership.organizationId).catch(
-      () => [] as Awaited<ReturnType<typeof loadFields>>
+    getRequestSettings(membership.organizationId),
+    getRequestFields(membership.organizationId).catch(
+      () => [] as Awaited<ReturnType<typeof getRequestFields>>
     ),
   ]);
 

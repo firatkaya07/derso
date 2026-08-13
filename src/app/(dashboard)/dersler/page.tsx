@@ -11,6 +11,7 @@ import SearchInput from "@/components/SearchInput";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
+import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useFields } from "@/components/FieldsProvider";
 import { describeDbError, throwIfDbError } from "@/lib/db-error";
@@ -49,17 +50,23 @@ export default function SubjectsPage() {
   const [search, setSearch] = useState("");
 
   const loadSubjects = useCallback(async (): Promise<Subject[]> => {
-    const result = await supabase.from("subjects").select("*").order("name");
+    const result = await supabase
+      .from("subjects")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name");
     throwIfDbError(result, "Dersler okunamadı");
     return result.data ?? [];
-  }, [supabase]);
+  }, [supabase, organizationId]);
 
   const {
     data,
     error,
     loading,
     reload: reloadSubjects,
-  } = useAsyncData(loadSubjects);
+  } = useAsyncData(loadSubjects, {
+    cacheKey: clientCacheKeys.subjects(organizationId),
+  });
   const subjects = useMemo(() => data ?? [], [data]);
 
   const levelCounts = useMemo(() => {

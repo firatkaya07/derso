@@ -20,31 +20,38 @@ export interface SaveScheduleResult {
 }
 
 /**
- * Üretilen programı kaydeder: ilgili sınıfların mevcut dersleri silinir, yeni
- * ders saatleri yazılır ve otomatik atanan öğretmenler sınıf müfredatına
+ * Üretilen programı kaydeder: kurumun mevcut dersleri silinir, yeni ders
+ * saatleri yazılır ve otomatik atanan öğretmenler sınıf müfredatına
  * (class_subjects.teacher_id) işlenir.
  *
- * Son adım önemlidir: aksi halde program elle düzenlenmek üzere açıldığında
- * derslerin öğretmeni "Atanmamış" görünüyordu.
+ * Kurum genelinde silme, hiç yerleşmeyen sınıfların eski saatlerinin
+ * kalmasını engeller. Silme yalnızca kayıt anında yapılır; arama sırasında
+ * canlı program korunur.
  */
 export async function saveGeneratedSchedule(
   supabase: SupabaseClient,
   lessons: GeneratedLesson[],
   organizationId: string
 ): Promise<SaveScheduleResult> {
-  const classIds = [...new Set(lessons.map((lesson) => lesson.classId))];
-  if (classIds.length === 0) {
-    return { savedLessons: 0, skippedLessons: 0, updatedAssignments: 0 };
-  }
-
-  for (const batch of chunk(classIds, 200)) {
-    throwIfDbError(
-      await supabase.from("lessons").delete().in("class_id", batch),
-      "Mevcut program temizlenemedi"
-    );
-  }
+  throwIfDbError(
+    await supabase
+      .from("lessons")
+      .delete()
+      .eq("organization_id", organizationId),
+    "Mevcut program temizlenemedi"
+  );
 
   const placeable = lessons.filter((lesson) => lesson.teacherId);
+  const classIds = [...new Set(placeable.map((lesson) => lesson.classId))];
+
+  if (placeable.length === 0) {
+    return {
+      savedLessons: 0,
+      skippedLessons: lessons.length,
+      updatedAssignments: 0,
+    };
+  }
+
   const rows = placeable.map((lesson) => ({
     organization_id: organizationId,
     class_id: lesson.classId,
@@ -91,6 +98,7 @@ async function syncClassSubjectTeachers(
   const existing = await supabase
     .from("class_subjects")
     .select("class_id, subject_id, weekly_hours, teacher_id")
+    .eq("organization_id", organizationId)
     .in("class_id", classIds);
   throwIfDbError(existing, "Sınıf dersleri okunamadı");
 

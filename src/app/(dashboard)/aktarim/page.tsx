@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/components/Toast";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useFields } from "@/components/FieldsProvider";
+import { invalidateOrgClientCache } from "@/lib/cache";
 import { parseExcelFile, type ParsedWorkbook } from "@/lib/excel-parser";
 import { downloadTemplate, SHEET_NAMES } from "@/lib/excel-template";
 import { importWorkbook } from "@/lib/excel-import";
@@ -65,6 +66,7 @@ export default function AktarimPage() {
       const log = await importWorkbook(supabase, parsed, organizationId);
       setImportLog(log);
       setImported(true);
+      invalidateOrgClientCache(organizationId);
       toast.success("Veriler veritabanına aktarıldı.");
     } catch (error) {
       toast.error((error as Error).message);

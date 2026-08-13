@@ -18,7 +18,7 @@ export default function Header() {
     router.push("/login");
   };
 
-  const isHome = pathname === "/";
+  const isHome = pathname === "/home";
   const location = locationLabel(settings);
 
   return (
@@ -26,7 +26,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href="/home" className="flex items-center gap-2.5 group">
               <Image
                 src={settings.logoDataUrl || "/logo.png"}
                 alt={settings.institutionName || "Derso"}
@@ -49,7 +49,7 @@ export default function Header() {
           <div className="flex items-center gap-1">
             {!isHome && (
               <Link
-                href="/"
+                href="/home"
                 className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-lg transition-all duration-200"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
