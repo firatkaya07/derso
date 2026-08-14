@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastProvider } from "@/components/Toast";
 import {
   SITE_DESCRIPTION,
@@ -72,6 +73,7 @@ export default function RootLayout({
     <html lang="tr" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full bg-[var(--color-surface)] font-[family-name:var(--font-geist-sans)]">
         <ToastProvider>{children}</ToastProvider>
+        <SpeedInsights />
       </body>
       {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
