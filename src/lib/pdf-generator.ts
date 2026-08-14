@@ -152,6 +152,90 @@ export function formatTeacherCarsafCell(lesson: LessonData): string {
   return `${esc(lesson.className)}<div style="font-size:6px;color:#333">${esc(subject)}</div>`;
 }
 
+/** Excel / düz metin için sınıf + ders kısa adı (satır kırımlı). */
+export function formatTeacherCarsafPlain(lesson: LessonData): string {
+  const subject = lesson.subjectShortName || lesson.subjectName;
+  if (!lesson.className && !subject) return "";
+  if (!subject) return lesson.className;
+  if (!lesson.className) return subject;
+  return `${lesson.className}\n${subject}`;
+}
+
+export interface CarsafMatrix {
+  labelHeader: string;
+  days: number[];
+  slots: TimeSlot[];
+  rows: { label: string; cells: string[] }[];
+}
+
+/** Sınıf çarşaf ızgarası — PDF ve Excel ortak veri kaynağı. */
+export function buildSinifCarsafMatrix(
+  lessons: LessonData[],
+  context: PdfScheduleContext = {}
+): CarsafMatrix {
+  const days = getActiveDays(lessons);
+  const slots = resolveTimeSlots(
+    context.scheduleDays ?? [],
+    lessons,
+    context.timing
+  );
+  const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
+    a.localeCompare(b, "tr")
+  );
+
+  const rows = classes.map((cls) => {
+    const cells: string[] = [];
+    for (const day of days) {
+      for (const slot of slots) {
+        const lesson = lessons.find(
+          (l) =>
+            l.className === cls &&
+            l.dayOfWeek === day &&
+            l.startTime === slot.start
+        );
+        cells.push(lesson?.subjectShortName || "");
+      }
+    }
+    return { label: cls, cells };
+  });
+
+  return { labelHeader: "Sınıf", days, slots, rows };
+}
+
+/** Öğretmen çarşaf ızgarası — PDF ve Excel ortak veri kaynağı. */
+export function buildOgretmenCarsafMatrix(
+  lessons: LessonData[],
+  context: PdfScheduleContext = {}
+): CarsafMatrix {
+  const days = getActiveDays(lessons);
+  const slots = resolveTimeSlots(
+    context.scheduleDays ?? [],
+    lessons,
+    context.timing
+  );
+  const teacherNames = [
+    ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
+  ].sort((a, b) => a.localeCompare(b, "tr"));
+
+  const rows = teacherNames.map((teacher) => {
+    const cells: string[] = [];
+    for (const day of days) {
+      for (const slot of slots) {
+        const lesson = lessons.find(
+          (l) =>
+            l.teacherName === teacher &&
+            l.dayOfWeek === day &&
+            l.startTime === slot.start
+        );
+        cells.push(lesson ? formatTeacherCarsafPlain(lesson) : "");
+      }
+    }
+    return { label: teacher, cells };
+  });
+
+  return { labelHeader: "Öğretmen", days, slots, rows };
+}
+
 /**
  * Sınıf programındaki "Ders ve Öğretmen Bilgileri" satırları.
  * subjectId ile gruplanır; böylece aynı adlı dersler karışmaz ve bir
@@ -341,40 +425,24 @@ export function generateSinifCarsafPdf(
   settings: AppSettings = DEFAULT_SETTINGS,
   context: PdfScheduleContext = {}
 ): PrintOutcome {
-  const activeDays = getActiveDays(lessons);
-  const slots = resolveTimeSlots(
-    context.scheduleDays ?? [],
-    lessons,
-    context.timing
-  );
-  const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
-    a.localeCompare(b, "tr")
-  );
+  const matrix = buildSinifCarsafMatrix(lessons, context);
 
-  let tableHtml = `<tr><th rowspan="2" style="width:100px">Sınıf</th>`;
-  for (const day of activeDays) {
-    tableHtml += `<th colspan="${Math.max(slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
+  let tableHtml = `<tr><th rowspan="2" style="width:100px">${esc(matrix.labelHeader)}</th>`;
+  for (const day of matrix.days) {
+    tableHtml += `<th colspan="${Math.max(matrix.slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
   tableHtml += `</tr><tr>`;
-  for (let d = 0; d < activeDays.length; d++) {
-    for (let s = 0; s < slots.length; s++) {
-      tableHtml += carsafSlotHeader(s, slots[s], "30px");
+  for (let d = 0; d < matrix.days.length; d++) {
+    for (let s = 0; s < matrix.slots.length; s++) {
+      tableHtml += carsafSlotHeader(s, matrix.slots[s], "30px");
     }
   }
   tableHtml += `</tr>`;
 
-  for (const cls of classes) {
-    tableHtml += `<tr><td style="font-size:10px">${esc(cls)}</td>`;
-    for (const day of activeDays) {
-      for (const slot of slots) {
-        const lesson = lessons.find(
-          (l) =>
-            l.className === cls &&
-            l.dayOfWeek === day &&
-            l.startTime === slot.start
-        );
-        tableHtml += `<td style="font-size:9px">${lesson ? esc(lesson.subjectShortName) : ""}</td>`;
-      }
+  for (const row of matrix.rows) {
+    tableHtml += `<tr><td style="font-size:10px">${esc(row.label)}</td>`;
+    for (const cell of row.cells) {
+      tableHtml += `<td style="font-size:9px">${esc(cell)}</td>`;
     }
     tableHtml += `</tr>`;
   }
@@ -401,42 +469,29 @@ export function generateOgretmenCarsafPdf(
   settings: AppSettings = DEFAULT_SETTINGS,
   context: PdfScheduleContext = {}
 ): PrintOutcome {
-  const activeDays = getActiveDays(lessons);
-  const slots = resolveTimeSlots(
-    context.scheduleDays ?? [],
-    lessons,
-    context.timing
-  );
-  const teacherNames = [
-    ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
-  ].sort((a, b) => a.localeCompare(b, "tr"));
+  const matrix = buildOgretmenCarsafMatrix(lessons, context);
 
-  let tableHtml = `<tr><th rowspan="2" style="width:110px">Öğretmen</th>`;
-  for (const day of activeDays) {
-    tableHtml += `<th colspan="${Math.max(slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
+  let tableHtml = `<tr><th rowspan="2" style="width:110px">${esc(matrix.labelHeader)}</th>`;
+  for (const day of matrix.days) {
+    tableHtml += `<th colspan="${Math.max(matrix.slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
   tableHtml += `</tr><tr>`;
-  for (let d = 0; d < activeDays.length; d++) {
-    for (let s = 0; s < slots.length; s++) {
-      tableHtml += carsafSlotHeader(s, slots[s], "24px");
+  for (let d = 0; d < matrix.days.length; d++) {
+    for (let s = 0; s < matrix.slots.length; s++) {
+      tableHtml += carsafSlotHeader(s, matrix.slots[s], "24px");
     }
   }
   tableHtml += `</tr>`;
 
-  for (const teacher of teacherNames) {
-    tableHtml += `<tr><td style="font-size:9px;text-align:left;padding-left:5px">${esc(teacher)}</td>`;
-    for (const day of activeDays) {
-      for (const slot of slots) {
-        const lesson = lessons.find(
-          (l) =>
-            l.teacherName === teacher &&
-            l.dayOfWeek === day &&
-            l.startTime === slot.start
-        );
-        // Aynı sınıfa birden fazla ders giren öğretmenlerde yalnızca sınıf adı
-        // yetmez; ders kısa adı da yazılır (ör. 10-A + MAT1 / 10-A + PRB).
-        tableHtml += `<td style="font-size:7px">${lesson ? formatTeacherCarsafCell(lesson) : ""}</td>`;
-      }
+  for (const row of matrix.rows) {
+    tableHtml += `<tr><td style="font-size:9px;text-align:left;padding-left:5px">${esc(row.label)}</td>`;
+    for (const cell of row.cells) {
+      const parts = cell.split("\n");
+      const cellHtml =
+        parts.length > 1
+          ? `${esc(parts[0])}<div style="font-size:6px;color:#333">${esc(parts.slice(1).join(" "))}</div>`
+          : esc(cell);
+      tableHtml += `<td style="font-size:7px">${cellHtml}</td>`;
     }
     tableHtml += `</tr>`;
   }

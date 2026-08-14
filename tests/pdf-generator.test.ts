@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildOgretmenCarsafMatrix,
+  buildSinifCarsafMatrix,
   buildSubjectTeacherRows,
   buildTeacherClassSubjectRows,
   formatTeacherCarsafCell,
+  formatTeacherCarsafPlain,
   formatTeacherProgramCell,
   type LessonData,
 } from "@/lib/pdf-generator";
+import { carsafMatrixToSheetRows } from "@/lib/carsaf-excel";
 
 function lesson(overrides: Partial<LessonData>): LessonData {
   return {
@@ -53,6 +57,12 @@ describe("formatTeacherCarsafCell", () => {
   });
 });
 
+describe("formatTeacherCarsafPlain", () => {
+  it("Excel için sınıf ve dersi satır kırımlı verir", () => {
+    expect(formatTeacherCarsafPlain(lesson({}))).toBe("10-A\nMAT1");
+  });
+});
+
 describe("formatTeacherProgramCell", () => {
   it("takvim hücresinde tam ders adını gösterir", () => {
     const html = formatTeacherProgramCell(
@@ -65,6 +75,63 @@ describe("formatTeacherProgramCell", () => {
     expect(html).toContain("9-A");
     expect(html).toContain("MATEMATİK 2");
     expect(html).not.toContain("MAT2");
+  });
+});
+
+describe("çarşaf matrisleri", () => {
+  const lessons: LessonData[] = [
+    lesson({
+      className: "10-A",
+      subjectShortName: "MAT1",
+      teacherName: "Ayşe",
+      dayOfWeek: 0,
+      startTime: "09:00",
+    }),
+    lesson({
+      className: "10-A",
+      subjectId: "prb",
+      subjectName: "PROBLEM",
+      subjectShortName: "PRB",
+      teacherName: "Ayşe",
+      dayOfWeek: 0,
+      startTime: "09:50",
+      endTime: "10:30",
+      slotIndex: 1,
+    }),
+    lesson({
+      classId: "c9",
+      className: "9-A",
+      subjectShortName: "TÜR",
+      teacherName: "Deniz",
+      teacherId: "t2",
+      dayOfWeek: 1,
+      startTime: "09:00",
+    }),
+  ];
+
+  it("sınıf çarşafında ders kısa adlarını yerleştirir", () => {
+    const matrix = buildSinifCarsafMatrix(lessons);
+    expect(matrix.labelHeader).toBe("Sınıf");
+    expect(matrix.days).toEqual([0, 1]);
+    const row10 = matrix.rows.find((r) => r.label === "10-A");
+    expect(row10?.cells[0]).toBe("MAT1");
+    expect(row10?.cells[1]).toBe("PRB");
+  });
+
+  it("öğretmen çarşafında sınıf+ders düz metnini yerleştirir", () => {
+    const matrix = buildOgretmenCarsafMatrix(lessons);
+    const ayse = matrix.rows.find((r) => r.label === "Ayşe");
+    expect(ayse?.cells[0]).toBe("10-A\nMAT1");
+    expect(ayse?.cells[1]).toBe("10-A\nPRB");
+  });
+
+  it("Excel satırlarına gün birleştirmesi ekler", () => {
+    const matrix = buildSinifCarsafMatrix(lessons);
+    const { rows, merges } = carsafMatrixToSheetRows(matrix);
+    expect(rows[0][0]).toBe("Sınıf");
+    expect(rows[0][1]).toBe("PZT");
+    expect(merges.length).toBeGreaterThan(0);
+    expect(rows.some((r) => r[0] === "10-A")).toBe(true);
   });
 });
 
