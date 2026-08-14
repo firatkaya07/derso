@@ -241,6 +241,9 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+      <p className="text-center text-xs text-gray-400 mt-6">
+        © {new Date().getFullYear()} Derso. Tüm hakları saklıdır.
+      </p>
     </div>
   );
 }

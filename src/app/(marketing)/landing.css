@@ -808,6 +808,12 @@
   width: 100%;
 }
 
+.landing-footer__copy {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 0.25rem;
+}
+
 /* ── Motion ── */
 
 @keyframes landing-rise {

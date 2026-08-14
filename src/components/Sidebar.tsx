@@ -86,6 +86,7 @@ export default function Sidebar() {
           </svg>
           Çıkış Yap
         </button>
+        <p className="text-gray-500 text-[10px] text-center mt-3">© {new Date().getFullYear()} Derso</p>
       </div>
     </aside>
   );

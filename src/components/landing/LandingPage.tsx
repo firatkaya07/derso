@@ -217,6 +217,7 @@ export default function LandingPage() {
             <Link href="/login">Giriş</Link>
           </nav>
           <p>Kurs ve okul ders programı yönetimi</p>
+          <p className="landing-footer__copy">© {new Date().getFullYear()} Derso. Tüm hakları saklıdır.</p>
         </div>
       </footer>
     </div>
