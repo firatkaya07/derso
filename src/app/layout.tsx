@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { ToastProvider } from "@/components/Toast";
 import {
   SITE_DESCRIPTION,
@@ -9,6 +10,8 @@ import {
   getSiteUrl,
 } from "@/lib/site";
 import "./globals.css";
+
+const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +53,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION,
+  },
   formatDetection: {
     telephone: false,
     email: false,
@@ -67,6 +73,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[var(--color-surface)] font-[family-name:var(--font-geist-sans)]">
         <ToastProvider>{children}</ToastProvider>
       </body>
+      {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
   );
 }
