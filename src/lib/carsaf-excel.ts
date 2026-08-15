@@ -62,7 +62,7 @@ function downloadCarsafWorkbook(
   sheet["!cols"] = [
     { wch: 18 },
     ...Array.from({ length: Math.max(rows[0].length - 1, 0) }, () => ({
-      wch: 14,
+      wch: 22,
     })),
   ];
 
@@ -71,13 +71,25 @@ function downloadCarsafWorkbook(
   XLSX.writeFile(workbook, fileName, { compression: true });
 }
 
+/** Excel hücresinde ders ile öğretmen arasına boşluk (tek satır). */
+export function formatSinifCarsafExcelCell(plain: string): string {
+  return plain.replace(/\n+/g, " ").trim();
+}
+
 export function downloadSinifCarsafExcel(
   lessons: LessonData[],
   context: PdfScheduleContext = {},
   fileName = "sinif-carsaf-listesi.xlsx"
 ) {
+  const matrix = buildSinifCarsafMatrix(lessons, context);
   downloadCarsafWorkbook(
-    buildSinifCarsafMatrix(lessons, context),
+    {
+      ...matrix,
+      rows: matrix.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map(formatSinifCarsafExcelCell),
+      })),
+    },
     "Sınıf Çarşaf",
     fileName
   );

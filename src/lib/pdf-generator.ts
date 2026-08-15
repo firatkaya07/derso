@@ -448,23 +448,28 @@ export function generateSinifCarsafPdf(
   context: PdfScheduleContext = {}
 ): PrintOutcome {
   const matrix = buildSinifCarsafMatrix(lessons, context);
+  const dataColCount = Math.max(
+    matrix.days.length * Math.max(matrix.slots.length, 1),
+    1
+  );
+  const dataColWidth = `${(92 / dataColCount).toFixed(3)}%`;
 
-  let tableHtml = `<tr><th rowspan="2" style="width:100px">${esc(matrix.labelHeader)}</th>`;
+  let tableHtml = `<tr><th rowspan="2" style="width:8%">${esc(matrix.labelHeader)}</th>`;
   for (const day of matrix.days) {
     tableHtml += `<th colspan="${Math.max(matrix.slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
   tableHtml += `</tr><tr>`;
   for (let d = 0; d < matrix.days.length; d++) {
     for (let s = 0; s < matrix.slots.length; s++) {
-      tableHtml += carsafSlotHeader(s, matrix.slots[s], "30px");
+      tableHtml += carsafSlotHeader(s, matrix.slots[s], dataColWidth);
     }
   }
   tableHtml += `</tr>`;
 
   for (const row of matrix.rows) {
-    tableHtml += `<tr><td style="font-size:10px">${esc(row.label)}</td>`;
+    tableHtml += `<tr><td class="row-label">${esc(row.label)}</td>`;
     for (const cell of row.cells) {
-      tableHtml += `<td style="font-size:8px;font-weight:bold;line-height:1.15">${formatCarsafMultilineHtml(cell, "7px")}</td>`;
+      tableHtml += `<td class="slot-cell">${formatCarsafMultilineHtml(cell, "6.5px")}</td>`;
     }
     tableHtml += `</tr>`;
   }
@@ -474,7 +479,18 @@ export function generateSinifCarsafPdf(
     body { padding: 10px; }
     h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
     .date { text-align: center; font-size: 12px; margin-bottom: 10px; }
-    td, th { font-size: 9px; padding: 2px 3px; }
+    table { table-layout: fixed; width: 100%; }
+    th, td { font-size: 8px; padding: 2px 2px; overflow: hidden; word-break: break-word; }
+    td.row-label { font-size: 9px; font-weight: bold; width: 8%; }
+    td.slot-cell {
+      width: ${dataColWidth};
+      height: 34px;
+      max-height: 34px;
+      font-size: 7.5px;
+      font-weight: bold;
+      line-height: 1.15;
+      vertical-align: middle;
+    }
   </style></head><body>
     ${documentHeader(settings, { compact: true })}
     <h1>SINIF ÇARŞAF LİSTESİ</h1>

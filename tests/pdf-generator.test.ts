@@ -10,7 +10,10 @@ import {
   formatTeacherProgramCell,
   type LessonData,
 } from "@/lib/pdf-generator";
-import { carsafMatrixToSheetRows } from "@/lib/carsaf-excel";
+import {
+  carsafMatrixToSheetRows,
+  formatSinifCarsafExcelCell,
+} from "@/lib/carsaf-excel";
 
 function lesson(overrides: Partial<LessonData>): LessonData {
   return {
@@ -151,6 +154,14 @@ describe("formatSinifCarsafPlain", () => {
         })
       )
     ).toBe("MATEMATİK 1\nAyşe Yılmaz");
+  });
+});
+
+describe("formatSinifCarsafExcelCell", () => {
+  it("ders ile öğretmen arasına boşluk koyar", () => {
+    expect(formatSinifCarsafExcelCell("MATEMATİK 1\nAyşe Yılmaz")).toBe(
+      "MATEMATİK 1 Ayşe Yılmaz"
+    );
   });
 });
 
