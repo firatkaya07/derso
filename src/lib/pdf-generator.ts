@@ -190,6 +190,30 @@ export interface CarsafMatrix {
   rows: { label: string; cells: string[] }[];
 }
 
+/** Hücredeki ilk satır (ders adı) — sütun genişliği hesabı için. */
+export function longestCarsafSubjectLength(matrix: CarsafMatrix): number {
+  let max = 0;
+  for (const row of matrix.rows) {
+    for (const cell of row.cells) {
+      const subject = (cell.split("\n")[0] ?? "").trim();
+      if (subject.length > max) max = subject.length;
+    }
+  }
+  return max;
+}
+
+/** Excel tek satır hücreleri dahil en uzun metin uzunluğu. */
+export function longestCarsafCellLength(matrix: CarsafMatrix): number {
+  let max = longestCarsafSubjectLength(matrix);
+  for (const row of matrix.rows) {
+    for (const cell of row.cells) {
+      const joined = cell.replace(/\n+/g, " ").trim();
+      if (joined.length > max) max = joined.length;
+    }
+  }
+  return max;
+}
+
 /** Sınıf çarşaf ızgarası — PDF ve Excel ortak veri kaynağı. */
 export function buildSinifCarsafMatrix(
   lessons: LessonData[],
@@ -448,13 +472,16 @@ export function generateSinifCarsafPdf(
   context: PdfScheduleContext = {}
 ): PrintOutcome {
   const matrix = buildSinifCarsafMatrix(lessons, context);
-  const dataColCount = Math.max(
-    matrix.days.length * Math.max(matrix.slots.length, 1),
-    1
+  const subjectCh = Math.max(longestCarsafSubjectLength(matrix), 4);
+  const labelCh = Math.max(
+    matrix.labelHeader.length,
+    4,
+    ...matrix.rows.map((r) => r.label.length)
   );
-  const dataColWidth = `${(92 / dataColCount).toFixed(3)}%`;
+  const dataColWidth = `${subjectCh + 1}ch`;
+  const labelColWidth = `${labelCh + 1}ch`;
 
-  let tableHtml = `<tr><th rowspan="2" style="width:8%">${esc(matrix.labelHeader)}</th>`;
+  let tableHtml = `<tr><th rowspan="2" style="width:${labelColWidth}">${esc(matrix.labelHeader)}</th>`;
   for (const day of matrix.days) {
     tableHtml += `<th colspan="${Math.max(matrix.slots.length, 1)}">${DAY_NAMES_UPPER[day]}</th>`;
   }
@@ -479,18 +506,26 @@ export function generateSinifCarsafPdf(
     body { padding: 10px; }
     h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
     .date { text-align: center; font-size: 12px; margin-bottom: 10px; }
-    table { table-layout: fixed; width: 100%; }
-    th, td { font-size: 8px; padding: 2px 2px; overflow: hidden; word-break: break-word; }
-    td.row-label { font-size: 9px; font-weight: bold; width: 8%; }
+    table { table-layout: fixed; width: max-content; max-width: none; }
+    th, td { font-size: 8px; padding: 2px 3px; overflow: hidden; word-break: normal; }
+    td.row-label {
+      font-size: 9px;
+      font-weight: bold;
+      width: ${labelColWidth};
+      white-space: nowrap;
+    }
     td.slot-cell {
       width: ${dataColWidth};
+      min-width: ${dataColWidth};
       height: 34px;
       max-height: 34px;
       font-size: 7.5px;
       font-weight: bold;
       line-height: 1.15;
       vertical-align: middle;
+      white-space: nowrap;
     }
+    td.slot-cell > div { white-space: nowrap; }
   </style></head><body>
     ${documentHeader(settings, { compact: true })}
     <h1>SINIF ÇARŞAF LİSTESİ</h1>

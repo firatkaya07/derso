@@ -8,6 +8,8 @@ import {
   formatTeacherCarsafCell,
   formatTeacherCarsafPlain,
   formatTeacherProgramCell,
+  longestCarsafCellLength,
+  longestCarsafSubjectLength,
   type LessonData,
 } from "@/lib/pdf-generator";
 import {
@@ -161,6 +163,32 @@ describe("formatSinifCarsafExcelCell", () => {
   it("ders ile öğretmen arasına boşluk koyar", () => {
     expect(formatSinifCarsafExcelCell("MATEMATİK 1\nAyşe Yılmaz")).toBe(
       "MATEMATİK 1 Ayşe Yılmaz"
+    );
+  });
+});
+
+describe("çarşaf sütun genişliği", () => {
+  it("en uzun ders adı uzunluğunu bulur", () => {
+    const matrix = buildSinifCarsafMatrix([
+      lesson({
+        subjectName: "KISA",
+        teacherName: "A",
+        dayOfWeek: 0,
+        startTime: "09:00",
+      }),
+      lesson({
+        className: "10-B",
+        subjectName: "ÇOK UZUN DERS ADI BURADA",
+        teacherName: "B",
+        dayOfWeek: 0,
+        startTime: "09:00",
+      }),
+    ]);
+    expect(longestCarsafSubjectLength(matrix)).toBe(
+      "ÇOK UZUN DERS ADI BURADA".length
+    );
+    expect(longestCarsafCellLength(matrix)).toBe(
+      "ÇOK UZUN DERS ADI BURADA B".length
     );
   });
 });

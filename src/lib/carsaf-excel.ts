@@ -3,6 +3,7 @@ import { DAY_NAMES_SHORT } from "./types";
 import {
   buildOgretmenCarsafMatrix,
   buildSinifCarsafMatrix,
+  longestCarsafCellLength,
   type CarsafMatrix,
   type LessonData,
   type PdfScheduleContext,
@@ -59,10 +60,18 @@ function downloadCarsafWorkbook(
   const { rows, merges } = carsafMatrixToSheetRows(matrix);
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet["!merges"] = merges;
+
+  const labelWch = Math.max(
+    matrix.labelHeader.length,
+    8,
+    ...matrix.rows.map((r) => r.label.length)
+  );
+  // En uzun ders adı (veya tek satır hücre) bir satıra sığsın
+  const dataWch = Math.max(longestCarsafCellLength(matrix) + 1, 10);
   sheet["!cols"] = [
-    { wch: 18 },
+    { wch: labelWch + 1 },
     ...Array.from({ length: Math.max(rows[0].length - 1, 0) }, () => ({
-      wch: 22,
+      wch: dataWch,
     })),
   ];
 
