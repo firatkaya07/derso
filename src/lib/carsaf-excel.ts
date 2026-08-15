@@ -3,7 +3,8 @@ import { DAY_NAMES_SHORT } from "./types";
 import {
   buildOgretmenCarsafMatrix,
   buildSinifCarsafMatrix,
-  longestCarsafCellLength,
+  sinifCarsafDataColChars,
+  wrapWordsToLines,
   type CarsafMatrix,
   type LessonData,
   type PdfScheduleContext,
@@ -55,7 +56,8 @@ export function carsafMatrixToSheetRows(matrix: CarsafMatrix): {
 function downloadCarsafWorkbook(
   matrix: CarsafMatrix,
   sheetName: string,
-  fileName: string
+  fileName: string,
+  dataColChars?: number
 ) {
   const { rows, merges } = carsafMatrixToSheetRows(matrix);
   const sheet = XLSX.utils.aoa_to_sheet(rows);
@@ -66,8 +68,7 @@ function downloadCarsafWorkbook(
     8,
     ...matrix.rows.map((r) => r.label.length)
   );
-  // En uzun ders adı (veya tek satır hücre) bir satıra sığsın
-  const dataWch = Math.max(longestCarsafCellLength(matrix) + 1, 10);
+  const dataWch = Math.max(dataColChars ?? 10, 10) + 1;
   sheet["!cols"] = [
     { wch: labelWch + 1 },
     ...Array.from({ length: Math.max(rows[0].length - 1, 0) }, () => ({
@@ -80,9 +81,20 @@ function downloadCarsafWorkbook(
   XLSX.writeFile(workbook, fileName, { compression: true });
 }
 
-/** Excel hücresinde ders ile öğretmen arasına boşluk (tek satır). */
-export function formatSinifCarsafExcelCell(plain: string): string {
-  return plain.replace(/\n+/g, " ").trim();
+/**
+ * Excel hücresi: ders üst satır, öğretmen kelime ortasından bölünmeden alt satır(lar).
+ */
+export function formatSinifCarsafExcelCell(
+  plain: string,
+  colChars: number
+): string {
+  const parts = plain.split("\n").filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  const subject = parts[0];
+  const teacher = parts.slice(1).join(" ").trim();
+  const teacherLines = wrapWordsToLines(teacher, colChars, 2);
+  return [subject, ...teacherLines].join("\n");
 }
 
 export function downloadSinifCarsafExcel(
@@ -91,16 +103,20 @@ export function downloadSinifCarsafExcel(
   fileName = "sinif-carsaf-listesi.xlsx"
 ) {
   const matrix = buildSinifCarsafMatrix(lessons, context);
+  const colChars = sinifCarsafDataColChars(matrix, 2);
   downloadCarsafWorkbook(
     {
       ...matrix,
       rows: matrix.rows.map((row) => ({
         ...row,
-        cells: row.cells.map(formatSinifCarsafExcelCell),
+        cells: row.cells.map((cell) =>
+          formatSinifCarsafExcelCell(cell, colChars)
+        ),
       })),
     },
     "Sınıf Çarşaf",
-    fileName
+    fileName,
+    colChars
   );
 }
 
@@ -109,9 +125,10 @@ export function downloadOgretmenCarsafExcel(
   context: PdfScheduleContext = {},
   fileName = "ogretmen-carsaf-listesi.xlsx"
 ) {
-  downloadCarsafWorkbook(
-    buildOgretmenCarsafMatrix(lessons, context),
-    "Öğretmen Çarşaf",
-    fileName
+  const matrix = buildOgretmenCarsafMatrix(lessons, context);
+  const lineLens = matrix.rows.flatMap((r) =>
+    r.cells.flatMap((c) => c.split("\n").map((line) => line.length))
   );
+  const colChars = Math.max(10, ...lineLens);
+  downloadCarsafWorkbook(matrix, "Öğretmen Çarşaf", fileName, colChars);
 }

@@ -10,6 +10,9 @@ import {
   formatTeacherProgramCell,
   longestCarsafCellLength,
   longestCarsafSubjectLength,
+  minWidthForWordWrap,
+  sinifCarsafDataColChars,
+  wrapWordsToLines,
   type LessonData,
 } from "@/lib/pdf-generator";
 import {
@@ -160,9 +163,15 @@ describe("formatSinifCarsafPlain", () => {
 });
 
 describe("formatSinifCarsafExcelCell", () => {
-  it("ders ile öğretmen arasına boşluk koyar", () => {
-    expect(formatSinifCarsafExcelCell("MATEMATİK 1\nAyşe Yılmaz")).toBe(
-      "MATEMATİK 1 Ayşe Yılmaz"
+  it("ders üstte, öğretmeni kelime sınırında böler", () => {
+    expect(
+      formatSinifCarsafExcelCell("MATEMATİK 1\nAhmet Muhammet Veli", 14)
+    ).toBe("MATEMATİK 1\nAhmet Muhammet\nVeli");
+  });
+
+  it("kısa öğretmen adını tek satırda bırakır", () => {
+    expect(formatSinifCarsafExcelCell("MATEMATİK 1\nAyşe Yılmaz", 20)).toBe(
+      "MATEMATİK 1\nAyşe Yılmaz"
     );
   });
 });
@@ -190,6 +199,29 @@ describe("çarşaf sütun genişliği", () => {
     expect(longestCarsafCellLength(matrix)).toBe(
       "ÇOK UZUN DERS ADI BURADA B".length
     );
+  });
+
+  it("öğretmen adını kelime ortasından bölmeden genişlik hesaplar", () => {
+    // En dar genişlik: "Ahmet" / "Muhammet Veli" → 13
+    expect(minWidthForWordWrap("Ahmet Muhammet Veli", 2)).toBe(13);
+    expect(wrapWordsToLines("Ahmet Muhammet Veli", 14, 2)).toEqual([
+      "Ahmet Muhammet",
+      "Veli",
+    ]);
+    expect(wrapWordsToLines("Ahmet Muhammet Veli", 13, 2)).toEqual([
+      "Ahmet",
+      "Muhammet Veli",
+    ]);
+
+    const matrix = buildSinifCarsafMatrix([
+      lesson({
+        subjectName: "MAT",
+        teacherName: "Ahmet Muhammet Veli",
+        dayOfWeek: 0,
+        startTime: "09:00",
+      }),
+    ]);
+    expect(sinifCarsafDataColChars(matrix, 2)).toBe(13);
   });
 });
 

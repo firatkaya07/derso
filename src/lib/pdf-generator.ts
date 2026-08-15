@@ -183,6 +183,71 @@ function formatCarsafMultilineHtml(cell: string, secondarySize: string): string 
   return `${esc(parts[0])}<div style="font-size:${secondarySize};color:#333;font-weight:normal;margin-top:1px">${esc(parts.slice(1).join(" "))}</div>`;
 }
 
+/**
+ * Kelimeleri ortadan bölmeden, en fazla maxLines satıra sığdırır.
+ * Örn. width=14 → "Ahmet Muhammet" / "Veli"
+ */
+export function wrapWordsToLines(
+  text: string,
+  width: number,
+  maxLines = 2
+): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  if (maxLines < 1) return [words.join(" ")];
+
+  const lines: string[] = [];
+  let i = 0;
+  while (i < words.length && lines.length < maxLines - 1) {
+    let cur = words[i++];
+    while (i < words.length) {
+      const trial = `${cur} ${words[i]}`;
+      if (trial.length > width) break;
+      cur = trial;
+      i++;
+    }
+    lines.push(cur);
+  }
+  if (i < words.length) {
+    lines.push(words.slice(i).join(" "));
+  }
+  return lines;
+}
+
+function canPackWords(words: string[], width: number, maxLines: number): boolean {
+  let lines = 1;
+  let cur = 0;
+  for (const w of words) {
+    if (w.length > width) return false;
+    const next = cur === 0 ? w.length : cur + 1 + w.length;
+    if (next <= width) {
+      cur = next;
+    } else {
+      lines += 1;
+      cur = w.length;
+      if (lines > maxLines) return false;
+    }
+  }
+  return true;
+}
+
+/** Kelime ortasından bölmeden maxLines satıra sığmak için gereken min karakter genişliği. */
+export function minWidthForWordWrap(text: string, maxLines = 2): number {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 0;
+  const longestWord = Math.max(...words.map((w) => w.length));
+  if (words.length === 1) return words[0].length;
+
+  let lo = longestWord;
+  let hi = text.trim().length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (canPackWords(words, mid, maxLines)) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
 export interface CarsafMatrix {
   labelHeader: string;
   days: number[];
@@ -212,6 +277,55 @@ export function longestCarsafCellLength(matrix: CarsafMatrix): number {
     }
   }
   return max;
+}
+
+/**
+ * Sınıf çarşaf veri sütunu: ders adı tek satır + öğretmen en fazla 2 satır
+ * (kelime ortasından bölünmeden) sığacak ortak genişlik.
+ */
+export function sinifCarsafDataColChars(
+  matrix: CarsafMatrix,
+  teacherMaxLines = 2
+): number {
+  let max = Math.max(longestCarsafSubjectLength(matrix), 4);
+  for (const row of matrix.rows) {
+    for (const cell of row.cells) {
+      if (!cell) continue;
+      const parts = cell.split("\n").filter(Boolean);
+      const teacher =
+        parts.length > 1 ? parts.slice(1).join(" ").trim() : "";
+      if (teacher) {
+        max = Math.max(max, minWidthForWordWrap(teacher, teacherMaxLines));
+      }
+    }
+  }
+  return max;
+}
+
+/** Sınıf çarşaf PDF hücresi: ders tek satır, öğretmen kelime sınırında kırılır. */
+export function formatSinifCarsafPdfHtml(
+  cell: string,
+  colChars: number,
+  secondarySize: string
+): string {
+  if (!cell) return "";
+  const parts = cell.split("\n").filter(Boolean);
+  if (parts.length === 0) return "";
+
+  if (parts.length === 1) {
+    return `<span class="subject">${esc(parts[0])}</span>`;
+  }
+
+  const subject = parts[0];
+  const teacher = parts.slice(1).join(" ").trim();
+  const teacherLines = wrapWordsToLines(teacher, colChars, 2);
+  const teacherHtml = teacherLines
+    .map(
+      (line) =>
+        `<div class="teacher-line" style="font-size:${secondarySize};color:#333;font-weight:normal;margin-top:1px">${esc(line)}</div>`
+    )
+    .join("");
+  return `<span class="subject">${esc(subject)}</span>${teacherHtml}`;
 }
 
 /** Sınıf çarşaf ızgarası — PDF ve Excel ortak veri kaynağı. */
@@ -472,13 +586,13 @@ export function generateSinifCarsafPdf(
   context: PdfScheduleContext = {}
 ): PrintOutcome {
   const matrix = buildSinifCarsafMatrix(lessons, context);
-  const subjectCh = Math.max(longestCarsafSubjectLength(matrix), 4);
+  const colChars = sinifCarsafDataColChars(matrix, 2);
   const labelCh = Math.max(
     matrix.labelHeader.length,
     4,
     ...matrix.rows.map((r) => r.label.length)
   );
-  const dataColWidth = `${subjectCh + 1}ch`;
+  const dataColWidth = `${colChars + 1}ch`;
   const labelColWidth = `${labelCh + 1}ch`;
 
   let tableHtml = `<tr><th rowspan="2" style="width:${labelColWidth}">${esc(matrix.labelHeader)}</th>`;
@@ -496,7 +610,7 @@ export function generateSinifCarsafPdf(
   for (const row of matrix.rows) {
     tableHtml += `<tr><td class="row-label">${esc(row.label)}</td>`;
     for (const cell of row.cells) {
-      tableHtml += `<td class="slot-cell">${formatCarsafMultilineHtml(cell, "6.5px")}</td>`;
+      tableHtml += `<td class="slot-cell">${formatSinifCarsafPdfHtml(cell, colChars, "6.5px")}</td>`;
     }
     tableHtml += `</tr>`;
   }
@@ -517,15 +631,21 @@ export function generateSinifCarsafPdf(
     td.slot-cell {
       width: ${dataColWidth};
       min-width: ${dataColWidth};
-      height: 34px;
-      max-height: 34px;
+      height: 46px;
       font-size: 7.5px;
       font-weight: bold;
       line-height: 1.15;
       vertical-align: middle;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: normal;
+      word-break: keep-all;
     }
-    td.slot-cell > div { white-space: nowrap; }
+    td.slot-cell .subject,
+    td.slot-cell .teacher-line {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+    }
   </style></head><body>
     ${documentHeader(settings, { compact: true })}
     <h1>SINIF ÇARŞAF LİSTESİ</h1>
