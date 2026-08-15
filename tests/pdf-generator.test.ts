@@ -4,6 +4,7 @@ import {
   buildSinifCarsafMatrix,
   buildSubjectTeacherRows,
   buildTeacherClassSubjectRows,
+  formatSinifCarsafPlain,
   formatTeacherCarsafCell,
   formatTeacherCarsafPlain,
   formatTeacherProgramCell,
@@ -82,6 +83,7 @@ describe("çarşaf matrisleri", () => {
   const lessons: LessonData[] = [
     lesson({
       className: "10-A",
+      subjectName: "MATEMATİK 1",
       subjectShortName: "MAT1",
       teacherName: "Ayşe",
       dayOfWeek: 0,
@@ -101,6 +103,7 @@ describe("çarşaf matrisleri", () => {
     lesson({
       classId: "c9",
       className: "9-A",
+      subjectName: "TÜRKÇE",
       subjectShortName: "TÜR",
       teacherName: "Deniz",
       teacherId: "t2",
@@ -109,13 +112,13 @@ describe("çarşaf matrisleri", () => {
     }),
   ];
 
-  it("sınıf çarşafında ders kısa adlarını yerleştirir", () => {
+  it("sınıf çarşafında ders ve öğretmen adlarını yerleştirir", () => {
     const matrix = buildSinifCarsafMatrix(lessons);
     expect(matrix.labelHeader).toBe("Sınıf");
     expect(matrix.days).toEqual([0, 1]);
     const row10 = matrix.rows.find((r) => r.label === "10-A");
-    expect(row10?.cells[0]).toBe("MAT1");
-    expect(row10?.cells[1]).toBe("PRB");
+    expect(row10?.cells[0]).toBe("MATEMATİK 1\nAyşe");
+    expect(row10?.cells[1]).toBe("PROBLEM\nAyşe");
   });
 
   it("öğretmen çarşafında sınıf+ders düz metnini yerleştirir", () => {
@@ -132,6 +135,22 @@ describe("çarşaf matrisleri", () => {
     expect(rows[0][1]).toBe("PZT");
     expect(merges.length).toBeGreaterThan(0);
     expect(rows.some((r) => r[0] === "10-A")).toBe(true);
+    const dataRow = rows.find((r) => r[0] === "10-A");
+    expect(dataRow?.[1]).toBe("MATEMATİK 1\nAyşe");
+  });
+});
+
+describe("formatSinifCarsafPlain", () => {
+  it("ders adı ve öğretmeni satır kırımlı verir", () => {
+    expect(
+      formatSinifCarsafPlain(
+        lesson({
+          subjectName: "MATEMATİK 1",
+          subjectShortName: "MAT1",
+          teacherName: "Ayşe Yılmaz",
+        })
+      )
+    ).toBe("MATEMATİK 1\nAyşe Yılmaz");
   });
 });
 

@@ -161,6 +161,28 @@ export function formatTeacherCarsafPlain(lesson: LessonData): string {
   return `${lesson.className}\n${subject}`;
 }
 
+/**
+ * Sınıf çarşaf hücresi: ders adı + öğretmen adı.
+ * PDF ve Excel aynı düz metni kullanır; satırlar \\n ile ayrılır.
+ */
+export function formatSinifCarsafPlain(lesson: LessonData): string {
+  const subject = lesson.subjectName || lesson.subjectShortName;
+  const teacher = lesson.teacherName?.trim() || "";
+  if (!subject && !teacher) return "";
+  if (!teacher) return subject;
+  if (!subject) return teacher;
+  return `${subject}\n${teacher}`;
+}
+
+/** Çarşaf PDF hücresinde \\n ile ayrılmış satırları HTML'e çevirir. */
+function formatCarsafMultilineHtml(cell: string, secondarySize: string): string {
+  if (!cell) return "";
+  const parts = cell.split("\n").filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return esc(parts[0]);
+  return `${esc(parts[0])}<div style="font-size:${secondarySize};color:#333;font-weight:normal;margin-top:1px">${esc(parts.slice(1).join(" "))}</div>`;
+}
+
 export interface CarsafMatrix {
   labelHeader: string;
   days: number[];
@@ -193,7 +215,7 @@ export function buildSinifCarsafMatrix(
             l.dayOfWeek === day &&
             l.startTime === slot.start
         );
-        cells.push(lesson?.subjectShortName || "");
+        cells.push(lesson ? formatSinifCarsafPlain(lesson) : "");
       }
     }
     return { label: cls, cells };
@@ -442,7 +464,7 @@ export function generateSinifCarsafPdf(
   for (const row of matrix.rows) {
     tableHtml += `<tr><td style="font-size:10px">${esc(row.label)}</td>`;
     for (const cell of row.cells) {
-      tableHtml += `<td style="font-size:9px">${esc(cell)}</td>`;
+      tableHtml += `<td style="font-size:8px;font-weight:bold;line-height:1.15">${formatCarsafMultilineHtml(cell, "7px")}</td>`;
     }
     tableHtml += `</tr>`;
   }
@@ -486,12 +508,7 @@ export function generateOgretmenCarsafPdf(
   for (const row of matrix.rows) {
     tableHtml += `<tr><td style="font-size:9px;text-align:left;padding-left:5px">${esc(row.label)}</td>`;
     for (const cell of row.cells) {
-      const parts = cell.split("\n");
-      const cellHtml =
-        parts.length > 1
-          ? `${esc(parts[0])}<div style="font-size:6px;color:#333">${esc(parts.slice(1).join(" "))}</div>`
-          : esc(cell);
-      tableHtml += `<td style="font-size:7px">${cellHtml}</td>`;
+      tableHtml += `<td style="font-size:7px">${formatCarsafMultilineHtml(cell, "6px")}</td>`;
     }
     tableHtml += `</tr>`;
   }

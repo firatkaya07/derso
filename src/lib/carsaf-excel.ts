@@ -62,7 +62,7 @@ function downloadCarsafWorkbook(
   sheet["!cols"] = [
     { wch: 18 },
     ...Array.from({ length: Math.max(rows[0].length - 1, 0) }, () => ({
-      wch: 10,
+      wch: 14,
     })),
   ];
 

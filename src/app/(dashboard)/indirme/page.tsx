@@ -49,7 +49,7 @@ const DOWNLOADS: {
     id: "sinif-carsaf",
     title: "Sınıf Çarşaf Listesi",
     description:
-      "Tüm sınıfların haftalık ders programı tek tabloda. Satırlar sınıflar, sütunlar gün ve ders saatleri. PDF veya Excel olarak indirebilirsiniz.",
+      "Tüm sınıfların haftalık ders programı tek tabloda. Hücrelerde ders adı ve öğretmen. PDF veya Excel olarak indirebilirsiniz.",
     icon: "M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z",
     color: "blue",
     excel: true,
