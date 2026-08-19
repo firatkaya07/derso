@@ -1,7 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import ScheduleHeroVisual from "./ScheduleHeroVisual";
 import PricingSection from "./PricingSection";
+import { MarketingFooter, MarketingNav } from "./MarketingChrome";
 
 const STEPS = [
   {
@@ -17,17 +18,29 @@ const STEPS = [
   {
     num: "03",
     title: "Düzenleyip yazdırın",
-    text: "Sınıf ve öğretmen ızgarasında ince ayar yapın, resmî formatta çıktı alın.",
+    text: "Sınıf ve öğretmen ızgarasında ince ayar yapın, Excel veya PDF çıktı alın.",
   },
 ];
 
-const CAPABILITIES = [
+type Capability = {
+  id: string;
+  kicker: string;
+  title: string;
+  paragraphs: ReactNode[];
+};
+
+const CAPABILITIES: Capability[] = [
   {
     id: "esnek",
     kicker: "Esnek planlama",
     title: "Esnek ders programlarını kolayca yönetin",
     paragraphs: [
-      "Her eğitim kurumunun ders planlama ihtiyaçları aynı değildir. Derso ile standart haftalık programların yanı sıra kurumunuza özel esnek ders programları oluşturabilir ve yönetebilirsiniz.",
+      <>
+        Her eğitim kurumunun ders planlama ihtiyaçları aynı değildir. Derso ile
+        standart haftalık programların yanı sıra kurumunuza özel{" "}
+        <Link href="/esnek-ders-programi">esnek ders programları</Link>{" "}
+        oluşturabilir ve yönetebilirsiniz.
+      </>,
       "Öğretmenlerin uygunluklarını, farklı ders saatlerini, sınıf ihtiyaçlarını ve kurumunuza özel planlama kurallarını tanımlayarak ders programınızı kendi çalışma düzeninize göre şekillendirebilirsiniz.",
       "Program oluşturulduktan sonra gerekli değişiklikleri kolayca yapabilir, derslerin gün ve saatlerini ihtiyacınıza göre düzenleyebilirsiniz.",
     ],
@@ -37,7 +50,12 @@ const CAPABILITIES = [
     kicker: "7 gün planlama",
     title: "Hafta sonunu da kapsayan ders programları oluşturun",
     paragraphs: [
-      "Eğitim yalnızca hafta içiyle sınırlı değil. Özellikle kurs merkezleri, özel öğretim kurumları ve etüt merkezleri için Cumartesi ve Pazar günlerini kapsayan ders programları oluşturabilirsiniz.",
+      <>
+        Eğitim yalnızca hafta içiyle sınırlı değil. Özellikle{" "}
+        <Link href="/kurs-ders-programi">kurs merkezleri</Link>, özel öğretim
+        kurumları ve etüt merkezleri için Cumartesi ve Pazar günlerini kapsayan
+        ders programları oluşturabilirsiniz.
+      </>,
       "Derso ile haftanın 7 günü için ders planlaması yapabilir; hafta içi ve hafta sonu derslerini aynı program üzerinden yönetebilirsiniz.",
       "Böylece farklı çalışma günlerine ve saatlerine sahip kurumlar için çok daha esnek bir ders planlama süreci oluşturabilirsiniz.",
     ],
@@ -47,29 +65,49 @@ const CAPABILITIES = [
     kicker: "Dışa aktarım",
     title: "Ders programınızı Excel ve PDF olarak dışa aktarın",
     paragraphs: [
-      "Hazırladığınız ders programlarını yalnızca sistem üzerinden görüntülemekle kalmaz, ihtiyaç duyduğunuzda Excel ve PDF formatında dışa aktarabilirsiniz.",
+      <>
+        Hazırladığınız ders programlarını yalnızca sistem üzerinden görüntülemekle
+        kalmaz, ihtiyaç duyduğunuzda{" "}
+        <Link href="/ders-programi-excel-pdf">Excel ve PDF</Link> formatında dışa
+        aktarabilirsiniz.
+      </>,
       "Sınıf ve öğretmen programlarını Excel veya PDF olarak indirerek kurum yönetimiyle paylaşabilir, öğretmenlere iletebilir veya çıktı alarak kurum içerisinde kullanabilirsiniz.",
       "Bu sayede hazırladığınız programları farklı platformlarda kullanabilir ve arşivleyebilirsiniz.",
     ],
   },
 ];
 
-const REASONS = [
-  "Otomatik ders programı oluşturma",
-  "Öğretmen ve sınıf çakışma kontrolü",
-  "Öğretmen uygunluklarını tanımlama",
-  "Haftalık ders saatlerini otomatik dağıtma",
-  "Haftanın 7 günü ders programı oluşturma",
-  "Cumartesi ve Pazar derslerini planlama",
-  "Esnek ders programları oluşturma ve yönetme",
-  "Excel ile toplu veri aktarımı",
-  "Ders programını Excel olarak dışa aktarma",
-  "Ders programını PDF olarak dışa aktarma",
-  "Sınıf bazlı ders programı görüntüleme",
-  "Öğretmen bazlı ders programı görüntüleme",
-  "Program üzerinde manuel düzenleme",
-  "Yazdırılabilir ders programları ve çarşaf listeleri",
-  "Okul, kurs merkezi ve çok şubeli eğitim kurumları için kullanım",
+const REASONS: { text: string; href?: string }[] = [
+  { text: "Otomatik ders programı oluşturma", href: "/otomatik-ders-programi" },
+  { text: "Öğretmen ve sınıf çakışma kontrolü" },
+  { text: "Öğretmen uygunluklarını tanımlama", href: "/ogretmen-ders-programi" },
+  { text: "Haftalık ders saatlerini otomatik dağıtma" },
+  { text: "Haftanın 7 günü ders programı oluşturma", href: "/esnek-ders-programi" },
+  { text: "Cumartesi ve Pazar derslerini planlama" },
+  {
+    text: "Esnek ders programları oluşturma ve yönetme",
+    href: "/esnek-ders-programi",
+  },
+  { text: "Excel ile toplu veri aktarımı" },
+  {
+    text: "Ders programını Excel olarak dışa aktarma",
+    href: "/ders-programi-excel-pdf",
+  },
+  {
+    text: "Ders programını PDF olarak dışa aktarma",
+    href: "/ders-programi-excel-pdf",
+  },
+  { text: "Sınıf bazlı ders programı görüntüleme" },
+  {
+    text: "Öğretmen bazlı ders programı görüntüleme",
+    href: "/ogretmen-ders-programi",
+  },
+  { text: "Program üzerinde manuel düzenleme" },
+  { text: "Yazdırılabilir ders programları ve çarşaf listeleri" },
+  {
+    text: "Okul, kurs merkezi ve çok şubeli eğitim kurumları için kullanım",
+    href: "/okul-ders-programi",
+  },
 ];
 
 const FAQS = [
@@ -94,37 +132,7 @@ const FAQS = [
 export default function LandingPage() {
   return (
     <div className="landing">
-      <header className="landing-nav">
-        <div className="landing-nav__inner">
-          <Link href="/" className="landing-brand" aria-label="Derso ana sayfa">
-            <Image
-              src="/logo.webp"
-              alt="Derso logosu"
-              width={40}
-              height={40}
-              className="landing-brand__mark"
-              priority
-            />
-            <span className="landing-brand__name">Derso</span>
-          </Link>
-
-          <nav className="landing-nav__links" aria-label="Sayfa bölümleri">
-            <a href="#nasil">Nasıl çalışır</a>
-            <a href="#ozellikler">Özellikler</a>
-            <a href="#ucretlendirme">Ücretlendirme</a>
-            <a href="#sss">Sıkça sorulanlar</a>
-          </nav>
-
-          <div className="landing-nav__actions">
-            <Link href="/login" className="landing-btn landing-btn--ghost">
-              Giriş Yap
-            </Link>
-            <Link href="/login" className="landing-btn landing-btn--solid">
-              Ücretsiz Başla
-            </Link>
-          </div>
-        </div>
-      </header>
+      <MarketingNav />
 
       <main>
         <section className="landing-hero" aria-labelledby="landing-hero-title">
@@ -133,13 +141,19 @@ export default function LandingPage() {
             <div className="landing-hero__copy">
               <p className="landing-hero__brand">Derso</p>
               <h1 id="landing-hero-title" className="landing-hero__title">
-                Haftalık ders programını
-                <span> dakikalar içinde kurun</span>
+                Ders Programı Hazırlamanın
+                <span> En Kolay Yolu</span>
               </h1>
               <p className="landing-hero__lede">
-                Kurs merkezleri ve okullar için ders programı yazılımı:
-                öğretmen, sınıf ve dersleri yönetin; otomatik dağıtın, elle ince
-                ayar yapın, yazdırın.
+                Derso ile{" "}
+                <Link href="/otomatik-ders-programi">otomatik ders programı</Link>{" "}
+                oluşturarak öğretmen ve sınıf çakışmalarını önleyebilirsiniz.{" "}
+                <Link href="/okul-ders-programi">Okul</Link> ve{" "}
+                <Link href="/kurs-ders-programi">kurs merkezleri</Link> için{" "}
+                <Link href="/esnek-ders-programi">esnek ders programları</Link>{" "}
+                hazırlayın;{" "}
+                <Link href="/ders-programi-excel-pdf">Excel ve PDF</Link> çıktısı
+                alın.
               </p>
               <div className="landing-hero__cta">
                 <Link href="/login" className="landing-btn landing-btn--accent">
@@ -192,8 +206,8 @@ export default function LandingPage() {
                 {item.title}
               </h2>
               <div className="landing-capability__body">
-                {item.paragraphs.map((text) => (
-                  <p key={text}>{text}</p>
+                {item.paragraphs.map((text, i) => (
+                  <p key={i}>{text}</p>
                 ))}
               </div>
             </div>
@@ -204,16 +218,26 @@ export default function LandingPage() {
           <div className="landing-section__inner">
             <p className="landing-kicker">Neden Derso</p>
             <h2 className="landing-section__title landing-section__title--wide">
-              Neden Derso ders programı?
+              Neden Derso ders programı hazırlama programı?
             </h2>
             <p className="landing-section__lede">
               Derso, eğitim kurumlarının karmaşık ders dağıtım süreçlerini daha
-              hızlı ve kolay yönetebilmesi için geliştirilmiştir.
+              hızlı ve kolay yönetebilmesi için geliştirilmiştir.{" "}
+              <Link href="/blog/ders-programi-nasil-hazirlanir">
+                Ders programı nasıl hazırlanır?
+              </Link>{" "}
+              rehberine de göz atabilirsiniz.
             </p>
 
             <ul className="landing-reasons">
               {REASONS.map((reason) => (
-                <li key={reason}>{reason}</li>
+                <li key={reason.text}>
+                  {reason.href ? (
+                    <Link href={reason.href}>{reason.text}</Link>
+                  ) : (
+                    reason.text
+                  )}
+                </li>
               ))}
             </ul>
           </div>
@@ -254,29 +278,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="landing-footer">
-        <div className="landing-footer__inner">
-          <Link href="/" className="landing-brand landing-brand--footer">
-            <Image
-              src="/logo.webp"
-              alt="Derso logosu"
-              width={28}
-              height={28}
-              className="landing-brand__mark"
-            />
-            <span className="landing-brand__name">Derso</span>
-          </Link>
-          <nav className="landing-footer__nav" aria-label="Alt bilgi">
-            <a href="#nasil">Nasıl çalışır</a>
-            <a href="#ozellikler">Özellikler</a>
-            <a href="#ucretlendirme">Ücretlendirme</a>
-            <a href="#sss">SSS</a>
-            <Link href="/login">Giriş</Link>
-          </nav>
-          <p>Kurs ve okul ders programı yönetimi</p>
-          <p className="landing-footer__copy">© {new Date().getFullYear()} Derso. Tüm hakları saklıdır.</p>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/env";
+import { isPublicMarketingPath } from "@/lib/marketing-routes";
 
 function isSeoAsset(path: string): boolean {
   return (
@@ -44,10 +45,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublic =
-    path === "/" ||
-    path.startsWith("/login") ||
-    path.startsWith("/auth");
+  const isPublic = isPublicMarketingPath(path);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

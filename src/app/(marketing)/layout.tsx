@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
-import LandingJsonLd from "@/components/landing/LandingJsonLd";
-import {
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  SITE_TAGLINE,
-  getSiteUrl,
-} from "@/lib/site";
 import "./landing.css";
 
 const display = Bricolage_Grotesque({
@@ -21,28 +14,9 @@ const sans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const siteUrl = getSiteUrl();
-
+/** Alt sayfalar kendi metadata'sını override eder; layout sadece font/CSS sağlar. */
 export const metadata: Metadata = {
-  title: {
-    absolute: `${SITE_NAME} — Kurs ve okul ders programı`,
-  },
-  description: SITE_DESCRIPTION,
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION,
-    url: siteUrl,
-    type: "website",
-    locale: "tr_TR",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
-    description: SITE_DESCRIPTION,
-  },
+  robots: { index: true, follow: true },
 };
 
 export default function MarketingLayout({
@@ -52,7 +26,6 @@ export default function MarketingLayout({
 }) {
   return (
     <div className={`${display.variable} ${sans.variable}`}>
-      <LandingJsonLd />
       {children}
     </div>
   );

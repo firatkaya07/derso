@@ -26,23 +26,28 @@ export function getSiteUrl(): string {
 export const SITE_NAME = "Derso";
 
 export const SITE_TAGLINE =
-  "Eğitim kurumları için ders programı ve otomasyon yönetimi";
+  "Ders programı hazırlama programı — otomatik ders programı";
 
 export const SITE_DESCRIPTION =
-  "Kurs merkezleri, okullar, özel öğretim kurumları ve etüt merkezleri için ders programı ve otomasyon yönetimi. Haftalık programı otomatik oluşturun; öğretmen, sınıf ve dersleri çakışmasız dağıtın, yazdırılabilir çıktı alın.";
+  "Derso ile okul ve kurslar için otomatik ders programı oluşturun. Öğretmen ve sınıf çakışmalarını önleyin, esnek programlar hazırlayın, Excel ve PDF çıktısı alın.";
+
+/** Ana sayfa SEO title (absolute). */
+export const HOME_SEO_TITLE =
+  "Ders Programı Hazırlama Programı | Otomatik Ders Programı | Derso";
 
 export const SITE_KEYWORDS = [
-  "ders programı",
-  "ders dağıtım",
-  "okul programı",
-  "kurs merkezi",
-  "özel öğretim kurumu",
-  "etüt merkezi",
-  "eğitim kurumu",
-  "otomatik çizelgeleme",
-  "öğretmen programı",
-  "sınıf programı",
-  "ders programı otomasyon",
+  "ders programı hazırlama programı",
+  "ders programı hazırlama",
+  "ders programı oluşturma",
+  "otomatik ders programı",
+  "ders dağıtım programı",
+  "haftalık ders programı",
+  "öğretmen ders programı",
+  "okul ders programı",
+  "kurs ders programı",
+  "esnek ders programı",
+  "Excel ders programı",
+  "PDF ders programı",
   "Derso",
   "Dersomatik",
 ] as const;
