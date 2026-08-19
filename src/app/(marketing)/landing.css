@@ -406,6 +406,10 @@
   max-width: 18ch;
 }
 
+.landing-section__title--wide {
+  max-width: 28ch;
+}
+
 .landing-section__lede {
   margin-top: 0.85rem;
   font-size: 1.05rem;
@@ -455,35 +459,62 @@
   max-width: 34rem;
 }
 
-.landing-features {
-  background:
-    linear-gradient(180deg, #dff3ec 0%, var(--landing-mist) 40%, var(--landing-paper) 100%);
+.landing-capability {
+  background: var(--landing-paper);
 }
 
-.landing-features__list {
-  margin-top: 3rem;
+.landing-capability--alt {
+  background:
+    linear-gradient(180deg, #dff3ec 0%, var(--landing-mist) 55%, var(--landing-paper) 100%);
+}
+
+.landing-capability__body {
+  margin-top: 1.35rem;
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.landing-capability__body p {
+  color: var(--landing-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.landing-features {
+  background:
+    linear-gradient(180deg, var(--landing-paper) 0%, #dff3ec 50%, var(--landing-mist) 100%);
+}
+
+.landing-reasons {
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
   display: grid;
   gap: 0;
   border-top: 1px solid var(--landing-line);
 }
 
-.landing-features__item {
-  padding: 1.75rem 0;
+.landing-reasons li {
+  position: relative;
+  padding: 0.95rem 0 0.95rem 1.45rem;
   border-bottom: 1px solid var(--landing-line);
+  color: var(--landing-ink-soft);
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
-.landing-features__item h3 {
-  font-family: var(--landing-display);
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.45rem;
-}
-
-.landing-features__item p {
-  color: var(--landing-muted);
-  line-height: 1.55;
-  max-width: 40rem;
+.landing-reasons li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.25rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--landing-teal);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
 }
 
 /* ── Pricing ── */
@@ -882,22 +913,14 @@
     padding-left: 0;
   }
 
-  .landing-features__list {
-    grid-template-columns: repeat(3, 1fr);
+  .landing-reasons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0 2rem;
     border-top: none;
   }
 
-  .landing-features__item {
-    border-bottom: none;
-    padding: 0;
-    border-left: 1px solid var(--landing-line);
-    padding-left: 1.5rem;
-  }
-
-  .landing-features__item:first-child {
-    border-left: none;
-    padding-left: 0;
+  .landing-reasons li {
+    border-bottom: 1px solid var(--landing-line);
   }
 
   .landing-cta__inner {

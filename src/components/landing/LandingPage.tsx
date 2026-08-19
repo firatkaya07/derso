@@ -21,19 +21,55 @@ const STEPS = [
   },
 ];
 
-const HIGHLIGHTS = [
+const CAPABILITIES = [
   {
-    title: "Çakışmasız çizelge",
-    text: "Sınıf ve öğretmen aynı anda tek yerde. İzin günleri ve günlük ders limiti korunur.",
+    id: "esnek",
+    kicker: "Esnek planlama",
+    title: "Esnek ders programlarını kolayca yönetin",
+    paragraphs: [
+      "Her eğitim kurumunun ders planlama ihtiyaçları aynı değildir. Derso ile standart haftalık programların yanı sıra kurumunuza özel esnek ders programları oluşturabilir ve yönetebilirsiniz.",
+      "Öğretmenlerin uygunluklarını, farklı ders saatlerini, sınıf ihtiyaçlarını ve kurumunuza özel planlama kurallarını tanımlayarak ders programınızı kendi çalışma düzeninize göre şekillendirebilirsiniz.",
+      "Program oluşturulduktan sonra gerekli değişiklikleri kolayca yapabilir, derslerin gün ve saatlerini ihtiyacınıza göre düzenleyebilirsiniz.",
+    ],
   },
   {
-    title: "Excel ile hızlı kurulum",
-    text: "Şablonu doldurun; doğrulama satır satır hata gösterir, aynı dosyayı tekrar aktarabilirsiniz.",
+    id: "hafta-sonu",
+    kicker: "7 gün planlama",
+    title: "Hafta sonunu da kapsayan ders programları oluşturun",
+    paragraphs: [
+      "Eğitim yalnızca hafta içiyle sınırlı değil. Özellikle kurs merkezleri, özel öğretim kurumları ve etüt merkezleri için Cumartesi ve Pazar günlerini kapsayan ders programları oluşturabilirsiniz.",
+      "Derso ile haftanın 7 günü için ders planlaması yapabilir; hafta içi ve hafta sonu derslerini aynı program üzerinden yönetebilirsiniz.",
+      "Böylece farklı çalışma günlerine ve saatlerine sahip kurumlar için çok daha esnek bir ders planlama süreci oluşturabilirsiniz.",
+    ],
   },
   {
-    title: "Resmî çıktılar",
-    text: "Çarşaf listeleri ve sınıf/öğretmen programları yazdırılabilir formatta hazır.",
+    id: "disa-aktarim",
+    kicker: "Dışa aktarım",
+    title: "Ders programınızı Excel ve PDF olarak dışa aktarın",
+    paragraphs: [
+      "Hazırladığınız ders programlarını yalnızca sistem üzerinden görüntülemekle kalmaz, ihtiyaç duyduğunuzda Excel ve PDF formatında dışa aktarabilirsiniz.",
+      "Sınıf ve öğretmen programlarını Excel veya PDF olarak indirerek kurum yönetimiyle paylaşabilir, öğretmenlere iletebilir veya çıktı alarak kurum içerisinde kullanabilirsiniz.",
+      "Bu sayede hazırladığınız programları farklı platformlarda kullanabilir ve arşivleyebilirsiniz.",
+    ],
   },
+];
+
+const REASONS = [
+  "Otomatik ders programı oluşturma",
+  "Öğretmen ve sınıf çakışma kontrolü",
+  "Öğretmen uygunluklarını tanımlama",
+  "Haftalık ders saatlerini otomatik dağıtma",
+  "Haftanın 7 günü ders programı oluşturma",
+  "Cumartesi ve Pazar derslerini planlama",
+  "Esnek ders programları oluşturma ve yönetme",
+  "Excel ile toplu veri aktarımı",
+  "Ders programını Excel olarak dışa aktarma",
+  "Ders programını PDF olarak dışa aktarma",
+  "Sınıf bazlı ders programı görüntüleme",
+  "Öğretmen bazlı ders programı görüntüleme",
+  "Program üzerinde manuel düzenleme",
+  "Yazdırılabilir ders programları ve çarşaf listeleri",
+  "Okul, kurs merkezi ve çok şubeli eğitim kurumları için kullanım",
 ];
 
 const FAQS = [
@@ -51,7 +87,7 @@ const FAQS = [
   },
   {
     q: "Çıktılar nasıl alınır?",
-    a: "Sınıf ve öğretmen programları ile çarşaf listeleri yazdırılabilir HTML olarak açılır; tarayıcıdan PDF kaydedebilirsiniz.",
+    a: "Sınıf ve öğretmen programlarını Excel ve PDF olarak dışa aktarabilir; çarşaf listelerini yazdırılabilir formatta kullanabilirsiniz.",
   },
 ];
 
@@ -142,23 +178,44 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {CAPABILITIES.map((item, index) => (
+          <section
+            key={item.id}
+            id={item.id}
+            className={`landing-section landing-capability${
+              index % 2 === 1 ? " landing-capability--alt" : ""
+            }`}
+          >
+            <div className="landing-section__inner">
+              <p className="landing-kicker">{item.kicker}</p>
+              <h2 className="landing-section__title landing-section__title--wide">
+                {item.title}
+              </h2>
+              <div className="landing-capability__body">
+                {item.paragraphs.map((text) => (
+                  <p key={text}>{text}</p>
+                ))}
+              </div>
+            </div>
+          </section>
+        ))}
+
         <section id="ozellikler" className="landing-section landing-features">
           <div className="landing-section__inner">
             <p className="landing-kicker">Neden Derso</p>
-            <h2 className="landing-section__title">Program işi için tasarlandı</h2>
+            <h2 className="landing-section__title landing-section__title--wide">
+              Neden Derso ders programı?
+            </h2>
             <p className="landing-section__lede">
-              Genel tablolar değil; çakışma, izin ve müfredat saatlerini bilen bir
-              çizelgeleme aracı.
+              Derso, eğitim kurumlarının karmaşık ders dağıtım süreçlerini daha
+              hızlı ve kolay yönetebilmesi için geliştirilmiştir.
             </p>
 
-            <div className="landing-features__list">
-              {HIGHLIGHTS.map((item) => (
-                <article key={item.title} className="landing-features__item">
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+            <ul className="landing-reasons">
+              {REASONS.map((reason) => (
+                <li key={reason}>{reason}</li>
               ))}
-            </div>
+            </ul>
           </div>
         </section>
 

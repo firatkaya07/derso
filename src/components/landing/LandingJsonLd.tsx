@@ -16,7 +16,7 @@ const FAQS = [
   },
   {
     q: "Çıktılar nasıl alınır?",
-    a: "Sınıf ve öğretmen programları ile çarşaf listeleri yazdırılabilir HTML olarak açılır; tarayıcıdan PDF kaydedebilirsiniz.",
+    a: "Sınıf ve öğretmen programlarını Excel ve PDF olarak dışa aktarabilir; çarşaf listelerini yazdırılabilir formatta kullanabilirsiniz.",
   },
 ];
 
