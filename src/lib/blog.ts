@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export type BlogPostListItem = {
@@ -19,7 +20,7 @@ export type BlogPost = BlogPostListItem & {
 const LIST_COLUMNS =
   "slug, title, h1, excerpt, meta_title, meta_description, keywords, published_at, updated_at";
 
-export async function listPublishedBlogPosts(): Promise<BlogPostListItem[]> {
+async function fetchPublishedBlogPosts(): Promise<BlogPostListItem[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("blog_posts")
@@ -35,22 +36,32 @@ export async function listPublishedBlogPosts(): Promise<BlogPostListItem[]> {
   return (data ?? []) as BlogPostListItem[];
 }
 
-export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("blog_posts")
-    .select(`${LIST_COLUMNS}, content_md`)
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
+export const listPublishedBlogPosts = unstable_cache(
+  fetchPublishedBlogPosts,
+  ["blog-posts-list"],
+  { revalidate: 3600, tags: ["blog"] }
+);
 
-  if (error) {
-    console.error("blog_posts get error:", error.message);
-    return null;
-  }
+export const getBlogPostBySlug = unstable_cache(
+  async (slug: string): Promise<BlogPost | null> => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("blog_posts")
+      .select(`${LIST_COLUMNS}, content_md`)
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .maybeSingle();
 
-  return data as BlogPost | null;
-}
+    if (error) {
+      console.error("blog_posts get error:", error.message);
+      return null;
+    }
+
+    return data as BlogPost | null;
+  },
+  ["blog-post-by-slug"],
+  { revalidate: 3600, tags: ["blog"] }
+);
 
 export async function listBlogSlugs(): Promise<string[]> {
   const posts = await listPublishedBlogPosts();

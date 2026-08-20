@@ -9,7 +9,7 @@ import { useAsyncData } from "@/hooks/use-async-data";
 import { useToast } from "@/components/Toast";
 import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
-import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler";
+import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler/model";
 import { writeScheduleJob } from "@/lib/schedule-job";
 
 export default function DagitimPage() {

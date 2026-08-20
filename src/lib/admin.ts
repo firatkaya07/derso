@@ -1,22 +1,19 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getRequestSupabase } from "@/lib/cache/request";
 
-export async function isPlatformAdmin(): Promise<boolean> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return false;
+export type AdminDashboardStats = {
+  organizations: number;
+  users: number;
+  open_conversations: number;
+  total_conversations: number;
+  messages_today: number;
+  awaiting_reply: number;
+};
 
-  const { data, error } = await supabase.rpc("is_platform_admin");
-  if (error) {
-    console.error("is_platform_admin:", error.message);
-    return false;
-  }
-  return Boolean(data);
-}
-
-export async function requirePlatformAdmin() {
-  const supabase = await createClient();
+/** Platform admin kontrolü — aynı RSC isteğinde tek round-trip. */
+export const requirePlatformAdmin = cache(async () => {
+  const supabase = await getRequestSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -28,4 +25,19 @@ export async function requirePlatformAdmin() {
     return { ok: false as const, user };
   }
   return { ok: true as const, user };
+});
+
+export async function isPlatformAdmin(): Promise<boolean> {
+  const gate = await requirePlatformAdmin();
+  return gate.ok;
 }
+
+/** Admin istatistikleri — layout + sayfa aynı isteğinde paylaşılır. */
+export const getAdminDashboardStats = cache(async () => {
+  const supabase = await getRequestSupabase();
+  const { data, error } = await supabase.rpc("admin_dashboard_stats");
+  return {
+    stats: (data ?? {}) as AdminDashboardStats,
+    error,
+  };
+});

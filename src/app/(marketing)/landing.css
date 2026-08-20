@@ -31,9 +31,16 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(14px);
-  background: color-mix(in srgb, var(--landing-ink) 78%, transparent);
+  background: color-mix(in srgb, var(--landing-ink) 92%, transparent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+@supports ((-webkit-backdrop-filter: blur(8px)) or (backdrop-filter: blur(8px))) {
+  .landing-nav {
+    background: color-mix(in srgb, var(--landing-ink) 78%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
 }
 
 .landing-nav__inner {
@@ -380,6 +387,8 @@
 
 .landing-section {
   padding: 5rem 1.25rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 700px;
 }
 
 .landing-section__inner {

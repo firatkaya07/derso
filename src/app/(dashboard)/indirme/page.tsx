@@ -10,18 +10,7 @@ import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { slotTimingOf } from "@/lib/settings";
 import { throwIfDbError } from "@/lib/db-error";
-import {
-  prepareLessons,
-  generateSinifCarsafPdf,
-  generateOgretmenCarsafPdf,
-  generateSinifDersProgramlariPdf,
-  generateOgretmenProgramlariPdf,
-  type RawLessonRow,
-} from "@/lib/pdf-generator";
-import {
-  downloadOgretmenCarsafExcel,
-  downloadSinifCarsafExcel,
-} from "@/lib/carsaf-excel";
+import type { RawLessonRow } from "@/lib/pdf-generator";
 import type { ClassScheduleDay } from "@/lib/types";
 
 type DownloadId =
@@ -150,8 +139,9 @@ export default function IndirmePage() {
     };
   }, [data]);
 
-  const prepare = () => {
+  const prepare = async () => {
     if (!data || data.lessons.length === 0) return null;
+    const { prepareLessons } = await import("@/lib/pdf-generator");
     const prepared = prepareLessons(
       data.lessons,
       data.scheduleDays,
@@ -164,13 +154,14 @@ export default function IndirmePage() {
     return { prepared, pdfContext, raw: data.lessons };
   };
 
-  const handleDownload = (id: DownloadId) => {
-    const ready = prepare();
-    if (!ready) return;
+  const handleDownload = async (id: DownloadId) => {
     setGenerating(id);
     try {
+      const ready = await prepare();
+      if (!ready) return;
       const { prepared, pdfContext, raw } = ready;
-      let result: ReturnType<typeof generateSinifCarsafPdf>;
+      const pdf = await import("@/lib/pdf-generator");
+      let result: "downloaded" | "printed";
 
       if (id === "ogretmen-program") {
         const teacherOffDays = new Map<string, number[]>();
@@ -183,7 +174,7 @@ export default function IndirmePage() {
             teacherOffDays.set(row.teacher.id, row.teacher.off_days);
           }
         }
-        result = generateOgretmenProgramlariPdf(
+        result = pdf.generateOgretmenProgramlariPdf(
           prepared,
           settings,
           pdfContext,
@@ -191,9 +182,9 @@ export default function IndirmePage() {
         );
       } else {
         const generator = {
-          "sinif-carsaf": generateSinifCarsafPdf,
-          "ogretmen-carsaf": generateOgretmenCarsafPdf,
-          "sinif-program": generateSinifDersProgramlariPdf,
+          "sinif-carsaf": pdf.generateSinifCarsafPdf,
+          "ogretmen-carsaf": pdf.generateOgretmenCarsafPdf,
+          "sinif-program": pdf.generateSinifDersProgramlariPdf,
         }[id];
         result = generator(prepared, settings, pdfContext);
       }
@@ -210,16 +201,17 @@ export default function IndirmePage() {
     }
   };
 
-  const handleExcelDownload = (id: CarsafId) => {
-    const ready = prepare();
-    if (!ready) return;
+  const handleExcelDownload = async (id: CarsafId) => {
     setGenerating(`${id}-excel`);
     try {
+      const ready = await prepare();
+      if (!ready) return;
       const { prepared, pdfContext } = ready;
+      const excel = await import("@/lib/carsaf-excel");
       if (id === "sinif-carsaf") {
-        downloadSinifCarsafExcel(prepared, pdfContext);
+        excel.downloadSinifCarsafExcel(prepared, pdfContext);
       } else {
-        downloadOgretmenCarsafExcel(prepared, pdfContext);
+        excel.downloadOgretmenCarsafExcel(prepared, pdfContext);
       }
       toast.success("Excel dosyası indirildi.");
     } catch (err) {
@@ -343,7 +335,7 @@ export default function IndirmePage() {
                   </div>
                   <div className="mt-auto flex flex-col gap-2">
                     <button
-                      onClick={() => handleDownload(item.id)}
+                      onClick={() => void handleDownload(item.id)}
                       disabled={generating !== null}
                       className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 ${styles.btn} text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
@@ -367,7 +359,7 @@ export default function IndirmePage() {
                     {item.excel && (
                       <button
                         type="button"
-                        onClick={() => handleExcelDownload(item.id as CarsafId)}
+                        onClick={() => void handleExcelDownload(item.id as CarsafId)}
                         disabled={generating !== null}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-800 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >

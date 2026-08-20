@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/admin";
+import {
+  getAdminDashboardStats,
+  requirePlatformAdmin,
+} from "@/lib/admin";
 
 const NAV = [
   { href: "/admin", label: "Özet" },
@@ -19,11 +22,8 @@ export default async function AdminLayout({
   if (!gate.user) redirect("/login");
   if (!gate.ok) redirect("/home");
 
-  const supabase = await createClient();
-  const { data: stats } = await supabase.rpc("admin_dashboard_stats");
-  const awaitingReply = Number(
-    (stats as { awaiting_reply?: number } | null)?.awaiting_reply ?? 0
-  );
+  const { stats } = await getAdminDashboardStats();
+  const awaitingReply = Number(stats.awaiting_reply ?? 0);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">

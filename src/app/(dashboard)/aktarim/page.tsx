@@ -8,10 +8,11 @@ import { useToast } from "@/components/Toast";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useFields } from "@/components/FieldsProvider";
 import { invalidateOrgClientCache } from "@/lib/cache";
-import { parseExcelFile, type ParsedWorkbook } from "@/lib/excel-parser";
-import { downloadTemplate, SHEET_NAMES } from "@/lib/excel-template";
-import { importWorkbook } from "@/lib/excel-import";
+import type { ParsedWorkbook } from "@/lib/excel-parser";
 import { DAY_NAMES } from "@/lib/types";
+
+const SHEET_LIST =
+  "Öğretmenler, Dersler, Sınıflar, Sınıf Saatleri, Ders Dağılımı, Ders Öğretmenleri";
 
 /**
  * Excel şablonuyla öğretmen, ders, sınıf ve dağılım verilerini toplu yükler.
@@ -38,6 +39,7 @@ export default function AktarimPage() {
     setImported(false);
     setImportLog([]);
     try {
+      const { parseExcelFile } = await import("@/lib/excel-parser");
       const result = parseExcelFile(await file.arrayBuffer(), {
         allowedFields: fields,
       });
@@ -63,6 +65,7 @@ export default function AktarimPage() {
     if (!parsed || parsed.errors.length > 0) return;
     setImporting(true);
     try {
+      const { importWorkbook } = await import("@/lib/excel-import");
       const log = await importWorkbook(supabase, parsed, organizationId);
       setImportLog(log);
       setImported(true);
@@ -73,6 +76,11 @@ export default function AktarimPage() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleDownloadTemplate = async () => {
+    const { downloadTemplate } = await import("@/lib/excel-template");
+    downloadTemplate("derso-sablon.xlsx", fields);
   };
 
   return (
@@ -90,12 +98,12 @@ export default function AktarimPage() {
           <p className="text-sm text-gray-500 mb-4">
             Şablonu indirip doldurun, ardından yükleyin. Şablondaki her sayfa
             bir veri kümesine karşılık gelir:{" "}
-            {Object.values(SHEET_NAMES).slice(1).join(", ")}.
+            {SHEET_LIST}.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => downloadTemplate("derso-sablon.xlsx", fields)}
+              onClick={() => void handleDownloadTemplate()}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               <svg

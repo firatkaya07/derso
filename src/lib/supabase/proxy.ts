@@ -1,5 +1,5 @@
+import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/env";
 import { isPublicMarketingPath } from "@/lib/marketing-routes";
 
@@ -14,11 +14,29 @@ function isSeoAsset(path: string): boolean {
   );
 }
 
+/** Supabase SSR oturum çerezi var mı — ağ çağrısı yapmadan hızlı kontrol. */
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+  return request.cookies
+    .getAll()
+    .some(
+      (c) =>
+        c.name.startsWith("sb-") &&
+        (c.name.includes("auth-token") || c.name.endsWith("-auth-token.0"))
+    );
+}
+
 export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Crawler varlıkları Supabase oturumuna ihtiyaç duymaz.
   if (isSeoAsset(path)) {
+    return NextResponse.next({ request });
+  }
+
+  const isPublic = isPublicMarketingPath(path);
+
+  // Anonim marketing/login: createServerClient + getUser ağ gecikmesini atla.
+  if (isPublic && !hasSupabaseAuthCookie(request)) {
     return NextResponse.next({ request });
   }
 
@@ -44,8 +62,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const isPublic = isPublicMarketingPath(path);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

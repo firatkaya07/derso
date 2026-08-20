@@ -1,28 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getAdminDashboardStats,
+} from "@/lib/admin";
 
 export const metadata: Metadata = {
   title: "Admin",
   robots: { index: false, follow: false },
 };
 
-type Stats = {
-  organizations: number;
-  users: number;
-  open_conversations: number;
-  total_conversations: number;
-  messages_today: number;
-  awaiting_reply: number;
-};
-
 export default async function AdminHomePage() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_dashboard_stats");
-  const stats = (data ?? {}) as Stats;
+  const { stats, error } = await getAdminDashboardStats();
   const awaiting = Number(stats.awaiting_reply ?? 0);
 
-  const cards = [
+  const cards: {
+    label: string;
+    value: number;
+    href: string;
+    highlight?: boolean;
+    badge?: string | null;
+  }[] = [
     {
       label: "Kurumlar",
       value: stats.organizations ?? 0,

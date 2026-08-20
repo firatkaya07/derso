@@ -4,7 +4,8 @@
  * arka planda useAsyncData yeniler (stale-while-revalidate).
  */
 
-export const CLIENT_CACHE_TTL_MS = 30_000;
+/** Soft navigasyonda anlık veri için; 2 dk stale-while-revalidate. */
+export const CLIENT_CACHE_TTL_MS = 120_000;
 
 interface CacheEntry {
   data: unknown;

@@ -28,7 +28,7 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <Link href="/home" className="flex items-center gap-2.5 group">
               <Image
-                src={settings.logoDataUrl || "/logo.png"}
+                src={settings.logoDataUrl || "/logo.webp"}
                 alt={settings.institutionName || "Derso"}
                 width={LOGO_SIZE}
                 height={LOGO_SIZE}

@@ -11,7 +11,7 @@ import { useSettings } from "@/components/SettingsProvider";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { invalidateOrgClientCache } from "@/lib/cache";
 import { slotTimingOf } from "@/lib/settings";
-import { autoSchedule, type ScheduleResult } from "@/lib/scheduler";
+import type { ScheduleResult } from "@/lib/scheduler";
 import {
   clearScheduleJob,
   ITERATIONS_PER_ROUND,
@@ -83,6 +83,7 @@ export default function DagitimIzlemePage() {
       const csInputs = toClassSubjectInputs(data);
       let bestSoFar: ScheduleResult | null = null;
       const timing = slotTimingOf(settings);
+      const { autoSchedule } = await import("@/lib/scheduler");
 
       const runRound = (round: number) => {
         if (cancelled || cancelledRef.current) return;

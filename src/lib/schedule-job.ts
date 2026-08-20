@@ -1,6 +1,10 @@
 import type { PlanningData } from "@/lib/planning-data";
-import type { ScheduleResult, ScheduleRules, ClassSubjectInput } from "@/lib/scheduler";
-import { DEFAULT_RULES } from "@/lib/scheduler";
+import type { ScheduleResult } from "@/lib/scheduler";
+import {
+  DEFAULT_RULES,
+  type ScheduleRules,
+  type ClassSubjectInput,
+} from "@/lib/scheduler/model";
 import type { Subject } from "@/lib/types";
 
 /** Bir turdaki onarım adımı üst sınırı. */
