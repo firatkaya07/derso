@@ -12,6 +12,7 @@ import {
   uploadSupportAttachment,
   validateSupportFile,
 } from "@/lib/support-attachments";
+import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
 
 type View = "list" | "chat" | "new";
 
@@ -743,6 +744,12 @@ export default function ContactFab() {
                     rows={3}
                     placeholder="Nasıl yardımcı olabiliriz?"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-gray-900 placeholder:text-gray-400"
+                    onKeyDown={(e) => {
+                      if (isSendHotkey(e)) {
+                        e.preventDefault();
+                        void startConversation(e as unknown as React.FormEvent);
+                      }
+                    }}
                   />
                 </div>
 
@@ -760,7 +767,9 @@ export default function ContactFab() {
                     Görsel veya belge ekle
                   </button>
                 )}
-                <p className="text-[10px] text-gray-400">{fileHint}</p>
+                <p className="text-[10px] text-gray-400">
+                  {fileHint} · {SEND_HOTKEY_HINT}
+                </p>
 
                 {error && (
                   <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg" role="alert">
@@ -867,7 +876,7 @@ export default function ContactFab() {
                         placeholder="Yanıtınızı yazın…"
                         className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-gray-900 placeholder:text-gray-400"
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
+                          if (isSendHotkey(e)) {
                             e.preventDefault();
                             void sendReply(e as unknown as React.FormEvent);
                           }
@@ -884,7 +893,9 @@ export default function ContactFab() {
                         </svg>
                       </button>
                     </div>
-                    <p className="text-[10px] text-gray-400 px-1">{fileHint}</p>
+                    <p className="text-[10px] text-gray-400 px-1">
+                      {fileHint} · {SEND_HOTKEY_HINT}
+                    </p>
                   </form>
                 )}
               </div>

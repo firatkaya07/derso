@@ -13,12 +13,14 @@ type Stats = {
   open_conversations: number;
   total_conversations: number;
   messages_today: number;
+  awaiting_reply: number;
 };
 
 export default async function AdminHomePage() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_dashboard_stats");
   const stats = (data ?? {}) as Stats;
+  const awaiting = Number(stats.awaiting_reply ?? 0);
 
   const cards = [
     {
@@ -35,6 +37,8 @@ export default async function AdminHomePage() {
       label: "Açık destek",
       value: stats.open_conversations ?? 0,
       href: "/admin/destek?status=open",
+      highlight: awaiting > 0,
+      badge: awaiting > 0 ? `${awaiting} yanıt bekliyor` : null,
     },
     {
       label: "Toplam konuşma",
@@ -63,15 +67,49 @@ export default async function AdminHomePage() {
         </p>
       ) : null}
 
+      {awaiting > 0 ? (
+        <Link
+          href="/admin/destek?status=open"
+          className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 transition hover:border-amber-400 hover:bg-amber-100/80"
+        >
+          <span
+            className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white"
+            aria-hidden
+          >
+            !
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">
+              {awaiting} konuşmada yeni mesaj var
+            </span>
+            <span className="mt-0.5 block text-xs text-amber-800/90">
+              Kullanıcı mesajı yanıt bekliyor. Destek listesine git.
+            </span>
+          </span>
+        </Link>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.label}
             href={card.href}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow transition-all"
+            className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow transition-all"
           >
+            {"badge" in card && card.badge ? (
+              <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                <span aria-hidden>!</span>
+                {card.badge}
+              </span>
+            ) : null}
             <p className="text-sm text-slate-500">{card.label}</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight">{card.value}</p>
+            <p
+              className={`mt-2 text-3xl font-bold tracking-tight ${
+                "highlight" in card && card.highlight ? "text-amber-700" : ""
+              }`}
+            >
+              {card.value}
+            </p>
           </Link>
         ))}
       </div>
@@ -80,8 +118,16 @@ export default async function AdminHomePage() {
         <h2 className="font-semibold">Hızlı işlemler</h2>
         <ul className="mt-3 space-y-2 text-sm">
           <li>
-            <Link href="/admin/destek?status=open" className="text-indigo-600 hover:underline">
+            <Link
+              href="/admin/destek?status=open"
+              className="inline-flex items-center gap-2 text-indigo-600 hover:underline"
+            >
               Açık destek konuşmalarını yanıtla
+              {awaiting > 0 ? (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                  {awaiting > 9 ? "9+" : awaiting}
+                </span>
+              ) : null}
             </Link>
           </li>
           <li>

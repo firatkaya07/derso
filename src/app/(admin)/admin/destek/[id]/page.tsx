@@ -12,6 +12,7 @@ import {
   uploadSupportAttachment,
   validateSupportFile,
 } from "@/lib/support-attachments";
+import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
 
 type Conversation = {
   id: string;
@@ -332,6 +333,12 @@ export default function AdminSupportThreadPage() {
               rows={2}
               placeholder="Destek yanıtı yazın…"
               className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              onKeyDown={(e) => {
+                if (isSendHotkey(e)) {
+                  e.preventDefault();
+                  void sendReply(e as unknown as React.FormEvent);
+                }
+              }}
             />
             <button
               type="submit"
@@ -341,6 +348,7 @@ export default function AdminSupportThreadPage() {
               {sending ? "…" : "Gönder"}
             </button>
           </div>
+          <p className="text-[10px] text-slate-400 px-1">{SEND_HOTKEY_HINT}</p>
         </form>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { requirePlatformAdmin } from "@/lib/admin";
 
 const NAV = [
   { href: "/admin", label: "Özet" },
-  { href: "/admin/destek", label: "Destek" },
+  { href: "/admin/destek", label: "Destek", badge: true },
   { href: "/admin/kurumlar", label: "Kurumlar" },
   { href: "/admin/kullanicilar", label: "Kullanıcılar" },
 ] as const;
@@ -19,6 +19,12 @@ export default async function AdminLayout({
   if (!gate.user) redirect("/login");
   if (!gate.ok) redirect("/home");
 
+  const supabase = await createClient();
+  const { data: stats } = await supabase.rpc("admin_dashboard_stats");
+  const awaitingReply = Number(
+    (stats as { awaiting_reply?: number } | null)?.awaiting_reply ?? 0
+  );
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-slate-900 text-white">
@@ -28,15 +34,27 @@ export default async function AdminLayout({
               Derso Admin
             </Link>
             <nav className="hidden sm:flex items-center gap-1" aria-label="Admin">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {NAV.map((item) => {
+                const showBadge =
+                  "badge" in item && item.badge && awaitingReply > 0;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="relative inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+                  >
+                    {item.label}
+                    {showBadge ? (
+                      <span
+                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white"
+                        title={`${awaitingReply} yanıt bekleyen konuşma`}
+                      >
+                        {awaitingReply > 9 ? "9+" : awaitingReply}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm">
@@ -64,15 +82,24 @@ export default async function AdminLayout({
           className="sm:hidden flex gap-1 overflow-x-auto px-4 pb-3"
           aria-label="Admin mobil"
         >
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-lg px-3 py-1.5 text-sm text-slate-300 bg-white/5 whitespace-nowrap"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV.map((item) => {
+            const showBadge =
+              "badge" in item && item.badge && awaitingReply > 0;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300 bg-white/5 whitespace-nowrap"
+              >
+                {item.label}
+                {showBadge ? (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                    {awaitingReply > 9 ? "9+" : awaitingReply}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
         </nav>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
