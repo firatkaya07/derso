@@ -4,6 +4,7 @@ import {
   getRequestFields,
 } from "@/lib/cache/request";
 import { fieldNamesOf, DEFAULT_FIELD_NAMES } from "@/lib/fields";
+import { isPlatformAdmin } from "@/lib/admin";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Header from "@/components/Header";
@@ -32,6 +33,9 @@ export default async function DashboardLayout({
   const membership = await getRequestMembership();
 
   if (!membership) {
+    if (await isPlatformAdmin()) {
+      redirect("/admin");
+    }
     redirect("/onboarding");
   }
 

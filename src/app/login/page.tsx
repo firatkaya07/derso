@@ -87,8 +87,10 @@ export default function LoginPage() {
     setShowPasswordConfirm(false);
   };
 
-  const finishAuth = () => {
-    router.push("/home");
+  const finishAuth = async () => {
+    const supabase = createClient();
+    const { data: isAdmin } = await supabase.rpc("is_platform_admin");
+    router.push(isAdmin ? "/admin" : "/home");
     router.refresh();
   };
 
@@ -105,7 +107,7 @@ export default function LoginPage() {
       return;
     }
 
-    finishAuth();
+    await finishAuth();
   };
 
   const handleSignUp = async () => {
@@ -128,7 +130,7 @@ export default function LoginPage() {
     }
 
     if (data.session) {
-      finishAuth();
+      await finishAuth();
       return;
     }
 
@@ -143,7 +145,7 @@ export default function LoginPage() {
       return;
     }
 
-    finishAuth();
+    await finishAuth();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
