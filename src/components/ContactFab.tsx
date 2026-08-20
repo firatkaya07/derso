@@ -2,6 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  ACCEPT_ATTR,
+  formatBytes,
+  isImageMime,
+  MAX_DOC_BYTES,
+  MAX_IMAGE_BYTES,
+  publicUrlForAttachment,
+  uploadSupportAttachment,
+  validateSupportFile,
+} from "@/lib/support-attachments";
 
 type View = "list" | "chat" | "new";
 
@@ -26,6 +36,10 @@ type SupportMessage = {
   sender: "user" | "support";
   body: string;
   created_at: string;
+  attachment_path: string | null;
+  attachment_name: string | null;
+  attachment_mime: string | null;
+  attachment_size: number | null;
 };
 
 const GUEST_TOKEN_KEY = "derso_support_guest_token";
@@ -59,6 +73,104 @@ function formatTime(iso: string) {
   }
 }
 
+function AttachmentPreview({
+  file,
+  onClear,
+}: {
+  file: File;
+  onClear: () => void;
+}) {
+  const isImage = file.type.startsWith("image/");
+  const previewUrl = useMemo(
+    () => (isImage ? URL.createObjectURL(file) : null),
+    [file, isImage]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-2">
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previewUrl}
+          alt=""
+          className="h-10 w-10 rounded object-cover shrink-0"
+        />
+      ) : (
+        <div className="h-10 w-10 rounded bg-white border border-indigo-100 flex items-center justify-center shrink-0 text-indigo-600">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-indigo-900 truncate">{file.name}</p>
+        <p className="text-[10px] text-indigo-600">{formatBytes(file.size)}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="min-h-8 min-w-8 inline-flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-100"
+        aria-label="Dosyayı kaldır"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function MessageAttachment({ message }: { message: SupportMessage }) {
+  if (!message.attachment_path) return null;
+  const url = publicUrlForAttachment(message.attachment_path);
+  const image = isImageMime(message.attachment_mime);
+
+  if (image) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block mt-1.5 overflow-hidden rounded-lg"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={message.attachment_name ?? "Görsel"}
+          className="max-h-40 w-full object-cover"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`mt-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium ${
+        message.sender === "user"
+          ? "bg-indigo-500/40 text-white hover:bg-indigo-500/55"
+          : "bg-white border border-gray-200 text-indigo-700 hover:bg-indigo-50"
+      }`}
+    >
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+      <span className="truncate flex-1">{message.attachment_name ?? "Dosya"}</span>
+      {message.attachment_size ? (
+        <span className="opacity-70 shrink-0">{formatBytes(message.attachment_size)}</span>
+      ) : null}
+    </a>
+  );
+}
+
 export default function ContactFab() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("list");
@@ -76,11 +188,13 @@ export default function ContactFab() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [draft, setDraft] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
   const panelRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const authRequestId = useRef(0);
 
   const isLoggedIn = !!authInfo;
@@ -89,6 +203,17 @@ export default function ContactFab() {
     () => conversations.find((c) => c.id === activeId) ?? null,
     [conversations, activeId]
   );
+
+  const pickFile = (file: File | null | undefined) => {
+    if (!file) return;
+    const result = validateSupportFile(file);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    setError("");
+    setPendingFile(result.file);
+  };
 
   const loadConversations = useCallback(async (token: string | null) => {
     setListLoading(true);
@@ -138,6 +263,7 @@ export default function ContactFab() {
       setActiveId(conversationId);
       setView("chat");
       setDraft("");
+      setPendingFile(null);
       await loadMessages(conversationId, token);
     },
     [loadMessages]
@@ -239,12 +365,12 @@ export default function ContactFab() {
         setActiveId(null);
         setMessages([]);
         setDraft("");
+        setPendingFile(null);
       }
       return next;
     });
   };
 
-  // Dışarı tıklanınca kapat
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -258,14 +384,12 @@ export default function ContactFab() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Scroll to latest message
   useEffect(() => {
     if (view === "chat") {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, view]);
 
-  // Realtime: support replies
   useEffect(() => {
     if (!open || view !== "chat" || !activeId) return;
 
@@ -296,9 +420,49 @@ export default function ContactFab() {
     };
   }, [open, view, activeId, guestToken, loadConversations]);
 
+  const sendMessageRpc = async (
+    conversationId: string,
+    body: string,
+    token: string | null,
+    file: File | null
+  ) => {
+    let attachment:
+      | {
+          path: string;
+          name: string;
+          mime: string;
+          size: number;
+        }
+      | null = null;
+
+    if (file) {
+      attachment = await uploadSupportAttachment(conversationId, file);
+    }
+
+    const supabase = createClient();
+    const { data, error: rpcError } = await supabase.rpc("support_send_message", {
+      p_conversation_id: conversationId,
+      p_body: body || null,
+      p_guest_token: token,
+      p_attachment_path: attachment?.path ?? null,
+      p_attachment_name: attachment?.name ?? null,
+      p_attachment_mime: attachment?.mime ?? null,
+      p_attachment_size: attachment?.size ?? null,
+    });
+    if (rpcError) throw rpcError;
+    return data as SupportMessage;
+  };
+
   const startConversation = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const text = draft.trim();
+    if (!text && !pendingFile) {
+      setError("Mesaj yazın veya bir dosya ekleyin.");
+      return;
+    }
+
     setSending(true);
 
     try {
@@ -308,7 +472,7 @@ export default function ContactFab() {
         {
           p_full_name: fullName.trim(),
           p_phone: phone.trim(),
-          p_message: draft.trim(),
+          p_message: text || "Dosya gönderildi",
           p_page: window.location.pathname,
           p_email: authInfo?.email ?? null,
           p_organization_name: authInfo?.organizationName ?? null,
@@ -323,19 +487,31 @@ export default function ContactFab() {
         guest_token: string | null;
       };
 
+      const token = authInfo ? null : result.guest_token;
       if (!authInfo && result.guest_token) {
         saveGuestSession(result.guest_token, result.conversation_id);
         setGuestToken(result.guest_token);
       }
 
+      if (pendingFile) {
+        await sendMessageRpc(
+          result.conversation_id,
+          text ? "" : "",
+          token,
+          pendingFile
+        );
+      }
+
       setDraft("");
-      await loadConversations(authInfo ? null : result.guest_token);
-      await openConversation(
-        result.conversation_id,
-        authInfo ? null : result.guest_token
+      setPendingFile(null);
+      await loadConversations(token);
+      await openConversation(result.conversation_id, token);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Mesaj gönderilemedi, lütfen tekrar deneyin."
       );
-    } catch {
-      setError("Mesaj gönderilemedi, lütfen tekrar deneyin.");
     } finally {
       setSending(false);
     }
@@ -343,33 +519,37 @@ export default function ContactFab() {
 
   const sendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeId || !draft.trim()) return;
+    if (!activeId) return;
+    const text = draft.trim();
+    if (!text && !pendingFile) return;
+
     setError("");
     setSending(true);
 
-    const body = draft.trim();
+    const body = text;
+    const file = pendingFile;
     setDraft("");
+    setPendingFile(null);
 
     try {
-      const supabase = createClient();
-      const { data, error: rpcError } = await supabase.rpc(
-        "support_send_message",
-        {
-          p_conversation_id: activeId,
-          p_body: body,
-          p_guest_token: authInfo ? null : guestToken,
-        }
+      const row = await sendMessageRpc(
+        activeId,
+        body,
+        authInfo ? null : guestToken,
+        file
       );
-      if (rpcError) throw rpcError;
-
-      const row = data as SupportMessage;
       setMessages((prev) =>
         prev.some((m) => m.id === row.id) ? prev : [...prev, row]
       );
       void loadConversations(authInfo ? null : guestToken);
-    } catch {
+    } catch (err) {
       setDraft(body);
-      setError("Mesaj gönderilemedi, lütfen tekrar deneyin.");
+      setPendingFile(file);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Mesaj gönderilemedi, lütfen tekrar deneyin."
+      );
     } finally {
       setSending(false);
     }
@@ -382,8 +562,24 @@ export default function ContactFab() {
         ? "Yeni mesaj"
         : "Bize Ulaşın";
 
+  const canSend =
+    Boolean(draft.trim()) || Boolean(pendingFile);
+
+  const fileHint = `Görsel max ${formatBytes(MAX_IMAGE_BYTES)}, belge max ${formatBytes(MAX_DOC_BYTES)}`;
+
   return (
     <div className="fixed bottom-5 right-5 z-50" ref={panelRef}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPT_ATTR}
+        className="hidden"
+        onChange={(e) => {
+          pickFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
       {open && (
         <div className="absolute bottom-16 right-0 w-[22rem] sm:w-96 bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] border border-gray-200 overflow-hidden flex flex-col max-h-[min(70vh,560px)] animate-[fabSlideUp_200ms_ease-out]">
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-3 text-white shrink-0">
@@ -397,6 +593,7 @@ export default function ContactFab() {
                     setMessages([]);
                     setError("");
                     setDraft("");
+                    setPendingFile(null);
                   }}
                   className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
                   aria-label="Konuşma listesine dön"
@@ -422,6 +619,7 @@ export default function ContactFab() {
                   onClick={() => {
                     setView("new");
                     setDraft("");
+                    setPendingFile(null);
                     setError("");
                   }}
                   className="text-xs font-semibold bg-white/15 hover:bg-white/25 px-2.5 py-1.5 rounded-lg transition-colors"
@@ -536,17 +734,33 @@ export default function ContactFab() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Mesajınız <span className="text-red-500">*</span>
+                    Mesajınız {!pendingFile && <span className="text-red-500">*</span>}
                   </label>
                   <textarea
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    required
-                    rows={4}
+                    required={!pendingFile}
+                    rows={3}
                     placeholder="Nasıl yardımcı olabiliriz?"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
+
+                {pendingFile ? (
+                  <AttachmentPreview
+                    file={pendingFile}
+                    onClear={() => setPendingFile(null)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full min-h-10 border border-dashed border-gray-300 rounded-lg text-xs text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                  >
+                    Görsel veya belge ekle
+                  </button>
+                )}
+                <p className="text-[10px] text-gray-400">{fileHint}</p>
 
                 {error && (
                   <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg" role="alert">
@@ -556,7 +770,7 @@ export default function ContactFab() {
 
                 <button
                   type="submit"
-                  disabled={sending}
+                  disabled={sending || !canSend}
                   className="w-full min-h-10 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? "Gönderiliyor..." : "Konuşmayı başlat"}
@@ -593,7 +807,10 @@ export default function ContactFab() {
                               Destek
                             </p>
                           )}
-                          <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                          {m.body ? (
+                            <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                          ) : null}
+                          <MessageAttachment message={m} />
                           <p
                             className={`text-[10px] mt-1 ${
                               m.sender === "user"
@@ -623,31 +840,51 @@ export default function ContactFab() {
                 ) : (
                   <form
                     onSubmit={sendReply}
-                    className="border-t border-gray-100 p-3 flex gap-2 items-end shrink-0"
+                    className="border-t border-gray-100 p-3 space-y-2 shrink-0"
                   >
-                    <textarea
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      rows={2}
-                      placeholder="Yanıtınızı yazın…"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-gray-900 placeholder:text-gray-400"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          void sendReply(e as unknown as React.FormEvent);
-                        }
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending || !draft.trim()}
-                      className="min-h-10 min-w-10 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
-                      aria-label="Gönder"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                      </svg>
-                    </button>
+                    {pendingFile ? (
+                      <AttachmentPreview
+                        file={pendingFile}
+                        onClear={() => setPendingFile(null)}
+                      />
+                    ) : null}
+                    <div className="flex gap-2 items-end">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="min-h-10 min-w-10 inline-flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
+                        aria-label="Dosya ekle"
+                        title={fileHint}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                        </svg>
+                      </button>
+                      <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        rows={2}
+                        placeholder="Yanıtınızı yazın…"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-gray-900 placeholder:text-gray-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            void sendReply(e as unknown as React.FormEvent);
+                          }
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={sending || !canSend}
+                        className="min-h-10 min-w-10 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                        aria-label="Gönder"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 px-1">{fileHint}</p>
                   </form>
                 )}
               </div>
