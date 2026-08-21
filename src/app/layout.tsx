@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import Analytics from "@/components/Analytics";
 import { ToastProvider } from "@/components/Toast";
 import ContactFabLazy from "@/components/ContactFabLazy";
 import {
@@ -12,8 +12,6 @@ import {
   getSiteUrl,
 } from "@/lib/site";
 import "./globals.css";
-
-const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -76,8 +74,8 @@ export default function RootLayout({
         <ToastProvider>{children}</ToastProvider>
         <ContactFabLazy />
         <SpeedInsights />
+        <Analytics />
       </body>
-      {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
   );
 }

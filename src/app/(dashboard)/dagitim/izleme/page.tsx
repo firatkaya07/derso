@@ -27,6 +27,7 @@ import {
   ScheduleTable,
   SearchProgressPanel,
 } from "@/components/ScheduleResultViews";
+import { trackScheduleComplete } from "@/lib/analytics";
 
 type Phase = "loading" | "running" | "done" | "error" | "missing-job";
 
@@ -136,6 +137,11 @@ export default function DagitimIzlemePage() {
 
             const { placedHours, totalHours, maxPlaceableHours } =
               currentBest.stats;
+            trackScheduleComplete({
+              success: placedHours > 0,
+              placed_hours: placedHours,
+              total_hours: totalHours,
+            });
             if (placedHours === totalHours) {
               toast.success("Tüm dersler yerleştirildi.");
             } else if (placedHours >= maxPlaceableHours) {

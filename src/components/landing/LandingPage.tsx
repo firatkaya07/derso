@@ -1,4 +1,5 @@
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import type { ReactNode } from "react";
 import ScheduleHeroVisual from "./ScheduleHeroVisual";
 import PricingSection from "./PricingSection";
@@ -156,9 +157,15 @@ export default function LandingPage() {
                 alın.
               </p>
               <div className="landing-hero__cta">
-                <Link href="/login" className="landing-btn landing-btn--accent">
+                <TrackedLink
+                  href="/login"
+                  className="landing-btn landing-btn--accent"
+                  trackLocation="hero"
+                  trackLead
+                  trackLabel="hemen_deneyin"
+                >
                   Hemen deneyin
-                </Link>
+                </TrackedLink>
                 <a href="#ucretlendirme" className="landing-btn landing-btn--line">
                   Paketleri gör
                 </a>
@@ -271,9 +278,15 @@ export default function LandingPage() {
               Kurumunuzu oluşturun, verilerinizi yükleyin; ilk ders dağıtımını
               aynı gün alın.
             </p>
-            <Link href="/login" className="landing-btn landing-btn--accent">
+            <TrackedLink
+              href="/login"
+              className="landing-btn landing-btn--accent"
+              trackLocation="landing_footer"
+              trackLead
+              trackLabel="ucretsiz_hesap_ac"
+            >
               Ücretsiz hesap aç
-            </Link>
+            </TrackedLink>
           </div>
         </section>
       </main>

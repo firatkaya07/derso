@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { trackLogin, trackSignUp } from "@/lib/analytics";
 
 type Mode = "login" | "signup";
 
@@ -107,6 +108,7 @@ export default function LoginPage() {
       return;
     }
 
+    trackLogin();
     await finishAuth();
   };
 
@@ -130,6 +132,7 @@ export default function LoginPage() {
     }
 
     if (data.session) {
+      trackSignUp();
       await finishAuth();
       return;
     }
@@ -145,6 +148,7 @@ export default function LoginPage() {
       return;
     }
 
+    trackSignUp();
     await finishAuth();
   };
 

@@ -11,6 +11,7 @@ import { clientCacheKeys } from "@/lib/cache";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler/model";
 import { writeScheduleJob } from "@/lib/schedule-job";
+import { trackScheduleStart } from "@/lib/analytics";
 
 export default function DagitimPage() {
   const supabase = createClient();
@@ -55,6 +56,7 @@ export default function DagitimPage() {
       rounds,
       createdAt: Date.now(),
     });
+    trackScheduleStart(rounds);
     router.push("/dagitim/izleme");
   };
 

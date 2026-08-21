@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { PRICING_PLANS, formatTry } from "./pricing";
 
 export default function PricingSection() {
@@ -79,16 +80,21 @@ export default function PricingSection() {
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <Link
+                <TrackedLink
                   href="/login"
                   className={`landing-btn ${
                     plan.featured
                       ? "landing-btn--accent"
                       : "landing-btn--pricing"
                   }`}
+                  trackLocation="pricing"
+                  trackLead
+                  trackPlan={plan.id}
+                  trackBilling={billing}
+                  trackLabel={plan.cta}
                 >
                   {plan.cta}
-                </Link>
+                </TrackedLink>
               </article>
             );
           })}

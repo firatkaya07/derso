@@ -10,6 +10,7 @@ import { useFields } from "@/components/FieldsProvider";
 import { invalidateOrgClientCache } from "@/lib/cache";
 import type { ParsedWorkbook } from "@/lib/excel-parser";
 import { DAY_NAMES } from "@/lib/types";
+import { trackExcelImport } from "@/lib/analytics";
 
 const SHEET_LIST =
   "Öğretmenler, Dersler, Sınıflar, Sınıf Saatleri, Ders Dağılımı, Ders Öğretmenleri";
@@ -70,8 +71,10 @@ export default function AktarimPage() {
       setImportLog(log);
       setImported(true);
       invalidateOrgClientCache(organizationId);
+      trackExcelImport({ success: true, error_count: 0 });
       toast.success("Veriler veritabanına aktarıldı.");
     } catch (error) {
+      trackExcelImport({ success: false });
       toast.error((error as Error).message);
     } finally {
       setImporting(false);

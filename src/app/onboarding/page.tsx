@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { createOrganization } from "@/lib/org";
+import { trackOnboardingComplete } from "@/lib/analytics";
 
 export default function OnboardingPage() {
   const supabase = createClient();
@@ -23,6 +24,7 @@ export default function OnboardingPage() {
     setError(null);
     try {
       await createOrganization(supabase, trimmed);
+      trackOnboardingComplete();
       router.replace("/home");
       router.refresh();
     } catch (err) {

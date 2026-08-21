@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import {
   MarketingFooter,
   MarketingNav,
@@ -49,9 +50,15 @@ export default function SeoMarketingPage({ page }: { page: SeoPageDef }) {
               ))}
             </div>
             <div className="landing-hero__cta">
-              <Link href="/login" className="landing-btn landing-btn--accent">
+              <TrackedLink
+                href="/login"
+                className="landing-btn landing-btn--accent"
+                trackLocation="seo_hero"
+                trackLead
+                trackLabel="ucretsiz_deneyin"
+              >
                 Ücretsiz deneyin
-              </Link>
+              </TrackedLink>
               <Link href="/#ucretlendirme" className="landing-btn landing-btn--line">
                 Paketleri gör
               </Link>
@@ -100,9 +107,15 @@ export default function SeoMarketingPage({ page }: { page: SeoPageDef }) {
               Öğretmen, sınıf ve derslerinizi tanımlayın; Derso ile dakikalar
               içinde çakışmasız program alın.
             </p>
-            <Link href="/login" className="landing-btn landing-btn--accent">
+            <TrackedLink
+              href="/login"
+              className="landing-btn landing-btn--accent"
+              trackLocation="seo_footer"
+              trackLead
+              trackLabel="ucretsiz_hesap_ac"
+            >
               Ücretsiz hesap aç
-            </Link>
+            </TrackedLink>
           </div>
         </section>
       </main>

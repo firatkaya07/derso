@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 
 type MarketingNavProps = {
   activeHref?: string;
@@ -41,12 +42,23 @@ export function MarketingNav({ activeHref }: MarketingNavProps) {
         </nav>
 
         <div className="landing-nav__actions">
-          <Link href="/login" className="landing-btn landing-btn--ghost">
+          <TrackedLink
+            href="/login"
+            className="landing-btn landing-btn--ghost"
+            trackLocation="nav"
+            trackLabel="giris"
+          >
             Giriş Yap
-          </Link>
-          <Link href="/login" className="landing-btn landing-btn--solid">
+          </TrackedLink>
+          <TrackedLink
+            href="/login"
+            className="landing-btn landing-btn--solid"
+            trackLocation="nav"
+            trackLead
+            trackLabel="ucretsiz_basla"
+          >
             Ücretsiz Başla
-          </Link>
+          </TrackedLink>
         </div>
       </div>
     </header>

@@ -13,6 +13,7 @@ import {
   validateSupportFile,
 } from "@/lib/support-attachments";
 import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
+import { trackSupportOpen, trackSupportMessage } from "@/lib/analytics";
 
 type View = "list" | "chat" | "new";
 
@@ -358,6 +359,7 @@ export default function ContactFab() {
     setOpen((wasOpen) => {
       const next = !wasOpen;
       if (next) {
+        trackSupportOpen();
         void loadAuthAndBootstrap();
       } else {
         authRequestId.current += 1;
@@ -507,6 +509,7 @@ export default function ContactFab() {
       setPendingFile(null);
       await loadConversations(token);
       await openConversation(result.conversation_id, token);
+      trackSupportMessage({ type: "new" });
     } catch (err) {
       setError(
         err instanceof Error
@@ -543,6 +546,7 @@ export default function ContactFab() {
         prev.some((m) => m.id === row.id) ? prev : [...prev, row]
       );
       void loadConversations(authInfo ? null : guestToken);
+      trackSupportMessage({ type: "reply" });
     } catch (err) {
       setDraft(body);
       setPendingFile(file);

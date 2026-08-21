@@ -12,6 +12,7 @@ import { slotTimingOf } from "@/lib/settings";
 import { throwIfDbError } from "@/lib/db-error";
 import type { RawLessonRow } from "@/lib/pdf-generator";
 import type { ClassScheduleDay } from "@/lib/types";
+import { trackFileDownload } from "@/lib/analytics";
 
 type DownloadId =
   | "sinif-carsaf"
@@ -189,6 +190,11 @@ export default function IndirmePage() {
         result = generator(prepared, settings, pdfContext);
       }
 
+      trackFileDownload({
+        file_name: id,
+        file_extension: "pdf",
+        link_text: id,
+      });
       if (result === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
@@ -213,6 +219,11 @@ export default function IndirmePage() {
       } else {
         excel.downloadOgretmenCarsafExcel(prepared, pdfContext);
       }
+      trackFileDownload({
+        file_name: id,
+        file_extension: "xlsx",
+        link_text: `${id}-excel`,
+      });
       toast.success("Excel dosyası indirildi.");
     } catch (err) {
       toast.error(`Excel oluşturulamadı: ${(err as Error).message}`);
