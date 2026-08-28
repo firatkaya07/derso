@@ -60,6 +60,7 @@ export const SEO_PAGES: SeoPageDef[] = [
       { href: "/esnek-ders-programi", label: "Esnek ders programı" },
       { href: "/ogretmen-ders-programi", label: "Öğretmen ders programı" },
       { href: "/ders-programi-excel-pdf", label: "Excel ve PDF çıktı" },
+      { href: "/blog/otomatik-ders-dagitimi-nedir", label: "Otomatik ders dağıtımı nedir?" },
       { href: "/blog/ders-programi-nasil-hazirlanir", label: "Ders programı nasıl hazırlanır?" },
     ],
   },
@@ -276,7 +277,8 @@ export const SEO_PAGES: SeoPageDef[] = [
     ],
     related: [
       { href: "/otomatik-ders-programi", label: "Otomatik ders programı" },
-      { href: "/okul-ders-programi", label: "Okul ders programı" },
+      { href: "/blog/ogretmen-ders-programi-nasil-yonetilir", label: "Öğretmen programı yönetimi" },
+      { href: "/blog/ders-programi-cakisma-nasil-onlenir", label: "Çakışma nasıl önlenir?" },
       { href: "/ders-programi-excel-pdf", label: "Excel ve PDF" },
     ],
   },
@@ -326,6 +328,7 @@ export const SEO_PAGES: SeoPageDef[] = [
     ],
     related: [
       { href: "/otomatik-ders-programi", label: "Otomatik ders programı" },
+      { href: "/blog/ders-programi-pdf-excel-nasil-indirilir", label: "PDF ve Excel indirme rehberi" },
       { href: "/blog/excel-ders-programi-hazirlama", label: "Excel'de ders programı rehberi" },
       { href: "/okul-ders-programi", label: "Okul ders programı" },
     ],
