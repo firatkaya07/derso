@@ -105,6 +105,11 @@ export interface PlacementCheck {
   placedCount: number;
   /** Ders saati ızgarasının süreleri; verilmezse varsayılan kullanılır. */
   timing?: SlotTiming;
+  /**
+   * true ise sınıf penceresi kontrolü atlanır (çağıran taraf V2 profil
+   * slotlarıyla zaten doğrulamış demektir).
+   */
+  assumeInWindow?: boolean;
 }
 
 /**
@@ -120,6 +125,7 @@ export function checkPlacement(check: PlacementCheck): PlacementBlocker | null {
   if (!check.teacherId) return "teacher-missing";
 
   if (
+    !check.assumeInWindow &&
     !isSlotWithinClassDay(
       check.scheduleDays,
       check.dayOfWeek,

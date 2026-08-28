@@ -33,9 +33,32 @@ export async function saveGeneratedSchedule(
   lessons: GeneratedLesson[],
   organizationId: string
 ): Promise<SaveScheduleResult> {
+  return saveGeneratedScheduleToTable(supabase, lessons, organizationId, "lessons");
+}
+
+/** V2 program kaydı — lessons_v2 tablosuna yazar. */
+export async function saveGeneratedScheduleV2(
+  supabase: SupabaseClient,
+  lessons: GeneratedLesson[],
+  organizationId: string
+): Promise<SaveScheduleResult> {
+  return saveGeneratedScheduleToTable(
+    supabase,
+    lessons,
+    organizationId,
+    "lessons_v2"
+  );
+}
+
+async function saveGeneratedScheduleToTable(
+  supabase: SupabaseClient,
+  lessons: GeneratedLesson[],
+  organizationId: string,
+  table: "lessons" | "lessons_v2"
+): Promise<SaveScheduleResult> {
   throwIfDbError(
     await supabase
-      .from("lessons")
+      .from(table)
       .delete()
       .eq("organization_id", organizationId),
     "Mevcut program temizlenemedi"
@@ -64,7 +87,7 @@ export async function saveGeneratedSchedule(
 
   for (const batch of chunk(rows)) {
     throwIfDbError(
-      await supabase.from("lessons").insert(batch),
+      await supabase.from(table).insert(batch),
       "Ders programı kaydedilemedi"
     );
   }

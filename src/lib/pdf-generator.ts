@@ -333,12 +333,11 @@ export function buildSinifCarsafMatrix(
   lessons: LessonData[],
   context: PdfScheduleContext = {}
 ): CarsafMatrix {
-  const days = getActiveDays(lessons);
-  const slots = resolveTimeSlots(
-    context.scheduleDays ?? [],
-    lessons,
-    context.timing
-  );
+  const days = context.days?.length ? context.days : getActiveDays(lessons);
+  const slots =
+    context.slots?.length
+      ? context.slots
+      : resolveTimeSlots(context.scheduleDays ?? [], lessons, context.timing);
   const classes = [...new Set(lessons.map((l) => l.className))].sort((a, b) =>
     a.localeCompare(b, "tr")
   );
@@ -367,12 +366,11 @@ export function buildOgretmenCarsafMatrix(
   lessons: LessonData[],
   context: PdfScheduleContext = {}
 ): CarsafMatrix {
-  const days = getActiveDays(lessons);
-  const slots = resolveTimeSlots(
-    context.scheduleDays ?? [],
-    lessons,
-    context.timing
-  );
+  const days = context.days?.length ? context.days : getActiveDays(lessons);
+  const slots =
+    context.slots?.length
+      ? context.slots
+      : resolveTimeSlots(context.scheduleDays ?? [], lessons, context.timing);
   const teacherNames = [
     ...new Set(lessons.filter((l) => l.teacherName).map((l) => l.teacherName)),
   ].sort((a, b) => a.localeCompare(b, "tr"));
@@ -476,6 +474,10 @@ export function formatTeacherProgramCell(lesson: LessonData): string {
 export interface PdfScheduleContext {
   scheduleDays?: ClassScheduleDay[];
   timing?: SlotTiming;
+  /** Verilirse aktif günler bununla sabitle nir (V2 hafta içi/sonu ayrımı). */
+  days?: number[];
+  /** Verilirse satır saatleri bununla sabitlenir (V2 kurum profili). */
+  slots?: TimeSlot[];
 }
 
 export interface RawLessonRow {
@@ -543,6 +545,10 @@ export type PrintOutcome = "printed" | "downloaded";
  * "PDF olarak kaydet" seçebilir. Açılır pencere engelliyse belge HTML dosyası
  * olarak indirilir.
  */
+export function printHtmlDocument(html: string, title: string): PrintOutcome {
+  return openPrintWindow(html, title);
+}
+
 function openPrintWindow(html: string, title: string): PrintOutcome {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);

@@ -24,6 +24,8 @@ interface ScheduleGridProps {
   slots: TimeSlot[];
   getCell: (dayOfWeek: number, slot: TimeSlot) => GridCell;
   isDayHighlighted?: (dayOfWeek: number) => boolean;
+  /** Gösterilecek günler (0–6). Verilmezse tüm hafta. */
+  visibleDays?: number[];
 }
 
 const CELL_HEIGHT = "h-14";
@@ -36,26 +38,31 @@ export default function ScheduleGrid({
   slots,
   getCell,
   isDayHighlighted,
+  visibleDays,
 }: ScheduleGridProps) {
+  const days = visibleDays?.length
+    ? visibleDays
+    : DAY_NAMES.map((_, i) => i);
+
   return (
     <table className="w-full border-collapse table-fixed">
       <colgroup>
         <col style={{ width: 48 }} />
-        {DAY_NAMES.map((_, i) => (
-          <col key={i} />
+        {days.map((d) => (
+          <col key={d} />
         ))}
       </colgroup>
       <thead>
         <tr>
           <th className="p-1" />
-          {DAY_NAMES.map((name, dayIdx) => (
+          {days.map((dayIdx) => (
             <th
               key={dayIdx}
               className={`p-1 text-center text-xs font-semibold ${
                 isDayHighlighted?.(dayIdx) ? "text-red-400" : "text-gray-500"
               }`}
             >
-              {name}
+              {DAY_NAMES[dayIdx]}
             </th>
           ))}
         </tr>
@@ -71,7 +78,7 @@ export default function ScheduleGrid({
                 {slot.start}
               </div>
             </td>
-            {DAY_NAMES.map((_, dayIdx) => (
+            {days.map((dayIdx) => (
               <td key={dayIdx} className="p-1">
                 <Cell cell={getCell(dayIdx, slot)} />
               </td>

@@ -13,6 +13,7 @@ export const ITERATIONS_PER_ROUND = 40000;
 export const ROUND_TIME_LIMIT_MS = 1200;
 
 export const SCHEDULE_JOB_STORAGE_KEY = "derso:schedule-job";
+export const SCHEDULE_JOB_STORAGE_KEY_V2 = "derso:schedule-job-v2";
 
 export interface RoundLog {
   round: number;
@@ -55,10 +56,13 @@ export function writeScheduleJob(config: ScheduleJobConfig): void {
   sessionStorage.setItem(SCHEDULE_JOB_STORAGE_KEY, JSON.stringify(config));
 }
 
-export function readScheduleJob(): ScheduleJobConfig | null {
+export function writeScheduleJobV2(config: ScheduleJobConfig): void {
+  sessionStorage.setItem(SCHEDULE_JOB_STORAGE_KEY_V2, JSON.stringify(config));
+}
+
+function parseJob(raw: string | null): ScheduleJobConfig | null {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(SCHEDULE_JOB_STORAGE_KEY);
-    if (!raw) return null;
     const parsed = JSON.parse(raw) as ScheduleJobConfig;
     if (!parsed?.rules || !parsed.rounds) return null;
     return {
@@ -71,6 +75,26 @@ export function readScheduleJob(): ScheduleJobConfig | null {
   }
 }
 
+export function readScheduleJob(): ScheduleJobConfig | null {
+  try {
+    return parseJob(sessionStorage.getItem(SCHEDULE_JOB_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function readScheduleJobV2(): ScheduleJobConfig | null {
+  try {
+    return parseJob(sessionStorage.getItem(SCHEDULE_JOB_STORAGE_KEY_V2));
+  } catch {
+    return null;
+  }
+}
+
 export function clearScheduleJob(): void {
   sessionStorage.removeItem(SCHEDULE_JOB_STORAGE_KEY);
+}
+
+export function clearScheduleJobV2(): void {
+  sessionStorage.removeItem(SCHEDULE_JOB_STORAGE_KEY_V2);
 }

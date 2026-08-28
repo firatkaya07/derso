@@ -28,6 +28,14 @@ import type {
   Teacher,
   TeacherSubject,
 } from "@/lib/types";
+import { useV2ScheduleOptional } from "@/lib/v2/ScheduleProvider";
+import {
+  dayGroupOf,
+  generateProfileSlots,
+  isSlotInsideClassWindow,
+  visibleDaysForClass,
+} from "@/lib/v2/timeline";
+import { v2SlotsForClassDay } from "@/lib/v2/schedule-slots";
 
 interface SubjectCard {
   subjectId: string;
@@ -57,13 +65,21 @@ interface ClassDetail {
 interface ProgramBoardProps {
   /** /program/[classId] adresinden gelen sınıf; liste yüklendiğinde seçilir. */
   initialClassId?: string;
+  /** V2: lessons_v2 + kurum zaman çizelgesi. */
+  edition?: "v1" | "v2";
 }
 
-export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
+export default function ProgramBoard({
+  initialClassId,
+  edition = "v1",
+}: ProgramBoardProps) {
   const supabase = createClient();
   const toast = useToast();
   const settings = useSettings();
   const { organizationId } = useOrganization();
+  const v2 = useV2ScheduleOptional();
+  const isV2 = edition === "v2";
+  const lessonsTable = isV2 ? "lessons_v2" : "lessons";
   const timing = useMemo(() => slotTimingOf(settings), [settings]);
 
   const [chosenClassId, setChosenClassId] = useState<string | null>(
@@ -85,7 +101,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
         .select("class_id, weekly_hours")
         .eq("organization_id", organizationId),
       supabase
-        .from("lessons")
+        .from(lessonsTable)
         .select("class_id")
         .eq("organization_id", organizationId),
     ]);
@@ -105,10 +121,12 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     }
 
     return { classes: classResult.data ?? [], totals };
-  }, [supabase, organizationId]);
+  }, [supabase, organizationId, lessonsTable]);
 
   const overview = useAsyncData(loadOverview, {
-    cacheKey: clientCacheKeys.programOverview(organizationId),
+    cacheKey: isV2
+      ? clientCacheKeys.programOverviewV2(organizationId)
+      : clientCacheKeys.programOverview(organizationId),
   });
   const classes = useMemo(
     () => overview.data?.classes ?? [],
@@ -133,7 +151,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
           .eq("class_id", selectedClassId)
           .order("day_of_week"),
         supabase
-          .from("lessons")
+          .from(lessonsTable)
           .select("*, subject:subjects(*), teacher:teachers(*)")
           .eq("class_id", selectedClassId),
         supabase
@@ -171,7 +189,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     let teacherLessons: Lesson[] = [];
     if (teacherIds.length > 0) {
       const result = await supabase
-        .from("lessons")
+        .from(lessonsTable)
         .select("*")
         .in("teacher_id", teacherIds);
       throwIfDbError(result, "Öğretmen programları okunamadı");
@@ -186,7 +204,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
       teacherSubjects,
       teacherLessons,
     };
-  }, [supabase, selectedClassId, organizationId]);
+  }, [supabase, selectedClassId, organizationId, lessonsTable]);
 
   const detail = useAsyncData(loadClassDetail);
 
@@ -203,9 +221,27 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     return classes.filter((c) => c.name.toLowerCase().includes(term));
   }, [classes, search]);
 
-  const timeSlots = useMemo(
-    () => buildTimeSlots(scheduleDays, timing),
-    [scheduleDays, timing]
+  const timeSlots = useMemo((): TimeSlot[] => {
+    if (isV2 && v2) {
+      // Kurum legend’i: sınıfın görünen gün gruplarının slot birleşimi
+      const days = visibleDaysForClass(scheduleDays);
+      const unique = new Map<string, TimeSlot>();
+      for (const dayOfWeek of days) {
+        const group = dayGroupOf(dayOfWeek);
+        const profile =
+          group === "weekday" ? v2.profiles.weekday : v2.profiles.weekend;
+        for (const slot of generateProfileSlots(profile)) {
+          unique.set(slot.start, { start: slot.start, end: slot.end });
+        }
+      }
+      return [...unique.values()].sort((a, b) => a.start.localeCompare(b.start));
+    }
+    return buildTimeSlots(scheduleDays, timing);
+  }, [isV2, v2, scheduleDays, timing]);
+
+  const visibleDays = useMemo(
+    () => (isV2 ? visibleDaysForClass(scheduleDays) : undefined),
+    [isV2, scheduleDays]
   );
 
   const cards = useMemo<SubjectCard[]>(() => {
@@ -268,6 +304,21 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
 
   const blockerFor = (dayOfWeek: number, slot: TimeSlot) => {
     if (!activeCardState || !selectedClassId || !detail.data) return null;
+    if (isV2) {
+      const day = scheduleDays.find((d) => d.day_of_week === dayOfWeek);
+      const group = dayGroupOf(dayOfWeek);
+      const profile = v2
+        ? group === "weekday"
+          ? v2.profiles.weekday
+          : v2.profiles.weekend
+        : null;
+      const match = profile
+        ? generateProfileSlots(profile).find((s) => s.start === slot.start)
+        : undefined;
+      if (!match || !isSlotInsideClassWindow(match, day)) {
+        return "no-class-day" as const;
+      }
+    }
     const teacher = detail.data.teachers.find(
       (t) => t.id === activeCardState.teacherId
     );
@@ -283,6 +334,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
       weeklyHours: activeCardState.weeklyHours,
       placedCount: activeCardState.placedCount,
       timing,
+      assumeInWindow: isV2,
     });
   };
 
@@ -293,7 +345,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
 
   const handlePlace = async (dayOfWeek: number, slot: TimeSlot) => {
     if (!activeCardState || !selectedClassId) return;
-    const { error } = await supabase.from("lessons").insert({
+    const { error } = await supabase.from(lessonsTable).insert({
       organization_id: organizationId,
       class_id: selectedClassId,
       subject_id: activeCardState.subjectId,
@@ -312,7 +364,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
   };
 
   const handleRemove = async (lessonId: string) => {
-    const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+    const { error } = await supabase.from(lessonsTable).delete().eq("id", lessonId);
     if (error) {
       toast.error(describeDbError(error));
       return;
@@ -346,7 +398,21 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
   };
 
   const getCell = (dayOfWeek: number, slot: TimeSlot): GridCell => {
-    if (!isSlotWithinClassDay(scheduleDays, dayOfWeek, slot.start, timing)) {
+    const available = isV2
+      ? (() => {
+          const day = scheduleDays.find((d) => d.day_of_week === dayOfWeek);
+          if (!day || !v2) return false;
+          const group = dayGroupOf(dayOfWeek);
+          const profile =
+            group === "weekday" ? v2.profiles.weekday : v2.profiles.weekend;
+          const match = generateProfileSlots(profile).find(
+            (s) => s.start === slot.start
+          );
+          return match ? isSlotInsideClassWindow(match, day) : false;
+        })()
+      : isSlotWithinClassDay(scheduleDays, dayOfWeek, slot.start, timing);
+
+    if (!available) {
       return { kind: "unavailable" };
     }
 
@@ -411,7 +477,7 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
     >
       <div className="flex items-center gap-2 mb-4">
         <Link
-          href="/home"
+          href={isV2 ? "/v2" : "/home"}
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg
@@ -428,7 +494,9 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
             />
           </svg>
         </Link>
-        <h1 className="text-lg font-bold text-gray-900">Sınıf Programları</h1>
+        <h1 className="text-lg font-bold text-gray-900">
+          {isV2 ? "Sınıf Programları (V2)" : "Sınıf Programları"}
+        </h1>
       </div>
 
       <div className="flex gap-3 items-start">
@@ -551,7 +619,11 @@ export default function ProgramBoard({ initialClassId }: ProgramBoardProps) {
                 </div>
               ) : (
                 <div className="flex-1 overflow-auto p-3">
-                  <ScheduleGrid slots={timeSlots} getCell={getCell} />
+                  <ScheduleGrid
+                    slots={timeSlots}
+                    getCell={getCell}
+                    visibleDays={visibleDays}
+                  />
                 </div>
               )}
             </>

@@ -42,8 +42,14 @@ export const clientCacheKeys = {
   classes: (organizationId: string) => `client:${classesTag(organizationId)}`,
   planning: (organizationId: string) => `client:${planningTag(organizationId)}`,
   lessons: (organizationId: string) => `client:${lessonsTag(organizationId)}`,
+  lessonsV2: (organizationId: string) =>
+    `client:org:${organizationId}:lessons-v2`,
   programOverview: (organizationId: string) =>
     `client:org:${organizationId}:program-overview`,
+  programOverviewV2: (organizationId: string) =>
+    `client:org:${organizationId}:program-overview-v2`,
   teacherOverview: (organizationId: string) =>
     `client:org:${organizationId}:teacher-overview`,
+  teacherOverviewV2: (organizationId: string) =>
+    `client:org:${organizationId}:teacher-overview-v2`,
 } as const;

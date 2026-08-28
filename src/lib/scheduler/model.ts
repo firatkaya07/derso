@@ -150,6 +150,13 @@ export interface BuildModelInput {
   teacherSubjects: TeacherSubject[];
   /** Ders saati ızgarasının süreleri; verilmezse 40 + 10 dakika. */
   timing?: SlotTiming;
+  /**
+   * Verilirse sınıf günü slotları bu fonksiyonla üretilir (V2 profil slotları).
+   * Yoksa `generateTimeSlots` + timing kullanılır.
+   */
+  slotsForDay?: (
+    day: ClassScheduleDay
+  ) => Array<{ start: string; end: string }>;
 }
 
 /**
@@ -173,13 +180,17 @@ export function buildModel(input: BuildModelInput): Model {
     daysByClass.set(idx, list);
   }
 
-  const timeSet = new Set<string>();
-  for (const day of input.scheduleDays) {
-    for (const slot of generateTimeSlots(
+  const resolveSlots = (day: ClassScheduleDay) =>
+    input.slotsForDay?.(day) ??
+    generateTimeSlots(
       day.start_time.slice(0, 5),
       day.end_time.slice(0, 5),
       input.timing
-    )) {
+    );
+
+  const timeSet = new Set<string>();
+  for (const day of input.scheduleDays) {
+    for (const slot of resolveSlots(day)) {
       timeSet.add(slot.start);
     }
   }
@@ -196,11 +207,7 @@ export function buildModel(input: BuildModelInput): Model {
 
   for (const [classIdx, days] of daysByClass) {
     for (const day of days) {
-      const slots = generateTimeSlots(
-        day.start_time.slice(0, 5),
-        day.end_time.slice(0, 5),
-        input.timing
-      ).map((slot) => ({
+      const slots = resolveSlots(day).map((slot) => ({
         key: day.day_of_week * numTimes + timeIndex.get(slot.start)!,
         start: slot.start,
         end: slot.end,

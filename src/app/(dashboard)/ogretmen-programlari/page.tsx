@@ -26,6 +26,13 @@ import type {
   Subject,
   Teacher,
 } from "@/lib/types";
+import { useV2ScheduleOptional } from "@/lib/v2/ScheduleProvider";
+import {
+  dayGroupOf,
+  generateProfileSlots,
+  isSlotInsideClassWindow,
+  visibleDaysForClass,
+} from "@/lib/v2/timeline";
 
 interface TeacherCard {
   classId: string;
@@ -51,11 +58,20 @@ interface TeacherDetail {
   classLessons: Lesson[];
 }
 
-export default function TeacherSchedulesPage() {
+interface TeacherSchedulesPageProps {
+  edition?: "v1" | "v2";
+}
+
+export default function TeacherSchedulesPage({
+  edition = "v1",
+}: TeacherSchedulesPageProps) {
   const supabase = createClient();
   const toast = useToast();
   const settings = useSettings();
   const { organizationId } = useOrganization();
+  const v2 = useV2ScheduleOptional();
+  const isV2 = edition === "v2";
+  const lessonsTable = isV2 ? "lessons_v2" : "lessons";
   const timing = useMemo(() => slotTimingOf(settings), [settings]);
 
   const [chosenTeacherId, setChosenTeacherId] = useState<string | null>(null);
@@ -74,7 +90,7 @@ export default function TeacherSchedulesPage() {
         .select("class_id, subject_id, teacher_id, weekly_hours")
         .eq("organization_id", organizationId),
       supabase
-        .from("lessons")
+        .from(lessonsTable)
         .select("teacher_id, class_id, subject_id")
         .eq("organization_id", organizationId),
     ]);
@@ -118,10 +134,12 @@ export default function TeacherSchedulesPage() {
     }
 
     return { teachers: teacherResult.data ?? [], totals };
-  }, [supabase, organizationId]);
+  }, [supabase, organizationId, lessonsTable]);
 
   const overview = useAsyncData(loadOverview, {
-    cacheKey: clientCacheKeys.teacherOverview(organizationId),
+    cacheKey: isV2
+      ? clientCacheKeys.teacherOverviewV2(organizationId)
+      : clientCacheKeys.teacherOverview(organizationId),
   });
   const teachers = useMemo(
     () => overview.data?.teachers ?? [],
@@ -138,7 +156,7 @@ export default function TeacherSchedulesPage() {
 
     const [lessonsResult, classesResult, daysResult] = await Promise.all([
       supabase
-        .from("lessons")
+        .from(lessonsTable)
         .select("*, subject:subjects(*), teacher:teachers(*)")
         .eq("organization_id", organizationId)
         .eq("teacher_id", selectedTeacherId),
@@ -192,7 +210,7 @@ export default function TeacherSchedulesPage() {
     let classLessons: Lesson[] = [];
     if (cardClassIds.length > 0) {
       const result = await supabase
-        .from("lessons")
+        .from(lessonsTable)
         .select("*")
         .in("class_id", cardClassIds);
       throwIfDbError(result, "Sınıf programları okunamadı");
@@ -206,7 +224,7 @@ export default function TeacherSchedulesPage() {
       scheduleDays: daysResult.data ?? [],
       classLessons,
     };
-  }, [supabase, selectedTeacherId, organizationId]);
+  }, [supabase, selectedTeacherId, organizationId, lessonsTable]);
 
   const detail = useAsyncData(loadDetail);
 
@@ -229,9 +247,26 @@ export default function TeacherSchedulesPage() {
     return teachers.filter((t) => t.name.toLowerCase().includes(term));
   }, [teachers, search]);
 
-  const timeSlots = useMemo(
-    () => buildTimeSlots(scheduleDays, timing),
-    [scheduleDays, timing]
+  const timeSlots = useMemo((): TimeSlot[] => {
+    if (isV2 && v2) {
+      const days = visibleDaysForClass(scheduleDays);
+      const unique = new Map<string, TimeSlot>();
+      for (const dayOfWeek of days) {
+        const group = dayGroupOf(dayOfWeek);
+        const profile =
+          group === "weekday" ? v2.profiles.weekday : v2.profiles.weekend;
+        for (const slot of generateProfileSlots(profile)) {
+          unique.set(slot.start, { start: slot.start, end: slot.end });
+        }
+      }
+      return [...unique.values()].sort((a, b) => a.start.localeCompare(b.start));
+    }
+    return buildTimeSlots(scheduleDays, timing);
+  }, [isV2, v2, scheduleDays, timing]);
+
+  const visibleDays = useMemo(
+    () => (isV2 ? visibleDaysForClass(scheduleDays) : undefined),
+    [isV2, scheduleDays]
   );
 
   const cards = useMemo<TeacherCard[]>(() => {
@@ -282,6 +317,24 @@ export default function TeacherSchedulesPage() {
 
   const blockerFor = (dayOfWeek: number, slot: TimeSlot) => {
     if (!activeCardState || !selectedTeacherId || !detail.data) return null;
+    if (isV2) {
+      const day = scheduleDays.find(
+        (d) =>
+          d.class_id === activeCardState.classId && d.day_of_week === dayOfWeek
+      );
+      const group = dayGroupOf(dayOfWeek);
+      const profile = v2
+        ? group === "weekday"
+          ? v2.profiles.weekday
+          : v2.profiles.weekend
+        : null;
+      const match = profile
+        ? generateProfileSlots(profile).find((s) => s.start === slot.start)
+        : undefined;
+      if (!match || !isSlotInsideClassWindow(match, day)) {
+        return "no-class-day" as const;
+      }
+    }
     return checkPlacement({
       dayOfWeek,
       startTime: slot.start,
@@ -298,12 +351,13 @@ export default function TeacherSchedulesPage() {
       weeklyHours: activeCardState.weeklyHours,
       placedCount: activeCardState.placedCount,
       timing,
+      assumeInWindow: isV2,
     });
   };
 
   const handlePlace = async (dayOfWeek: number, slot: TimeSlot) => {
     if (!activeCardState || !selectedTeacherId) return;
-    const { error } = await supabase.from("lessons").insert({
+    const { error } = await supabase.from(lessonsTable).insert({
       organization_id: organizationId,
       class_id: activeCardState.classId,
       subject_id: activeCardState.subjectId,
@@ -319,7 +373,7 @@ export default function TeacherSchedulesPage() {
   };
 
   const handleRemove = async (lessonId: string) => {
-    const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+    const { error } = await supabase.from(lessonsTable).delete().eq("id", lessonId);
     if (error) {
       toast.error(describeDbError(error));
       return;
@@ -401,7 +455,7 @@ export default function TeacherSchedulesPage() {
     >
       <div className="flex items-center gap-2 mb-4">
         <Link
-          href="/home"
+          href={isV2 ? "/v2" : "/home"}
           className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg
@@ -418,7 +472,9 @@ export default function TeacherSchedulesPage() {
             />
           </svg>
         </Link>
-        <h1 className="text-lg font-bold text-gray-900">Öğretmen Programları</h1>
+        <h1 className="text-lg font-bold text-gray-900">
+          {isV2 ? "Öğretmen Programları (V2)" : "Öğretmen Programları"}
+        </h1>
       </div>
 
       <div className="flex gap-3 items-start">
@@ -533,6 +589,7 @@ export default function TeacherSchedulesPage() {
                     slots={timeSlots}
                     getCell={getCell}
                     isDayHighlighted={isOffDay}
+                    visibleDays={visibleDays}
                   />
                 </div>
               )}

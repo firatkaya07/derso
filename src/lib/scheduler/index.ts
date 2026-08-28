@@ -79,6 +79,10 @@ export interface ScheduleResult {
 export interface AutoScheduleOptions extends SolveOptions {
   /** Ders saati ızgarasının süreleri; verilmezse 40 dakika + 10 dakika. */
   timing?: SlotTiming;
+  /** V2: sınıf günü için kurum profilinden filtrelenmiş slotlar. */
+  slotsForDay?: (
+    day: ClassScheduleDay
+  ) => Array<{ start: string; end: string }>;
 }
 
 /**
@@ -110,6 +114,7 @@ export function autoSchedule(
     teachers,
     teacherSubjects,
     timing: options.timing,
+    slotsForDay: options.slotsForDay,
   });
 
   const feasibility = analyzeFeasibility(model);
