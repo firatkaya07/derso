@@ -575,6 +575,53 @@
   border-radius: 999px;
 }
 
+.landing-pricing__promo {
+  margin-top: 1.75rem;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  padding: 1.35rem 1.4rem 1.45rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--landing-ember) 35%, transparent);
+  background:
+    linear-gradient(135deg, #fff5f7 0%, #ffffff 55%, #f0fffb 100%);
+  box-shadow: 0 14px 36px rgba(225, 29, 72, 0.1);
+}
+
+.landing-pricing__promo-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-ember);
+}
+
+.landing-pricing__promo-title {
+  margin: 0.45rem 0 0;
+  font-family: var(--landing-display);
+  font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--landing-ink);
+}
+
+.landing-pricing__promo-title strong {
+  color: var(--landing-ember);
+}
+
+.landing-pricing__promo-copy {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--landing-muted);
+}
+
+.landing-pricing__promo-cta {
+  margin-top: 1rem;
+}
+
 .landing-pricing__grid {
   margin-top: 2.25rem;
   display: grid;

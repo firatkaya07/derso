@@ -24,6 +24,26 @@ export default function PricingSection() {
           Fiyatlara KDV dahil değildir.
         </p>
 
+        <div className="landing-pricing__promo" role="status">
+          <p className="landing-pricing__promo-eyebrow">Şu an ücretsiz</p>
+          <p className="landing-pricing__promo-title">
+            Bugün kayıt ol, <strong>3 ay ücretsiz</strong> kullan
+          </p>
+          <p className="landing-pricing__promo-copy">
+            Kampanya süresince tüm paketler 3 ay boyunca ücretsiz. Kart
+            gerekmez — hemen başlayın.
+          </p>
+          <TrackedLink
+            href="/login"
+            className="landing-btn landing-btn--accent landing-pricing__promo-cta"
+            trackLocation="pricing"
+            trackLead
+            trackLabel="3 ay ücretsiz kayıt"
+          >
+            Ücretsiz kayıt ol
+          </TrackedLink>
+        </div>
+
         <div
           className="landing-pricing__billing"
           role="group"
