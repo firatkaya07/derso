@@ -11,6 +11,7 @@ import Header from "@/components/Header";
 import { SettingsProvider } from "@/components/SettingsProvider";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import { FieldsProvider } from "@/components/FieldsProvider";
+import { EditionProvider } from "@/components/EditionProvider";
 
 export const metadata: Metadata = {
   robots: {
@@ -53,12 +54,14 @@ export default async function DashboardLayout({
     <OrganizationProvider membership={membership}>
       <SettingsProvider settings={settings}>
         <FieldsProvider fields={fields}>
-          <div className="min-h-screen bg-[var(--color-surface)]">
-            <Header />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              {children}
-            </main>
-          </div>
+          <EditionProvider>
+            <div className="min-h-screen bg-[var(--color-surface)]">
+              <Header />
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {children}
+              </main>
+            </div>
+          </EditionProvider>
         </FieldsProvider>
       </SettingsProvider>
     </OrganizationProvider>
