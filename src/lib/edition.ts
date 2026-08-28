@@ -6,8 +6,6 @@ export type ScheduleEdition = "v1" | "v2";
 
 export const DEFAULT_EDITION: ScheduleEdition = "v1";
 
-const STORAGE_PREFIX = "derso:schedule-edition:";
-
 /** Uzun path’ler önce (ör. /dagitim/izleme, /dagitim’den önce). */
 const VERSIONED_ROUTES: ReadonlyArray<{ v1: string; v2: string }> = [
   { v1: "/dagitim/izleme", v2: "/v2/dagitim/izleme" },
@@ -18,33 +16,8 @@ const VERSIONED_ROUTES: ReadonlyArray<{ v1: string; v2: string }> = [
   { v1: "/indirme", v2: "/v2/indirme" },
 ];
 
-export function editionStorageKey(userId: string): string {
-  return `${STORAGE_PREFIX}${userId}`;
-}
-
 export function parseEdition(value: unknown): ScheduleEdition {
   return value === "v2" ? "v2" : "v1";
-}
-
-export function readStoredEdition(userId: string): ScheduleEdition {
-  if (typeof window === "undefined") return DEFAULT_EDITION;
-  try {
-    return parseEdition(window.localStorage.getItem(editionStorageKey(userId)));
-  } catch {
-    return DEFAULT_EDITION;
-  }
-}
-
-export function writeStoredEdition(
-  userId: string,
-  edition: ScheduleEdition
-): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(editionStorageKey(userId), edition);
-  } catch {
-    // private mode / quota — sessizce yut
-  }
 }
 
 /** Path bir sürüm rotasıyla eşleşiyorsa o sürümü döner. */

@@ -14,10 +14,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   DEFAULT_EDITION,
   pathForEdition,
-  readStoredEdition,
-  writeStoredEdition,
   type ScheduleEdition,
 } from "@/lib/edition";
+import {
+  loadScheduleEdition,
+  saveScheduleEdition,
+} from "@/lib/user-preferences";
 
 type EditionContextValue = {
   edition: ScheduleEdition;
@@ -37,15 +39,17 @@ export function EditionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void supabase.auth.getUser().then(({ data }) => {
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
       if (cancelled) return;
       const id = data.user?.id ?? null;
       setUserId(id);
       if (id) {
-        setEditionState(readStoredEdition(id));
+        const stored = await loadScheduleEdition(supabase, id);
+        if (!cancelled) setEditionState(stored);
       }
-      setReady(true);
-    });
+      if (!cancelled) setReady(true);
+    })();
     return () => {
       cancelled = true;
     };
@@ -54,13 +58,17 @@ export function EditionProvider({ children }: { children: ReactNode }) {
   const setEdition = useCallback(
     (next: ScheduleEdition) => {
       setEditionState(next);
-      if (userId) writeStoredEdition(userId, next);
+      if (userId) {
+        void saveScheduleEdition(supabase, userId, next).catch(() => {
+          // UI tercihi zaten güncellendi; kayıt hatası rotayı engellemez
+        });
+      }
       const target = pathForEdition(pathname, next);
       if (target !== pathname) {
         router.push(target);
       }
     },
-    [userId, pathname, router]
+    [userId, pathname, router, supabase]
   );
 
   // Tercihe uymayan sürüm rotasındaysa yönlendir (ilk yükleme / doğrudan link)
