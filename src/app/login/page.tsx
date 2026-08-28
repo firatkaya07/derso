@@ -59,6 +59,7 @@ const BENEFITS = [
 ] as const;
 
 export default function LoginPage() {
+  const supabase = createClient();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -89,14 +90,12 @@ export default function LoginPage() {
   };
 
   const finishAuth = async () => {
-    const supabase = createClient();
     const { data: isAdmin } = await supabase.rpc("is_platform_admin");
     router.push(isAdmin ? "/admin" : "/home");
     router.refresh();
   };
 
   const handleLogin = async () => {
-    const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -119,7 +118,6 @@ export default function LoginPage() {
       return;
     }
 
-    const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,

@@ -18,8 +18,12 @@ import {
   saveSettings,
   type AppSettings,
 } from "@/lib/settings";
-import { SETTINGS_SETUP_SQL } from "@/lib/settings-setup-sql";
-import { LOGO_ACCEPTED_TYPES, resizeImageToSquareDataUrl } from "@/lib/image";
+import { uploadInstitutionLogo } from "@/lib/logo-storage";
+import { LOGO_ACCEPTED_TYPES } from "@/lib/image";
+import {
+  formatPairedSubjectLines,
+  parsePairedSubjectLines,
+} from "@/lib/paired-subjects";
 import {
   describeTiming,
   findOrphanLessons,
@@ -33,6 +37,13 @@ import {
   type FieldRow,
 } from "@/lib/fields";
 
+const SETTINGS_SETUP_SQL = `-- Derso — kurum ayarları (organization_id PK)
+-- Supabase migration 0004 ile uygulanır; elle çalıştırmayın.
+
+-- settings.organization_id → organizations.id (kurum başına bir satır)
+-- RLS: organization_id in (select user_organization_ids())
+`;
+
 export default function GenelTanimlarPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -41,6 +52,9 @@ export default function GenelTanimlarPage() {
   const initial = useSettings();
 
   const [form, setForm] = useState<AppSettings>(initial);
+  const [pairedSubjectLines, setPairedSubjectLines] = useState(() =>
+    formatPairedSubjectLines(initial.pairedSubjectPairs)
+  );
   const [saving, setSaving] = useState(false);
   const [processingLogo, setProcessingLogo] = useState(false);
   const [tableMissing, setTableMissing] = useState(false);
@@ -63,7 +77,6 @@ export default function GenelTanimlarPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setFieldsLoading(true);
     void loadFields(supabase, organizationId)
       .then((rows) => {
         if (!cancelled) setFields(rows);
@@ -77,7 +90,7 @@ export default function GenelTanimlarPage() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, organizationId]);
+  }, [supabase, organizationId, toast]);
 
   const handleAddField = async () => {
     const name = newFieldName.trim();
@@ -153,10 +166,7 @@ export default function GenelTanimlarPage() {
     form.breakDurationMinutes !== initial.breakDurationMinutes;
 
   useEffect(() => {
-    if (!timingChanged) {
-      setOrphanCount(null);
-      return;
-    }
+    if (!timingChanged) return;
     let cancelled = false;
     void (async () => {
       const [lessonsResult, daysResult] = await Promise.all([
@@ -186,6 +196,8 @@ export default function GenelTanimlarPage() {
     };
   }, [timingChanged, timing, supabase, organizationId]);
 
+  const effectiveOrphanCount = timingChanged ? orphanCount : null;
+
   const handleLogoChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -195,10 +207,10 @@ export default function GenelTanimlarPage() {
 
     setProcessingLogo(true);
     try {
-      const dataUrl = await resizeImageToSquareDataUrl(file, LOGO_SIZE);
-      update("logoDataUrl", dataUrl);
+      const logoUrl = await uploadInstitutionLogo(organizationId, file);
+      update("logoDataUrl", logoUrl);
       toast.success(
-        `Logo ${LOGO_SIZE}×${LOGO_SIZE} piksele ölçeklendi. Kaydetmeyi unutmayın.`
+        `Logo ${LOGO_SIZE}×${LOGO_SIZE} piksele ölçeklendi ve yüklendi. Kaydetmeyi unutmayın.`
       );
     } catch (error) {
       toast.error((error as Error).message);
@@ -211,8 +223,10 @@ export default function GenelTanimlarPage() {
     event.preventDefault();
     setSaving(true);
     try {
+      const pairedSubjectPairs = parsePairedSubjectLines(pairedSubjectLines);
       await saveSettings(supabase, organizationId, {
         ...form,
+        pairedSubjectPairs,
         province: form.province?.trim() || null,
         district: form.district?.trim() || null,
         institutionName: form.institutionName?.trim() || null,
@@ -619,9 +633,9 @@ export default function GenelTanimlarPage() {
                 Kaydedilmiş dersler eski saatlerinde kalır; yeni ızgaraya
                 uymayanlar programda görünmez hale gelebilir.
               </p>
-              {orphanCount !== null && orphanCount > 0 && (
+              {effectiveOrphanCount !== null && effectiveOrphanCount > 0 && (
                 <p className="font-medium">
-                  Mevcut ayarla {orphanCount} ders saati uyumsuz kalacak. Kaydettikten
+                  Mevcut ayarla {effectiveOrphanCount} ders saati uyumsuz kalacak. Kaydettikten
                   sonra{" "}
                   <Link href="/dagitim" className="underline">
                     Dağıtım
@@ -630,11 +644,27 @@ export default function GenelTanimlarPage() {
                   oluşturun.
                 </p>
               )}
-              {orphanCount === 0 && (
+              {effectiveOrphanCount === 0 && (
                 <p>Mevcut ders saatleri yeni sürelerle hâlâ örtüşüyor.</p>
               )}
             </div>
           )}
+        </section>
+
+        <section className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="font-semibold text-gray-900 mb-1">Eşli Dersler</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Aynı öğretmene verilmesi gereken ders çiftleri. Her satırda iki ders
+            adını &quot;A | B&quot; biçiminde yazın. Boş bırakırsanız varsayılan
+            çiftler kullanılır.
+          </p>
+          <textarea
+            value={pairedSubjectLines}
+            onChange={(e) => setPairedSubjectLines(e.target.value)}
+            rows={5}
+            className={`${inputClass} font-mono text-sm`}
+            placeholder={"MATEMATİK 1 | MATEMATİK 2\nTÜRKÇE | EDEBİYAT"}
+          />
         </section>
       </div>
     </form>

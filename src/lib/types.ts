@@ -63,9 +63,6 @@ export const LEVELS = [
   "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "Mezun",
 ];
 
-/** @deprecated Kurum alanları `fields` tablosundan / useFields() ile gelir. */
-export { DEFAULT_FIELD_NAMES as SUBGROUPS } from "./fields";
-
 export interface ClassScheduleDay {
   id: string;
   organization_id?: string;

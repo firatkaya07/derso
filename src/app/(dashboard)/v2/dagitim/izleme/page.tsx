@@ -41,8 +41,10 @@ export default function DagitimIzlemePage() {
   const { organizationId } = useOrganization();
   const v2 = useV2Schedule();
 
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [job, setJob] = useState<ScheduleJobConfig | null>(null);
+  const [job] = useState<ScheduleJobConfig | null>(() => readScheduleJobV2());
+  const [phase, setPhase] = useState<Phase>(() =>
+    readScheduleJobV2() ? "loading" : "missing-job"
+  );
   const [roundLogs, setRoundLogs] = useState<RoundLog[]>([]);
   const [best, setBest] = useState<ScheduleResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -52,15 +54,12 @@ export default function DagitimIzlemePage() {
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    if (!job) return;
+
     let cancelled = false;
     cancelledRef.current = false;
 
-    const config = readScheduleJobV2();
-    if (!config) {
-      setPhase("missing-job");
-      return;
-    }
-    setJob(config);
+    const config = job;
 
     const run = async () => {
       let data: PlanningData;
@@ -175,7 +174,7 @@ export default function DagitimIzlemePage() {
     };
     // Tek seferlik başlatma: ayarlar/oturum değişince yeniden koşmasın.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [job]);
 
   const handleSave = async () => {
     if (!best) return;

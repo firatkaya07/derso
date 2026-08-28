@@ -7,8 +7,14 @@ import {
   slotTimingOf,
   type AppSettings,
 } from "@/lib/settings";
-import { SETTINGS_SETUP_SQL } from "@/lib/settings-setup-sql";
 import { generateTimeSlots } from "@/lib/types";
+
+const SETTINGS_SETUP_SQL = `-- Derso — kurum ayarları (organization_id PK)
+-- Supabase migration 0004 ile uygulanır; elle çalıştırmayın.
+
+-- settings.organization_id → organizations.id (kurum başına bir satır)
+-- RLS: organization_id in (select user_organization_ids())
+`;
 
 function settings(overrides: Partial<AppSettings> = {}): AppSettings {
   return { ...DEFAULT_SETTINGS, ...overrides };

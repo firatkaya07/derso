@@ -15,6 +15,8 @@ import {
 import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
 import { trackSupportOpen, trackSupportMessage } from "@/lib/analytics";
 
+const supabase = createClient();
+
 type View = "list" | "chat" | "new";
 
 type AuthInfo = {
@@ -221,7 +223,6 @@ export default function ContactFab() {
     setListLoading(true);
     setError("");
     try {
-      const supabase = createClient();
       const { data, error: rpcError } = await supabase.rpc(
         "support_list_conversations",
         { p_guest_token: token }
@@ -240,7 +241,6 @@ export default function ContactFab() {
       setMessagesLoading(true);
       setError("");
       try {
-        const supabase = createClient();
         const { data, error: rpcError } = await supabase.rpc(
           "support_list_messages",
           {
@@ -281,7 +281,6 @@ export default function ContactFab() {
     let token = guest.token;
 
     try {
-      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -396,7 +395,6 @@ export default function ContactFab() {
   useEffect(() => {
     if (!open || view !== "chat" || !activeId) return;
 
-    const supabase = createClient();
     const channel = supabase
       .channel(`support-messages-${activeId}`)
       .on(
@@ -442,7 +440,6 @@ export default function ContactFab() {
       attachment = await uploadSupportAttachment(conversationId, file);
     }
 
-    const supabase = createClient();
     const { data, error: rpcError } = await supabase.rpc("support_send_message", {
       p_conversation_id: conversationId,
       p_body: body || null,
@@ -469,7 +466,6 @@ export default function ContactFab() {
     setSending(true);
 
     try {
-      const supabase = createClient();
       const { data, error: rpcError } = await supabase.rpc(
         "support_start_conversation",
         {
@@ -923,19 +919,6 @@ export default function ContactFab() {
           </svg>
         )}
       </button>
-
-      <style jsx global>{`
-        @keyframes fabSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }

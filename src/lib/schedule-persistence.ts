@@ -1,16 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { throwIfDbError } from "./db-error";
+import { chunk } from "./chunk";
 import type { GeneratedLesson } from "./scheduler";
-
-const BATCH_SIZE = 500;
-
-function chunk<T>(items: T[], size = BATCH_SIZE): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
-}
 
 export interface SaveScheduleResult {
   savedLessons: number;

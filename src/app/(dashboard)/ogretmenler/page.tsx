@@ -121,10 +121,15 @@ export default function TeachersPage() {
     const query = search.trim().toLocaleLowerCase("tr");
     if (!query) return teachers;
     return teachers.filter((teacher) => {
-      const subjectNames = getTeacherSubjects(teacher.id)
+      const subjectNames = teacherSubjects
+        .filter((ts) => ts.teacher_id === teacher.id)
+        .map((ts) => ts.subject as Subject)
+        .filter(Boolean)
         .map((s) => s.name)
         .join(" ");
-      const classNames = getTeacherAssignments(teacher.id)
+      const classNames = classAssignments
+        .filter((ca) => ca.teacher_id === teacher.id && ca.class && ca.subject)
+        .sort((a, b) => a.class!.name.localeCompare(b.class!.name, "tr"))
         .map((ca) => ca.class!.name)
         .join(" ");
       const haystack =

@@ -1,18 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { throwIfDbError } from "./db-error";
+import { chunk } from "./chunk";
 import { normalizeKey } from "./excel-template";
 import type { ParsedWorkbook } from "./excel-parser";
-
-/** PostgREST tek istekte rahatça işleyebilsin diye yazma işlemleri parçalanır. */
-const BATCH_SIZE = 500;
-
-function chunk<T>(items: T[], size = BATCH_SIZE): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
-}
 
 interface NamedRow {
   id: string;

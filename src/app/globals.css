@@ -74,3 +74,14 @@ button, a, [role="button"], select, label[for], input[type="checkbox"], input[ty
 }
 .modal-overlay-enter { animation: modal-overlay-in 200ms ease-out; }
 .modal-panel-enter { animation: modal-panel-in 250ms ease-out; }
+
+@keyframes fabSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

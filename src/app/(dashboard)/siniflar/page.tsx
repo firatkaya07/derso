@@ -681,18 +681,16 @@ export default function ClassesPage() {
     return counts;
   }, [classes]);
 
-  const filteredClasses = useMemo(() => {
+  const filteredClasses = classes.filter((cls) => {
+    if (levelFilter !== "Tümü" && cls.level !== levelFilter) return false;
     const query = search.trim().toLocaleLowerCase("tr");
-    return classes.filter((cls) => {
-      if (levelFilter !== "Tümü" && cls.level !== levelFilter) return false;
-      if (!query) return true;
-      const haystack =
-        `${cls.name} ${cls.description ?? ""} ${cls.subgroup ?? ""}`.toLocaleLowerCase(
-          "tr"
-        );
-      return haystack.includes(query);
-    });
-  }, [classes, levelFilter, search]);
+    if (!query) return true;
+    const haystack =
+      `${cls.name} ${cls.description ?? ""} ${cls.subgroup ?? ""}`.toLocaleLowerCase(
+        "tr"
+      );
+    return haystack.includes(query);
+  });
 
   if (loading && !data) {
     return (

@@ -9,12 +9,14 @@ export interface AppSettings {
   institutionName: string | null;
   principalName: string | null;
   vicePrincipalName: string | null;
-  /** 100x100 piksele ölçeklenmiş logo; data URL. */
+  /** 100x100 piksele ölçeklenmiş logo; data URL veya depolama public URL. */
   logoDataUrl: string | null;
   /** Örnek: "2025-2026". Boşsa çıktılarda içinde bulunulan yıla göre üretilir. */
   academicYear: string | null;
   lessonDurationMinutes: number;
   breakDurationMinutes: number;
+  /** Eşli ders çiftleri; null ise uygulama varsayılanları kullanılır. */
+  pairedSubjectPairs: [string, string][] | null;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   academicYear: null,
   lessonDurationMinutes: DEFAULT_SLOT_TIMING.lessonMinutes,
   breakDurationMinutes: DEFAULT_SLOT_TIMING.breakMinutes,
+  pairedSubjectPairs: null,
 };
 
 /** Logonun kaydedilmeden önce ölçekleneceği kenar uzunluğu. */
@@ -42,10 +45,11 @@ interface SettingsRow {
   academic_year: string | null;
   lesson_duration_minutes: number;
   break_duration_minutes: number;
+  paired_subject_pairs: [string, string][] | null;
 }
 
 const COLUMNS =
-  "province, district, institution_name, principal_name, vice_principal_name, logo_data_url, academic_year, lesson_duration_minutes, break_duration_minutes";
+  "province, district, institution_name, principal_name, vice_principal_name, logo_data_url, academic_year, lesson_duration_minutes, break_duration_minutes, paired_subject_pairs";
 
 function fromRow(row: SettingsRow): AppSettings {
   return {
@@ -60,6 +64,7 @@ function fromRow(row: SettingsRow): AppSettings {
       row.lesson_duration_minutes ?? DEFAULT_SETTINGS.lessonDurationMinutes,
     breakDurationMinutes:
       row.break_duration_minutes ?? DEFAULT_SETTINGS.breakDurationMinutes,
+    pairedSubjectPairs: row.paired_subject_pairs ?? null,
   };
 }
 
@@ -75,6 +80,7 @@ function toRow(organizationId: string, settings: AppSettings) {
     academic_year: settings.academicYear,
     lesson_duration_minutes: settings.lessonDurationMinutes,
     break_duration_minutes: settings.breakDurationMinutes,
+    paired_subject_pairs: settings.pairedSubjectPairs,
     updated_at: new Date().toISOString(),
   };
 }
