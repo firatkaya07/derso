@@ -145,7 +145,7 @@ declare
   r record;
   slot_start time;
   slot_end time;
-  day_group text;
+  v_day_group text;
   profile public.schedule_profiles_v2%rowtype;
   breaks int[];
   cur int;
@@ -169,10 +169,10 @@ begin
   for r in
     select * from public.lessons where organization_id = p_org
   loop
-    day_group := case when r.day_of_week between 0 and 4 then 'weekday' else 'weekend' end;
+    v_day_group := case when r.day_of_week between 0 and 4 then 'weekday' else 'weekend' end;
     select * into profile
-    from public.schedule_profiles_v2
-    where organization_id = p_org and day_group = day_group;
+    from public.schedule_profiles_v2 sp
+    where sp.organization_id = p_org and sp.day_group = v_day_group;
 
     if not found then
       skipped := skipped + 1;
