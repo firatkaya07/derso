@@ -39,6 +39,7 @@ type Message = {
 export default function AdminSupportThreadPage() {
   const params = useParams<{ id: string }>();
   const conversationId = params.id;
+  const supabase = createClient();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,7 +55,6 @@ export default function AdminSupportThreadPage() {
     setLoading(true);
     setError("");
     try {
-      const supabase = createClient();
       const [convRes, msgRes] = await Promise.all([
         supabase.rpc("admin_list_conversations", {
           p_status: null,
@@ -78,7 +78,7 @@ export default function AdminSupportThreadPage() {
     } finally {
       setLoading(false);
     }
-  }, [conversationId]);
+  }, [supabase, conversationId]);
 
   useEffect(() => {
     // İlk yükleme + conversation değişiminde mesajları çek
@@ -91,7 +91,6 @@ export default function AdminSupportThreadPage() {
   }, [messages]);
 
   useEffect(() => {
-    const supabase = createClient();
     const channel = supabase
       .channel(`admin-support-${conversationId}`)
       .on(
@@ -113,7 +112,7 @@ export default function AdminSupportThreadPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [conversationId]);
+  }, [supabase, conversationId]);
 
   const sendReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +126,6 @@ export default function AdminSupportThreadPage() {
       if (pendingFile) {
         attachment = await uploadSupportAttachment(conversationId, pendingFile);
       }
-      const supabase = createClient();
       const { data, error: rpcError } = await supabase.rpc("admin_reply_message", {
         p_conversation_id: conversationId,
         p_body: text || "",
@@ -154,7 +152,6 @@ export default function AdminSupportThreadPage() {
   const toggleStatus = async () => {
     if (!conversation) return;
     const next = conversation.status === "open" ? "closed" : "open";
-    const supabase = createClient();
     const { data, error: rpcError } = await supabase.rpc(
       "admin_set_conversation_status",
       {

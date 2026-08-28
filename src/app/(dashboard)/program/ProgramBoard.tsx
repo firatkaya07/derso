@@ -35,7 +35,7 @@ import {
   isSlotInsideClassWindow,
   visibleDaysForClass,
 } from "@/lib/v2/timeline";
-import { v2SlotsForClassDay } from "@/lib/v2/schedule-slots";
+
 
 interface SubjectCard {
   subjectId: string;

@@ -1,4 +1,3 @@
-import { DAY_NAMES } from "../types";
 import { buildTimeSlots, slotsForDay, type TimeSlot } from "../schedule-rules";
 import type { ClassScheduleDay, SlotTiming } from "../types";
 import {

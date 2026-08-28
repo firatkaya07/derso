@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
 import { getRequestSupabase } from "@/lib/cache/request";
 
 export type AdminDashboardStats = {

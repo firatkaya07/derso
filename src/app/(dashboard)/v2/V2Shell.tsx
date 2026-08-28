@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useToast } from "@/components/Toast";
@@ -19,10 +19,13 @@ export function V2Shell({ children }: { children: ReactNode }) {
     DEFAULT_PROFILES_V2
   );
   const [ready, setReady] = useState(false);
+  /** Effect'in bağımlılık değişimini algılaması için sayaç. */
+  const loadVersion = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    setReady(false);
+    const version = ++loadVersion.current;
+    const ref = loadVersion;
     void loadScheduleProfilesV2(supabase, organizationId)
       .then((data) => {
         if (!cancelled) {
@@ -38,6 +41,8 @@ export function V2Shell({ children }: { children: ReactNode }) {
       });
     return () => {
       cancelled = true;
+      // Yeni yükleme başlıyorsa ready'yi sıfırla (cleanup'ta güvenli).
+      if (ref.current !== version) setReady(false);
     };
   }, [supabase, organizationId, toast]);
 

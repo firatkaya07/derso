@@ -1,28 +1,36 @@
 /**
  * V2 PDF / Excel çıktıları — hafta içi ve hafta sonu ayrı tablolar.
+ *
+ * Ortak PDF yardımcıları pdf/shared.ts'ten gelir; burada yalnızca V2'ye
+ * özgü grup (hafta içi / hafta sonu) bölme mantığı ve çıktı birleştirme var.
  */
-import type { AppSettings } from "@/lib/settings";
-import {
-  academicYearLabel,
-  DEFAULT_SETTINGS,
-  locationLabel,
-} from "@/lib/settings";
 import type { ClassScheduleDay } from "@/lib/types";
 import { DAY_NAMES } from "@/lib/types";
 import {
+  academicYearLabel,
+  baseStyle,
   buildOgretmenCarsafMatrix,
   buildSinifCarsafMatrix,
   buildSubjectTeacherRows,
   buildTeacherClassSubjectRows,
+  carsafSlotHeader,
+  clockRowHeader,
+  DAY_NAMES_UPPER,
+  DEFAULT_SETTINGS,
+  documentHeader,
+  esc,
+  formatDate,
   formatSinifCarsafPdfHtml,
   formatTeacherProgramCell,
   printHtmlDocument,
+  signatureBlock,
   sinifCarsafDataColChars,
   type CarsafMatrix,
   type LessonData,
   type PrintOutcome,
   type RawLessonRow,
 } from "@/lib/pdf-generator";
+import type { AppSettings } from "@/lib/settings";
 import type { ScheduleProfilesV2 } from "@/lib/v2/profiles";
 import {
   dayGroupOf,
@@ -32,79 +40,6 @@ import {
   type DayGroup,
 } from "@/lib/v2/timeline";
 import type { TimeSlot } from "@/lib/schedule-rules";
-
-const DAY_NAMES_UPPER = [
-  "PAZARTESİ",
-  "SALI",
-  "ÇARŞAMBA",
-  "PERŞEMBE",
-  "CUMA",
-  "CUMARTESİ",
-  "PAZAR",
-];
-
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-function esc(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
-}
-
-function formatDate(): string {
-  const now = new Date();
-  return `${String(now.getDate()).padStart(2, "0")}.${String(now.getMonth() + 1).padStart(2, "0")}.${now.getFullYear()}`;
-}
-
-function documentHeader(
-  settings: AppSettings,
-  options: { compact?: boolean } = {}
-): string {
-  const location = locationLabel(settings);
-  const name = settings.institutionName?.trim();
-  const logoSize = options.compact ? 34 : 52;
-  const nameSize = options.compact ? 12 : 14;
-  const logo = settings.logoDataUrl
-    ? `<img src="${esc(settings.logoDataUrl)}" width="${logoSize}" height="${logoSize}" style="display:block;margin:0 auto ${options.compact ? 4 : 6}px;object-fit:contain" alt="" />`
-    : "";
-  const lines = [
-    logo,
-    `<div style="font-size:${options.compact ? 9 : 11}px">T.C.</div>`,
-    location
-      ? `<div style="font-size:${options.compact ? 9 : 11}px">${esc(location.toLocaleUpperCase("tr"))}</div>`
-      : "",
-    name
-      ? `<div style="font-size:${nameSize}px;font-weight:bold">${esc(name.toLocaleUpperCase("tr"))}</div>`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("");
-  return `<div style="text-align:center;line-height:1.3;margin-bottom:${options.compact ? 4 : 8}px">${lines}</div>`;
-}
-
-function signatureBlock(title: string, name: string | null): string {
-  return `<div style="text-align:center">
-    <div style="border-top:1px solid #000;width:150px;margin-bottom:5px"></div>
-    ${name?.trim() ? `<div style="font-size:10px">${esc(name.trim())}</div>` : ""}
-    <div style="font-weight:bold;font-size:10px">${esc(title)}</div>
-  </div>`;
-}
-
-const baseStyle = `
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, "Helvetica Neue", sans-serif; color: #000; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #000; padding: 3px 4px; text-align: center; vertical-align: middle; }
-  th { background: #e6e6e6; font-weight: bold; }
-  @media print {
-    @page { margin: 10mm; }
-    .page-break { page-break-before: always; }
-  }
-`;
 
 export function profileSlotsAsTimeSlots(
   profiles: ScheduleProfilesV2,
@@ -176,17 +111,6 @@ export function prepareLessonsV2(
       slotIndex,
     };
   });
-}
-
-function carsafSlotHeader(slotIndex: number, slot: TimeSlot, width: string): string {
-  return `<th style="width:${width}">${slotIndex + 1}<div style="font-size:7px;font-weight:normal;line-height:1.1">${esc(slot.start)}</div></th>`;
-}
-
-function clockRowHeader(slotIndex: number, slot: TimeSlot): string {
-  return `<td>
-    <div>${slotIndex + 1}. Ders</div>
-    <div style="font-size:8px;font-weight:normal;color:#333;margin-top:1px">${esc(slot.start)}–${esc(slot.end)}</div>
-  </td>`;
 }
 
 function renderSinifCarsafTable(matrix: CarsafMatrix): string {

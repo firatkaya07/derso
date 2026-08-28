@@ -89,9 +89,8 @@ export default function LoginPage() {
     setShowPasswordConfirm(false);
   };
 
-  const finishAuth = async () => {
-    const { data: isAdmin } = await supabase.rpc("is_platform_admin");
-    router.push(isAdmin ? "/admin" : "/home");
+  const finishAuth = () => {
+    router.push("/home");
     router.refresh();
   };
 
@@ -108,7 +107,7 @@ export default function LoginPage() {
     }
 
     trackLogin();
-    await finishAuth();
+    finishAuth();
   };
 
   const handleSignUp = async () => {
@@ -131,7 +130,7 @@ export default function LoginPage() {
 
     if (data.session) {
       trackSignUp();
-      await finishAuth();
+      finishAuth();
       return;
     }
 

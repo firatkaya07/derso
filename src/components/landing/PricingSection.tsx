@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import TrackedLink from "@/components/TrackedLink";
 import { PRICING_PLANS, formatTry } from "./pricing";
 
