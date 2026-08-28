@@ -60,6 +60,7 @@ export const SEO_PAGES: SeoPageDef[] = [
       { href: "/esnek-ders-programi", label: "Esnek ders programı" },
       { href: "/ogretmen-ders-programi", label: "Öğretmen ders programı" },
       { href: "/ders-programi-excel-pdf", label: "Excel ve PDF çıktı" },
+      { href: "/blog/derso-sifirdan-ders-programi-rehberi", label: "Sıfırdan adım adım rehber" },
       { href: "/blog/otomatik-ders-dagitimi-nedir", label: "Otomatik ders dağıtımı nedir?" },
       { href: "/blog/ders-programi-nasil-hazirlanir", label: "Ders programı nasıl hazırlanır?" },
     ],
