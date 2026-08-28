@@ -227,6 +227,7 @@ export const SEO_PAGES: SeoPageDef[] = [
     related: [
       { href: "/kurs-ders-programi", label: "Kurs ders programı" },
       { href: "/otomatik-ders-programi", label: "Otomatik ders programı" },
+      { href: "/blog/hafta-sonu-ders-programi-hazirlama", label: "Hafta sonu ders programı" },
       { href: "/ogretmen-ders-programi", label: "Öğretmen ders programı" },
     ],
   },
