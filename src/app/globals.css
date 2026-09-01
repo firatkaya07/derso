@@ -501,11 +501,43 @@ body {
   animation: modal-panel-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.coach-hole {
+  position: fixed;
+  z-index: 76;
+  border-radius: var(--radius-ios-lg);
+  box-shadow: 0 0 0 2px var(--color-primary);
+  background: transparent;
+}
+
+.coach-tooltip {
+  position: fixed;
+  z-index: 77;
+  padding: 16px;
+  border-radius: var(--radius-ios-lg);
+  background: var(--color-card);
+  color: var(--color-text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  outline: none;
+  animation: coach-in 220ms ease-out;
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay-enter,
   .modal-panel-enter,
   .toast-enter,
-  .skeleton {
+  .skeleton,
+  .coach-tooltip {
     animation: none;
   }
 
