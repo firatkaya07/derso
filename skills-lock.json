@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "reviewing-code": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/reviewing-code/SKILL.md",
+      "computedHash": "849ffd33cf1072d21af988bbf98d3701637640d86d33d5b4db16c5c35339b549"
+    }
+  }
+}
