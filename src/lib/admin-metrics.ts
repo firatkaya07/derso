@@ -208,7 +208,7 @@ export function buildHealthCards(health: AdminSystemHealth): HealthCard[] {
       id: "adoption",
       label: "Program yayılımı",
       value: `${health.orgs_with_schedule}/${health.organizations}`,
-      hint: `Kurumların %${adoption}’inde kaydedilmiş ders programı var.`,
+      hint: `Kurumların %${adoption}'sinde kaydedilmiş ders programı var.`,
       tone: adoptionTone(adoption),
       href: "/admin/kurumlar",
     },

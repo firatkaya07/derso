@@ -87,6 +87,7 @@ describe("admin metrics", () => {
     const cards = buildHealthCards(sampleHealth());
     expect(cards).toHaveLength(8);
     expect(cards[0]?.value).toBe("4/8");
+    expect(cards[0]?.hint).toContain("%50'sinde");
     expect(cards.some((card) => card.href === "/admin/raporlar")).toBe(true);
   });
 });
