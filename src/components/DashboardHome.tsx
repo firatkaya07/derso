@@ -114,7 +114,7 @@ function Group({
   tintClass: string;
 }) {
   return (
-    <section>
+    <section className="min-w-0">
       <h2 className="ios-section-label">{label}</h2>
       <div className="ios-inset">
         {cards.map((card) => (
@@ -191,7 +191,7 @@ export default function DashboardHome() {
       {!ready ? (
         <div className="ios-subhead py-12 text-center">Yükleniyor…</div>
       ) : (
-        <div className="ios-grouped max-w-xl">
+        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-6">
           <Group
             label="Tanımlar"
             cards={definitionCards(edition)}
