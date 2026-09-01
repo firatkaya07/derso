@@ -1,15 +1,21 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useEdition } from "@/components/EditionProvider";
 import { useSettings } from "@/components/SettingsProvider";
 import EditionIntroModal from "@/components/EditionIntroModal";
+import CoachMark from "@/components/CoachMark";
 import {
   markEditionIntroSeen,
   shouldShowEditionIntro,
   subscribeEditionIntro,
 } from "@/lib/edition-intro";
+import {
+  markCoachMarkSeen,
+  shouldShowCoachMark,
+  subscribeCoachMark,
+} from "@/lib/coach-mark";
 import type { ScheduleEdition } from "@/lib/edition";
 
 type Card = {
@@ -108,17 +114,27 @@ function Group({
   label,
   cards,
   tintClass,
+  firstRowRef,
+  onFirstRowClick,
 }: {
   label: string;
   cards: Card[];
   tintClass: string;
+  firstRowRef?: (node: HTMLAnchorElement | null) => void;
+  onFirstRowClick?: () => void;
 }) {
   return (
     <section className="min-w-0">
       <h2 className="ios-section-label">{label}</h2>
       <div className="ios-inset">
-        {cards.map((card) => (
-          <Link key={card.href} href={card.href} className="ios-row">
+        {cards.map((card, index) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="ios-row"
+            ref={index === 0 ? firstRowRef : undefined}
+            onClick={index === 0 ? onFirstRowClick : undefined}
+          >
             <span
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] ${tintClass}`}
             >
@@ -173,12 +189,29 @@ export default function DashboardHome() {
     shouldShowEditionIntro,
     () => false
   );
+  const coachPending = useSyncExternalStore(
+    subscribeCoachMark,
+    shouldShowCoachMark,
+    () => false
+  );
+  const [tanimlarRow, setTanimlarRow] = useState<HTMLElement | null>(null);
+  const tanimlarRowRef = useCallback((node: HTMLAnchorElement | null) => {
+    setTanimlarRow(node);
+  }, []);
   const introOpen = ready && introPending;
+  const coachOpen = ready && !introPending && coachPending;
   const title = settings.institutionName?.trim() || "Derso";
 
   return (
     <div>
       <EditionIntroModal open={introOpen} onDismiss={markEditionIntroSeen} />
+      <CoachMark
+        open={coachOpen}
+        target={tanimlarRow}
+        title="Önce Genel Tanımlar"
+        body="Kurum adı, logo ve ders saatlerini buradan kurun. Programı ondan sonra dağıtın."
+        onDismiss={markCoachMarkSeen}
+      />
       <header className="mb-6">
         <h1 className="ios-large-title">{isV2 ? "Derso V2" : title}</h1>
         <p className="ios-subhead mt-1">
@@ -196,6 +229,8 @@ export default function DashboardHome() {
             label="Tanımlar"
             cards={definitionCards(edition)}
             tintClass="bg-[var(--color-primary-light)] text-[var(--color-primary)]"
+            firstRowRef={tanimlarRowRef}
+            onFirstRowClick={coachOpen ? markCoachMarkSeen : undefined}
           />
           <Group
             label="Program"
