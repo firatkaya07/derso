@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { createOrganization } from "@/lib/org";
 import { trackOnboardingComplete } from "@/lib/analytics";
+import SkipToContent from "@/components/SkipToContent";
 
 export default function OnboardingPage() {
   const supabase = createClient();
@@ -36,7 +37,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+      <SkipToContent />
+      <main id="icerik" className="w-full max-w-md">
         <p className="text-center text-sm font-semibold tracking-wide text-[var(--color-primary)] mb-2">
           Derso
         </p>
@@ -56,10 +58,12 @@ export default function OnboardingPage() {
             <span className="text-sm font-medium text-gray-700">Kurum adı</span>
             <input
               type="text"
+              name="organization"
+              autoComplete="organization"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Örn. Anadolu Kurs Merkezi"
-              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all duration-200"
+              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-[border-color,box-shadow] duration-200"
               autoFocus
               disabled={saving}
             />
@@ -79,7 +83,7 @@ export default function OnboardingPage() {
             {saving ? "Oluşturuluyor…" : "Kurumu oluştur"}
           </button>
         </form>
-      </div>
+      </main>
     </div>
   );
 }

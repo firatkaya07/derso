@@ -569,7 +569,7 @@ export default function ContactFab() {
   const fileHint = `Görsel max ${formatBytes(MAX_IMAGE_BYTES)}, belge max ${formatBytes(MAX_DOC_BYTES)}`;
 
   return (
-    <div className="fixed bottom-5 right-5 z-50" ref={panelRef}>
+    <div className="fixed bottom-5 right-5 z-40" ref={panelRef}>
       <input
         ref={fileInputRef}
         type="file"
@@ -582,7 +582,7 @@ export default function ContactFab() {
       />
 
       {open && (
-        <div className="absolute bottom-16 right-0 w-[22rem] sm:w-96 bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] border border-gray-200 overflow-hidden flex flex-col max-h-[min(70vh,560px)] animate-[fabSlideUp_200ms_ease-out]">
+        <div className="absolute bottom-16 right-0 w-[22rem] sm:w-96 bg-white rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] border border-gray-200 overflow-hidden flex flex-col max-h-[min(70vh,560px)] overscroll-contain animate-[fabSlideUp_200ms_ease-out]">
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-3 text-white shrink-0">
             <div className="flex items-center gap-2">
               {(view === "chat" || view === "new") && conversations.length > 0 ? (
@@ -905,16 +905,17 @@ export default function ContactFab() {
       )}
 
       <button
+        type="button"
         onClick={handleFabClick}
-        className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+        className="w-14 h-14 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-full shadow-lg hover:shadow-xl transition-[box-shadow,background-color] duration-200 flex items-center justify-center"
         aria-label={open ? "İletişim panelini kapat" : "Bize ulaşın"}
       >
         {open ? (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         )}

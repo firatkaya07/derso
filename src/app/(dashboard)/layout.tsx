@@ -8,6 +8,7 @@ import { isPlatformAdmin } from "@/lib/admin";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Header from "@/components/Header";
+import SkipToContent from "@/components/SkipToContent";
 import { SettingsProvider } from "@/components/SettingsProvider";
 import { OrganizationProvider } from "@/components/OrganizationProvider";
 import { FieldsProvider } from "@/components/FieldsProvider";
@@ -31,10 +32,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const membership = await getRequestMembership();
+  const membershipPromise = getRequestMembership();
+  const adminPromise = isPlatformAdmin();
+  const membership = await membershipPromise;
 
   if (!membership) {
-    if (await isPlatformAdmin()) {
+    if (await adminPromise) {
       redirect("/admin");
     }
     redirect("/onboarding");
@@ -56,8 +59,12 @@ export default async function DashboardLayout({
         <FieldsProvider fields={fields}>
           <EditionProvider>
             <div className="min-h-screen bg-[var(--color-surface)]">
+              <SkipToContent />
               <Header />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <main
+                id="icerik"
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+              >
                 {children}
               </main>
             </div>

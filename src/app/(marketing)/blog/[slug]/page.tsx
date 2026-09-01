@@ -57,7 +57,7 @@ export default async function BlogPostPage({ params }: Props) {
   return (
     <div className="landing">
       <MarketingNav activeHref="/blog" />
-      <main>
+      <main id="icerik">
         <article className="landing-blog-article">
           <header className="landing-seo-hero landing-seo-hero--article">
             <div className="landing-seo-hero__inner">

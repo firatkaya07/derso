@@ -21,7 +21,7 @@ export default function ConfirmDialog({
   message,
   confirmLabel = "Sil",
   cancelLabel = "İptal",
-  loadingLabel = "Siliniyor...",
+  loadingLabel = "Siliniyor…",
   loading = false,
   onConfirm,
   onCancel,

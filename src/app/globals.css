@@ -35,6 +35,29 @@ button, a, [role="button"], select, label[for], input[type="checkbox"], input[ty
   cursor: pointer;
 }
 
+html {
+  touch-action: manipulation;
+}
+
+.skip-to-content {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform 150ms ease-out;
+}
+
+.skip-to-content:focus {
+  transform: translateY(0);
+}
+
 /* Odak halkası — klavye navigasyonu için belirgin */
 *:focus-visible {
   outline: 2px solid var(--color-primary);
@@ -77,8 +100,14 @@ button, a, [role="button"], select, label[for], input[type="checkbox"], input[ty
 
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay-enter,
-  .modal-panel-enter {
+  .modal-panel-enter,
+  .toast-enter,
+  .skeleton {
     animation: none;
+  }
+
+  .skip-to-content {
+    transition: none;
   }
 }
 

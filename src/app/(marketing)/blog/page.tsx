@@ -30,7 +30,7 @@ export default async function BlogIndexPage() {
   return (
     <div className="landing">
       <MarketingNav activeHref="/blog" />
-      <main>
+      <main id="icerik">
         <section className="landing-seo-hero" aria-labelledby="blog-h1">
           <div className="landing-seo-hero__inner">
             <p className="landing-kicker">İçerik merkezi</p>

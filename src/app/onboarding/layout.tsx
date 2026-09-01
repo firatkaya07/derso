@@ -7,11 +7,13 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if (await isPlatformAdmin()) {
+  const [admin, membership] = await Promise.all([
+    isPlatformAdmin(),
+    getRequestMembership(),
+  ]);
+  if (admin) {
     redirect("/admin");
   }
-
-  const membership = await getRequestMembership();
   if (membership) {
     redirect("/home");
   }

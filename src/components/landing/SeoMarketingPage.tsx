@@ -37,7 +37,7 @@ export default function SeoMarketingPage({ page }: { page: SeoPageDef }) {
     <div className="landing">
       <MarketingNav activeHref={page.path} />
 
-      <main>
+      <main id="icerik">
         <section className="landing-seo-hero" aria-labelledby="seo-h1">
           <div className="landing-seo-hero__inner">
             <p className="landing-kicker">{page.kicker}</p>

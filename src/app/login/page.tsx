@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { trackLogin, trackSignUp } from "@/lib/analytics";
+import SkipToContent from "@/components/SkipToContent";
 
 type Mode = "login" | "signup";
 
@@ -163,10 +164,11 @@ export default function LoginPage() {
   };
 
   const inputClass =
-    "w-full min-h-11 px-4 py-2.5 border border-[var(--color-border)] rounded-xl bg-white focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]";
+    "w-full min-h-11 px-4 py-2.5 border border-[var(--color-border)] rounded-xl bg-white focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-[border-color,box-shadow] duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-bg)]">
+    <div className="min-h-screen flex flex-col bg-[var(--color-surface)]">
+      <SkipToContent />
       <div className="flex-1 grid lg:grid-cols-2">
         {/* Brand panel */}
         <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#071512] text-white p-10 xl:p-14">
@@ -228,7 +230,7 @@ export default function LoginPage() {
         </aside>
 
         {/* Form panel */}
-        <main className="flex flex-col justify-center px-4 py-10 sm:px-8">
+        <main id="icerik" className="flex flex-col justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-md mx-auto">
             <div className="lg:hidden text-center mb-8">
               <Link
@@ -327,6 +329,7 @@ export default function LoginPage() {
                     required
                     autoComplete="email"
                     inputMode="email"
+                    spellCheck={false}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? errorId : undefined}
                   />
@@ -465,8 +468,8 @@ export default function LoginPage() {
                   )}
                   {loading
                     ? mode === "signup"
-                      ? "Hesap oluşturuluyor..."
-                      : "Giriş yapılıyor..."
+                      ? "Hesap oluşturuluyor…"
+                      : "Giriş yapılıyor…"
                     : mode === "signup"
                       ? "Kayıt Ol"
                       : "Giriş Yap"}

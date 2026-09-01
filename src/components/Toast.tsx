@@ -112,7 +112,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
+        className="fixed bottom-4 right-4 z-[90] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
         role="status"
         aria-live="polite"
       >
@@ -120,9 +120,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             className={`flex items-start gap-2.5 rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.08)] px-4 py-3 text-sm toast-enter ${STYLES[toast.kind].wrapper}`}
+            role={toast.kind === "error" ? "alert" : undefined}
           >
             {STYLES[toast.kind].icon}
-            <span className="flex-1 leading-snug">{toast.message}</span>
+            <span className="flex-1 leading-snug break-words">{toast.message}</span>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
@@ -134,6 +135,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"

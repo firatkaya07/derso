@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import SkipToContent from "@/components/SkipToContent";
 import {
   getAdminDashboardStats,
   requirePlatformAdmin,
@@ -19,15 +20,18 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const gate = await requirePlatformAdmin();
+  const [gate, statsResult] = await Promise.all([
+    requirePlatformAdmin(),
+    getAdminDashboardStats(),
+  ]);
   if (!gate.user) redirect("/login");
   if (!gate.ok) redirect("/home");
 
-  const { stats } = await getAdminDashboardStats();
-  const awaitingReply = Number(stats.awaiting_reply ?? 0);
+  const awaitingReply = Number(statsResult.stats.awaiting_reply ?? 0);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
+      <SkipToContent />
       <header className="border-b border-slate-200 bg-slate-900 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-6 min-w-0">
@@ -103,7 +107,12 @@ export default async function AdminLayout({
           })}
         </nav>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <main
+        id="icerik"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+      >
+        {children}
+      </main>
     </div>
   );
 }

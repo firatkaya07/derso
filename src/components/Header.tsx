@@ -27,7 +27,7 @@ export default function Header() {
   const location = locationLabel(settings);
 
   return (
-    <header className="bg-white border-b border-[var(--color-border)] sticky top-0 z-50 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+    <header className="bg-white border-b border-[var(--color-border)] sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ export default function Header() {
                 width={LOGO_SIZE}
                 height={LOGO_SIZE}
                 unoptimized={Boolean(settings.logoDataUrl)}
-                className="w-10 h-10 object-contain rounded-lg ring-1 ring-[var(--color-border)] group-hover:ring-[var(--color-primary-muted)] transition-all duration-200"
+                className="w-10 h-10 object-contain rounded-lg ring-1 ring-[var(--color-border)] group-hover:ring-[var(--color-primary-muted)] transition-[box-shadow,ring-color] duration-200"
               />
               <span className="leading-tight">
                 <span className="block text-base font-bold text-[var(--color-text)]">
@@ -57,13 +57,14 @@ export default function Header() {
             {!isHome && (
               <Link
                 href={home}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-lg transition-all duration-200"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-lg transition-colors duration-200"
               >
                 <svg
                   className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -78,13 +79,14 @@ export default function Header() {
             <EditionSwitcher />
             <Link
               href={tanimlarHref(edition)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-lg transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-lg transition-colors duration-200"
             >
               <svg
                 className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -102,14 +104,16 @@ export default function Header() {
               Tanımlar
             </Link>
             <button
+              type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-destructive)] hover:bg-red-50 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-destructive)] hover:bg-red-50 rounded-lg transition-colors duration-200"
             >
               <svg
                 className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"

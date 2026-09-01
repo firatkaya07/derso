@@ -135,7 +135,7 @@ export default function LandingPage() {
     <div className="landing">
       <MarketingNav />
 
-      <main>
+      <main id="icerik">
         <section className="landing-hero" aria-labelledby="landing-hero-title">
           <div className="landing-hero__atmosphere" aria-hidden="true" />
           <div className="landing-hero__inner">

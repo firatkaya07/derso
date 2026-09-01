@@ -776,7 +776,7 @@ export default function TeachersPage() {
         const assignments = getTeacherAssignments(assignmentDetail.id);
         const totalHours = getTeacherTotalHours(assignmentDetail.id);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setAssignmentDetail(null)}>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50" onClick={() => setAssignmentDetail(null)}>
             <div
               className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 max-w-lg w-full mx-4 max-h-[80vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}

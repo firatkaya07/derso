@@ -54,7 +54,7 @@ export default function EditionIntroModal({
         aria-labelledby="edition-intro-title"
         aria-describedby="edition-intro-desc"
         tabIndex={-1}
-        className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] outline-none modal-panel-enter"
+        className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] outline-none modal-panel-enter overscroll-contain"
       >
         <div
           className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-emerald-500"
@@ -67,7 +67,7 @@ export default function EditionIntroModal({
           aria-label="Kapat"
           className="absolute right-3 top-4 flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
         >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -77,7 +77,7 @@ export default function EditionIntroModal({
           </svg>
         </button>
 
-        <div className="max-h-[min(90vh,40rem)] overflow-y-auto px-6 pb-6 pt-5 sm:px-8 sm:pt-6">
+        <div className="max-h-[min(90vh,40rem)] overflow-y-auto overscroll-contain px-6 pb-6 pt-5 sm:px-8 sm:pt-6">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">
             Program sürümleri
           </p>
