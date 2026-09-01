@@ -25,6 +25,11 @@
       "skillPath": "resources/converting-css-to-tailwind/SKILL.md",
       "computedHash": "c5eaabfbaa0407e5d71dcc6a794972bbeea8b2a1c6b603da7e9ceb66b15266d1"
     },
+    "ios-ui-design-guide": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "b0a28911ff7b66bcb029df4576e1174cb339bd8663fd91e245a0108349bb43ba"
+    },
     "react-native-patterns": {
       "source": "spencerpauly/awesome-cursor-skills",
       "sourceType": "github",
