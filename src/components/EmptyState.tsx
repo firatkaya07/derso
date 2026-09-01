@@ -19,13 +19,14 @@ export default function EmptyState({
   accentClassName = "text-[var(--color-primary)]",
 }: EmptyStateProps) {
   return (
-    <div className="bg-white rounded-2xl border border-dashed border-[var(--color-border)] px-6 py-14 text-center">
-      <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)]">
+    <div className="ios-inset px-6 py-14 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[10px] bg-[var(--color-primary-light)] text-[var(--color-primary)]">
         <svg
-          className="w-6 h-6"
+          className="h-6 w-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -35,18 +36,16 @@ export default function EmptyState({
           />
         </svg>
       </div>
-      <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
+      <p className="ios-headline">{title}</p>
       {description && (
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 max-w-sm mx-auto leading-relaxed">
-          {description}
-        </p>
+        <p className="ios-subhead mx-auto mt-1.5 max-w-sm">{description}</p>
       )}
-      <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         {actionLabel && onAction && (
           <button
             type="button"
             onClick={onAction}
-            className={`text-sm font-semibold ${accentClassName} hover:underline underline-offset-2`}
+            className={`ios-btn ios-btn-plain min-h-11 px-3 text-[17px] font-semibold ${accentClassName}`}
           >
             {actionLabel}
           </button>
@@ -55,7 +54,7 @@ export default function EmptyState({
           <button
             type="button"
             onClick={onSecondary}
-            className="text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:underline underline-offset-2"
+            className="ios-btn ios-btn-plain min-h-11 px-3 text-[17px] text-[var(--color-text-muted)]"
           >
             {secondaryLabel}
           </button>

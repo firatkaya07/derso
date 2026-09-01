@@ -163,27 +163,26 @@ export default function LoginPage() {
     }
   };
 
-  const inputClass =
-    "w-full min-h-11 px-4 py-2.5 border border-[var(--color-border)] rounded-xl bg-white focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-[border-color,box-shadow] duration-200 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]";
+  const inputClass = "ios-field";
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-surface)]">
       <SkipToContent />
       <div className="flex-1 grid lg:grid-cols-2">
         {/* Brand panel */}
-        <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#071512] text-white p-10 xl:p-14">
+        <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-black text-white p-10 xl:p-14">
           <div
             className="pointer-events-none absolute inset-0"
             aria-hidden="true"
             style={{
               background:
-                "radial-gradient(ellipse 70% 50% at 15% 20%, rgba(45,212,191,0.22), transparent 55%), radial-gradient(ellipse 60% 45% at 90% 80%, rgba(225,29,72,0.14), transparent 50%)",
+                "radial-gradient(ellipse 70% 50% at 15% 20%, rgba(88,86,214,0.35), transparent 55%), radial-gradient(ellipse 60% 45% at 90% 80%, rgba(94,92,230,0.18), transparent 50%)",
             }}
           />
           <div className="relative">
             <Link
               href="/"
-              className="inline-flex items-center gap-3 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300"
+              className="inline-flex items-center gap-3 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
             >
               <Image
                 src="/logo.webp"
@@ -198,7 +197,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative max-w-md">
-            <p className="text-teal-300 text-xs font-bold tracking-[0.14em] uppercase mb-4">
+            <p className="text-[var(--color-primary-muted)] text-xs font-bold tracking-[0.14em] uppercase mb-4">
               Ders programı hazırlama
             </p>
             <h1 className="text-3xl xl:text-4xl font-bold tracking-tight leading-tight text-balance">
@@ -211,7 +210,7 @@ export default function LoginPage() {
             <ul className="mt-8 space-y-3">
               {BENEFITS.map((item) => (
                 <li key={item} className="flex items-center gap-3 text-sm text-white/85">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-400/20 text-teal-300 shrink-0">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[var(--color-primary-muted)] shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
@@ -252,12 +251,12 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-[var(--color-border)] shadow-[0_16px_48px_rgba(15,23,42,0.06)] p-6 sm:p-8">
+            <div className="ios-inset p-6 sm:p-8">
               <div className="hidden lg:block mb-6">
-                <h2 className="text-2xl font-bold text-[var(--color-text)] tracking-tight">
+                <h2 className="ios-title2">
                   {mode === "login" ? "Hesabınıza giriş yapın" : "Ücretsiz hesap oluşturun"}
                 </h2>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1.5">
+                <p className="ios-subhead mt-1.5">
                   {mode === "login"
                     ? "Devam etmek için e-posta ve şifrenizi girin."
                     : "Birkaç saniyede kaydolun; hemen program kurmaya başlayın."}
@@ -267,7 +266,7 @@ export default function LoginPage() {
               <div
                 role="tablist"
                 aria-label="Giriş veya kayıt"
-                className="grid grid-cols-2 gap-1 p-1 mb-6 bg-slate-100 rounded-xl"
+                className="ios-segmented ios-segmented-full mb-6"
               >
                 <button
                   type="button"
@@ -276,11 +275,7 @@ export default function LoginPage() {
                   aria-selected={mode === "login"}
                   aria-controls={`${formId}-panel`}
                   onClick={() => switchMode("login")}
-                  className={`min-h-11 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                    mode === "login"
-                      ? "bg-white text-[var(--color-text)] shadow-sm"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-                  }`}
+                  className="min-h-11"
                 >
                   Giriş Yap
                 </button>
@@ -291,11 +286,7 @@ export default function LoginPage() {
                   aria-selected={mode === "signup"}
                   aria-controls={`${formId}-panel`}
                   onClick={() => switchMode("signup")}
-                  className={`min-h-11 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                    mode === "signup"
-                      ? "bg-white text-[var(--color-text)] shadow-sm"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-                  }`}
+                  className="min-h-11"
                 >
                   Kayıt Ol
                 </button>
@@ -348,7 +339,7 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={`${inputClass} pr-12`}
+                      className={`${inputClass} ios-field-trailing`}
                       placeholder={
                         mode === "signup" ? "En az 6 karakter" : "Şifrenizi girin"
                       }
@@ -362,7 +353,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-slate-50 transition-colors"
+                      className="ios-btn ios-btn-plain absolute right-1 top-1/2 h-11 w-11 -translate-y-1/2 p-0 text-[var(--color-text-muted)]"
                       aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
                       aria-pressed={showPassword}
                     >
@@ -390,7 +381,7 @@ export default function LoginPage() {
                         type={showPasswordConfirm ? "text" : "password"}
                         value={passwordConfirm}
                         onChange={(e) => setPasswordConfirm(e.target.value)}
-                        className={`${inputClass} pr-12`}
+                        className={`${inputClass} ios-field-trailing`}
                         placeholder="Şifrenizi tekrar girin"
                         required
                         minLength={6}
@@ -400,7 +391,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowPasswordConfirm((v) => !v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-slate-50 transition-colors"
+                        className="ios-btn ios-btn-plain absolute right-1 top-1/2 h-11 w-11 -translate-y-1/2 p-0 text-[var(--color-text-muted)]"
                         aria-label={
                           showPasswordConfirm
                             ? "Şifre tekrarını gizle"
@@ -419,7 +410,7 @@ export default function LoginPage() {
                     id={errorId}
                     role="alert"
                     aria-live="assertive"
-                    className="flex gap-2.5 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm border border-red-200"
+                    className="flex gap-2.5 rounded-[10px] bg-[var(--color-fill)] px-4 py-3 text-[15px] text-[var(--color-destructive)]"
                   >
                     <svg
                       className="w-5 h-5 shrink-0 mt-0.5"
@@ -442,7 +433,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full min-h-11 inline-flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white py-2.5 rounded-xl font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_2px_8px_rgba(99,102,241,0.25)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
+                  className="ios-btn ios-btn-primary w-full gap-2"
                 >
                   {loading && (
                     <svg
@@ -512,7 +503,7 @@ export default function LoginPage() {
         </main>
       </div>
 
-      <footer className="py-4 text-center text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border)] bg-white/70">
+      <footer className="border-t border-[var(--color-separator)] py-4 text-center text-xs text-[var(--color-text-muted)]">
         © {new Date().getFullYear()} Derso. Tüm hakları saklıdır.
       </footer>
 

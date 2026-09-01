@@ -28,23 +28,23 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title} size="sm">
-      <p className="text-sm text-[var(--color-text-secondary)] mb-6 leading-relaxed">{message}</p>
+      <p className="ios-subhead mb-6">{message}</p>
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 bg-[var(--color-destructive)] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? loadingLabel : confirmLabel}
-        </button>
         <button
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="flex-1 bg-gray-100 text-[var(--color-text)] py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
+          className="ios-btn ios-btn-secondary flex-1"
         >
           {cancelLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={loading}
+          className="ios-btn ios-btn-destructive flex-1"
+        >
+          {loading ? loadingLabel : confirmLabel}
         </button>
       </div>
     </Modal>

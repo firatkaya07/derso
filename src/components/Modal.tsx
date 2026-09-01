@@ -35,6 +35,7 @@ export default function Modal({
   const onCloseRef = useRef(onClose);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const isSheet = size !== "sm";
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -103,7 +104,11 @@ export default function Modal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 modal-overlay-enter"
+      className={`fixed inset-0 z-[70] flex justify-center bg-black/40 modal-overlay-enter ${
+        isSheet
+          ? "items-end p-0 sm:items-center sm:p-4"
+          : "items-center p-4"
+      }`}
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -114,12 +119,21 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto overscroll-contain outline-none modal-panel-enter border border-[var(--color-border)]`}
+        className={`w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto overscroll-contain outline-none modal-panel-enter bg-[var(--color-card)] pb-[env(safe-area-inset-bottom)] ${
+          isSheet
+            ? "rounded-t-[14px] sm:rounded-[14px]"
+            : "rounded-[14px]"
+        }`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b border-[var(--color-border)] bg-white rounded-t-2xl">
+        {isSheet ? (
+          <div className="sm:hidden" aria-hidden="true">
+            <span className="ios-grabber" />
+          </div>
+        ) : null}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-2 bg-[var(--color-card)]">
           <h2
             id={titleId}
-            className="text-lg font-semibold text-[var(--color-text)] text-pretty"
+            className="ios-headline min-w-0 text-pretty"
           >
             {title}
           </h2>
@@ -127,10 +141,10 @@ export default function Modal({
             type="button"
             onClick={onClose}
             aria-label="Kapat"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-gray-100 transition-colors duration-200"
+            className="ios-btn ios-btn-plain h-11 w-11 shrink-0 p-0 text-[var(--color-text-muted)]"
           >
             <svg
-              className="w-5 h-5"
+              className="h-5 w-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -145,7 +159,7 @@ export default function Modal({
             </svg>
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="px-4 pb-5 pt-1">{children}</div>
       </div>
     </div>
   );

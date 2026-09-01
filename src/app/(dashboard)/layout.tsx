@@ -58,12 +58,12 @@ export default async function DashboardLayout({
       <SettingsProvider settings={settings}>
         <FieldsProvider fields={fields}>
           <EditionProvider>
-            <div className="min-h-screen bg-[var(--color-surface)]">
+            <div className="ios-app min-h-screen bg-[var(--color-surface)]">
               <SkipToContent />
               <Header />
               <main
                 id="icerik"
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+                className="mx-auto max-w-7xl px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8"
               >
                 {children}
               </main>

@@ -44,7 +44,7 @@ export default function EditionIntroModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[3px] modal-overlay-enter"
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-0 modal-overlay-enter sm:items-center sm:p-4"
       role="presentation"
     >
       <div
@@ -54,18 +54,17 @@ export default function EditionIntroModal({
         aria-labelledby="edition-intro-title"
         aria-describedby="edition-intro-desc"
         tabIndex={-1}
-        className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] outline-none modal-panel-enter overscroll-contain"
+        className="relative w-full max-w-xl overflow-hidden rounded-t-[14px] bg-[var(--color-card)] outline-none modal-panel-enter overscroll-contain pb-[env(safe-area-inset-bottom)] sm:rounded-[14px]"
       >
-        <div
-          className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-emerald-500"
-          aria-hidden
-        />
+        <div className="sm:hidden" aria-hidden="true">
+          <span className="ios-grabber" />
+        </div>
 
         <button
           type="button"
           onClick={dismiss}
           aria-label="Kapat"
-          className="absolute right-3 top-4 flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+          className="ios-btn ios-btn-plain absolute right-2 top-3 z-10 h-11 w-11 p-0 text-[var(--color-text-muted)]"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -77,81 +76,74 @@ export default function EditionIntroModal({
           </svg>
         </button>
 
-        <div className="max-h-[min(90vh,40rem)] overflow-y-auto overscroll-contain px-6 pb-6 pt-5 sm:px-8 sm:pt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">
-            Program sürümleri
-          </p>
+        <div className="max-h-[min(90vh,40rem)] overflow-y-auto overscroll-contain px-5 pb-6 pt-3 sm:px-6 sm:pt-5">
+          <p className="ios-section-label px-0 pb-1">Program sürümleri</p>
           <h2
             id="edition-intro-title"
-            className="mt-2 pr-10 text-2xl font-bold tracking-tight text-slate-900"
+            className="ios-title2 pr-10"
           >
             V1 ve V2 yan yana çalışır
           </h2>
-          <p id="edition-intro-desc" className="mt-2 text-sm leading-6 text-slate-600">
+          <p id="edition-intro-desc" className="ios-subhead mt-2">
             Aynı kurumda klasik program ile hafta içi / hafta sonu ayrı saatli
             programı birlikte tutabilirsiniz. Biri diğerini silmez.
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <article className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
+            <article className="ios-inset p-4">
               <div className="flex items-center gap-2">
-                <span className="inline-flex rounded-lg bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                <span className="inline-flex rounded-[7px] bg-[var(--color-primary)] px-2 py-0.5 text-[11px] font-bold text-white">
                   V1
                 </span>
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="ios-headline">
                   Klasik çizelge
                 </h3>
               </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="ios-subhead mt-2">
                 Tüm günler aynı başlangıç saati, ders süresi ve teneffüs.
                 Bildiğiniz tek zaman çizelgesi.
               </p>
             </article>
-            <article className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4">
+            <article className="ios-inset p-4">
               <div className="flex items-center gap-2">
-                <span className="inline-flex rounded-lg bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                <span className="inline-flex rounded-[7px] bg-[var(--color-accent)] px-2 py-0.5 text-[11px] font-bold text-white">
                   V2
                 </span>
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="ios-headline">
                   Hafta içi / sonu
                 </h3>
               </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="ios-subhead mt-2">
                 Cumartesi–Pazar için ayrı saatler ve teneffüsler. V1
                 programınız durur.
               </p>
             </article>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-semibold text-slate-900">
+          <div className="ios-inset mt-5 p-4">
+            <h3 className="ios-headline">
               Nasıl geçiş yapılır?
             </h3>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              Sağ üstteki <span className="font-semibold text-slate-800">V1</span>{" "}
-              veya <span className="font-semibold text-slate-800">V2</span>{" "}
-              menüsünü açın, diğer sürümü seçin. Sayfa o sürüme geçer.
+            <p className="ios-subhead mt-1">
+              Üst çubuktaki <span className="font-semibold text-[var(--color-text)]">V1</span>{" "}
+              / <span className="font-semibold text-[var(--color-text)]">V2</span>{" "}
+              anahtarından diğer sürümü seçin. Sayfa o sürüme geçer.
             </p>
             <div
-              className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
+              className="mt-3 flex items-center justify-between gap-3 rounded-[10px] bg-[var(--color-fill)] px-3 py-2.5"
               aria-hidden
             >
-              <span className="truncate text-sm font-semibold text-slate-700">
-                Derso
-              </span>
-              <span className="relative inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-sm font-semibold text-indigo-700 ring-2 ring-indigo-400 ring-offset-2">
-                V1
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </span>
+              <span className="ios-headline truncate">Derso</span>
+              <div className="ios-segmented">
+                <button type="button" aria-pressed="true" tabIndex={-1}>
+                  V1
+                </button>
+                <button type="button" aria-pressed="false" tabIndex={-1}>
+                  V2
+                </button>
+              </div>
             </div>
-            <p className="mt-2 text-center text-[11px] font-medium text-indigo-700">
+            <p className="ios-caption mt-2 text-center text-[var(--color-primary)]">
               Geçiş buradan
             </p>
           </div>
@@ -160,7 +152,7 @@ export default function EditionIntroModal({
             type="button"
             data-intro-primary
             onClick={dismiss}
-            className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(79,70,229,0.28)] transition-colors hover:bg-indigo-700"
+            className="ios-btn ios-btn-primary mt-5 w-full"
           >
             Anladım
           </button>
