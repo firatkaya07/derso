@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createOrganization } from "@/lib/org";
 import { trackOnboardingComplete } from "@/lib/analytics";
 import SkipToContent from "@/components/SkipToContent";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 export default function OnboardingPage() {
   const supabase = createClient();
@@ -39,6 +40,9 @@ export default function OnboardingPage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface)] px-4 pb-[env(safe-area-inset-bottom)]">
       <SkipToContent />
       <main id="icerik" className="w-full max-w-md">
+        <div className="mb-4 flex justify-end">
+          <ThemeSwitcher />
+        </div>
         <p className="ios-section-label px-0 text-center text-[var(--color-primary)]">
           Derso
         </p>

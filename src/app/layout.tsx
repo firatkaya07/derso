@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Analytics from "@/components/Analytics";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import ContactFabLazy from "@/components/ContactFabLazy";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -18,10 +21,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  themeColor: "#000000",
 };
 
 export const metadata: Metadata = {
@@ -73,10 +73,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className="h-full antialiased">
+    <html lang="tr" className="h-full antialiased" data-theme="dark" suppressHydrationWarning>
       <body className="min-h-full bg-[var(--color-surface)] font-sans">
-        <ToastProvider>{children}</ToastProvider>
-        <ContactFabLazy />
+        <Script
+          id="derso-theme"
+          strategy="beforeInteractive"
+        >
+          {THEME_BOOTSTRAP_SCRIPT}
+        </Script>
+        <ThemeProvider>
+          <ToastProvider>{children}</ToastProvider>
+          <ContactFabLazy />
+        </ThemeProvider>
         <SpeedInsights />
         <Analytics />
       </body>

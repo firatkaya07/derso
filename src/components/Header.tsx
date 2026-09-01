@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSettings } from "@/components/SettingsProvider";
 import { EditionSwitcher } from "@/components/EditionSwitcher";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useEdition } from "@/components/EditionProvider";
 import { homeHref, tanimlarHref } from "@/lib/edition";
 import { locationLabel, LOGO_SIZE } from "@/lib/settings";
@@ -52,6 +53,7 @@ export default function Header() {
         </Link>
 
         <div className="flex shrink-0 items-center gap-1">
+          <ThemeSwitcher />
           <EditionSwitcher />
           {!isHome ? (
             <Link
