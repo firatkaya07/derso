@@ -197,7 +197,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative max-w-md">
-            <p className="text-[var(--color-primary-muted)] text-xs font-bold tracking-[0.14em] uppercase mb-4">
+            <p className="text-[#c7c6f8] text-xs font-bold tracking-[0.14em] uppercase mb-4">
               Ders programı hazırlama
             </p>
             <h1 className="text-3xl xl:text-4xl font-bold tracking-tight leading-tight text-balance">
@@ -210,7 +210,7 @@ export default function LoginPage() {
             <ul className="mt-8 space-y-3">
               {BENEFITS.map((item) => (
                 <li key={item} className="flex items-center gap-3 text-sm text-white/85">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[var(--color-primary-muted)] shrink-0">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[#c7c6f8] shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
