@@ -5,6 +5,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useOrganization } from "@/components/OrganizationProvider";
 import { useToast } from "@/components/Toast";
+import {
+  InstitutionSettingsSections,
+  SettingsTableMissingBanner,
+  useInstitutionSettings,
+} from "@/components/InstitutionSettings";
+import { probeSettingsTable } from "@/lib/settings";
 import { DAY_NAMES_SHORT } from "@/lib/types";
 import { useV2Schedule } from "@/lib/v2/ScheduleProvider";
 import {
@@ -177,6 +183,7 @@ export default function V2TanimlarPage() {
   const { organizationId } = useOrganization();
   const toast = useToast();
   const { profiles, setProfiles } = useV2Schedule();
+  const institution = useInstitutionSettings();
   const [saving, setSaving] = useState(false);
   const [migrating, setMigrating] = useState(false);
 
@@ -192,8 +199,9 @@ export default function V2TanimlarPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      await institution.saveInstitutionSettings();
       await saveScheduleProfilesV2(supabase, organizationId, profiles);
-      toast.success("V2 zaman çizelgesi kaydedildi.");
+      toast.success("Genel tanımlar kaydedildi.");
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -227,8 +235,8 @@ export default function V2TanimlarPage() {
             Genel Tanımlar · V2
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Hafta içi ve hafta sonu için ayrı başlangıç, ders süresi, slot sayısı ve
-            teneffüsler. Aşağıdaki tablolar yalnızca önizlemedir.
+            Kurum bilgileri V1 ile ortaktır. Saatler hafta içi / hafta sonu için
+            ayrıdır; aşağıdaki tablolar yalnızca önizlemedir.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -243,13 +251,45 @@ export default function V2TanimlarPage() {
           <button
             type="button"
             onClick={() => void handleSave()}
-            disabled={saving}
+            disabled={saving || institution.tableMissing}
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             {saving ? "Kaydediliyor…" : "Kaydet"}
           </button>
         </div>
       </div>
+
+      <SettingsTableMissingBanner
+        tableMissing={institution.tableMissing}
+        copiedSql={institution.copiedSql}
+        onCopySql={() => void institution.copySetupSql()}
+        onRecheck={() => {
+          void probeSettingsTable(supabase).then((status) => {
+            institution.setTableMissing(status === "missing");
+            if (status === "ok") {
+              toast.success("settings tablosu hazır. Artık kaydedebilirsiniz.");
+            } else if (status === "missing") {
+              toast.error("Tablo hâlâ görünmüyor. SQL’i çalıştırıp birkaç saniye bekleyin.");
+            } else {
+              toast.error("Tablo kontrolü başarısız. Oturumunuzu kontrol edin.");
+            }
+          });
+        }}
+      />
+
+      <InstitutionSettingsSections
+        form={institution.form}
+        update={institution.update}
+        fields={institution.fields}
+        fieldsLoading={institution.fieldsLoading}
+        fieldBusy={institution.fieldBusy}
+        newFieldName={institution.newFieldName}
+        setNewFieldName={institution.setNewFieldName}
+        onAddField={() => void institution.handleAddField()}
+        onDeleteField={(field) => void institution.handleDeleteField(field)}
+        onLogoChange={(event) => void institution.handleLogoChange(event)}
+        processingLogo={institution.processingLogo}
+      />
 
       <ProfileEditor
         title="Hafta içi zaman çizelgesi"
