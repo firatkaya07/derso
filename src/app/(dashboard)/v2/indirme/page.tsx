@@ -12,6 +12,7 @@ import { throwIfDbError } from "@/lib/db-error";
 import type { RawLessonRow } from "@/lib/pdf-generator";
 import type { ClassScheduleDay } from "@/lib/types";
 import { trackFileDownload } from "@/lib/analytics";
+import { reportUsage } from "@/lib/usage-events";
 import { useV2Schedule } from "@/lib/v2/ScheduleProvider";
 import {
   downloadOgretmenCarsafExcelV2,
@@ -171,6 +172,13 @@ export default function V2IndirmePage() {
         file_extension: "pdf",
         link_text: `v2-${id}`,
       });
+      reportUsage({
+        organizationId,
+        eventType: "download",
+        edition: "v2",
+        artifact: id,
+        format: "pdf",
+      });
       if (result === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
@@ -197,6 +205,13 @@ export default function V2IndirmePage() {
         file_name: `v2-${id}`,
         file_extension: "xlsx",
         link_text: `v2-${id}-excel`,
+      });
+      reportUsage({
+        organizationId,
+        eventType: "download",
+        edition: "v2",
+        artifact: id,
+        format: "xlsx",
       });
       toast.success("Excel dosyası indirildi (hafta içi / hafta sonu sayfaları).");
     } catch (err) {

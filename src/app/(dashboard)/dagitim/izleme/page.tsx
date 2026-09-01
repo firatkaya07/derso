@@ -28,6 +28,7 @@ import {
   SearchProgressPanel,
 } from "@/components/ScheduleResultViews";
 import { trackScheduleComplete } from "@/lib/analytics";
+import { reportUsage } from "@/lib/usage-events";
 
 type Phase = "loading" | "running" | "done" | "error" | "missing-job";
 
@@ -141,6 +142,16 @@ export default function DagitimIzlemePage() {
               placed_hours: placedHours,
               total_hours: totalHours,
             });
+            reportUsage({
+              organizationId,
+              eventType: "schedule_complete",
+              edition: "v1",
+              metadata: {
+                success: placedHours > 0,
+                placed_hours: placedHours,
+                total_hours: totalHours,
+              },
+            });
             if (placedHours === totalHours) {
               toast.success("Tüm dersler yerleştirildi.");
             } else if (placedHours >= maxPlaceableHours) {
@@ -183,6 +194,15 @@ export default function DagitimIzlemePage() {
       );
       setSaved(true);
       invalidateOrgClientCache(organizationId);
+      reportUsage({
+        organizationId,
+        eventType: "schedule_save",
+        edition: "v1",
+        metadata: {
+          saved_lessons: result.savedLessons,
+          skipped_lessons: result.skippedLessons,
+        },
+      });
       toast.success(
         result.skippedLessons > 0
           ? `${result.savedLessons} ders saati kaydedildi. Öğretmeni atanamayan ${result.skippedLessons} saat kaydedilmedi.`

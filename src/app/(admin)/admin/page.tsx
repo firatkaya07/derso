@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getAdminDashboardStats,
+  getAdminSystemHealth,
 } from "@/lib/admin";
+import { buildHealthCards } from "@/lib/admin-metrics";
+import { HealthMetricCard } from "@/components/admin/HealthMetricCard";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -10,10 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminHomePage() {
-  const { stats, error } = await getAdminDashboardStats();
+  const [{ stats, error }, { health, error: healthError }] = await Promise.all([
+    getAdminDashboardStats(),
+    getAdminSystemHealth(),
+  ]);
   const awaiting = Number(stats.awaiting_reply ?? 0);
+  const cards = health ? buildHealthCards(health) : [];
 
-  const cards: {
+  const overview: {
     label: string;
     value: number;
     href: string;
@@ -50,11 +57,11 @@ export default async function AdminHomePage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Yönetim özeti</h1>
         <p className="text-slate-600 mt-1 text-sm">
-          Destek sohbetleri, kurumlar ve kullanıcıları buradan yönetin.
+          Destek sohbetleri, kurumlar, kullanım ve sistem sağlığı.
         </p>
       </div>
 
@@ -86,30 +93,85 @@ export default async function AdminHomePage() {
         </Link>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <Link
-            key={card.label}
-            href={card.href}
-            className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow transition-all"
-          >
-            {"badge" in card && card.badge ? (
-              <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                <span aria-hidden>!</span>
-                {card.badge}
-              </span>
-            ) : null}
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <p
-              className={`mt-2 text-3xl font-bold tracking-tight ${
-                "highlight" in card && card.highlight ? "text-amber-700" : ""
-              }`}
-            >
-              {card.value}
+      <section aria-labelledby="health-heading" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 id="health-heading" className="text-lg font-semibold tracking-tight">
+              Sistem sağlığı
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Yayılım, etkinlik ve destek yükü. Renk tek başına anlam taşımaz;
+              her kartta durum etiketi vardır.
             </p>
+          </div>
+          <Link
+            href="/admin/raporlar"
+            className="text-sm font-medium text-indigo-600 hover:underline"
+          >
+            Kullanım raporları
           </Link>
-        ))}
-      </div>
+        </div>
+
+        {healthError ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Sağlık metrikleri yüklenemedi: {healthError.message}
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {cards.map((card) => {
+              const body = (
+                <HealthMetricCard
+                  label={card.label}
+                  value={card.value}
+                  hint={card.hint}
+                  tone={card.tone}
+                />
+              );
+              return card.href ? (
+                <Link
+                  key={card.id}
+                  href={card.href}
+                  className="group block h-full rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                >
+                  {body}
+                </Link>
+              ) : (
+                <div key={card.id}>{body}</div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="overview-heading" className="space-y-3">
+        <h2 id="overview-heading" className="text-lg font-semibold tracking-tight">
+          Kayıt özeti
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {overview.map((card) => (
+            <Link
+              key={card.label}
+              href={card.href}
+              className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow transition-all"
+            >
+              {card.badge ? (
+                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  <span aria-hidden>!</span>
+                  {card.badge}
+                </span>
+              ) : null}
+              <p className="text-sm text-slate-500">{card.label}</p>
+              <p
+                className={`mt-2 text-3xl font-bold tracking-tight ${
+                  card.highlight ? "text-amber-700" : ""
+                }`}
+              >
+                {card.value}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold">Hızlı işlemler</h2>
@@ -130,6 +192,11 @@ export default async function AdminHomePage() {
           <li>
             <Link href="/admin/kurumlar" className="text-indigo-600 hover:underline">
               Kurum listesini görüntüle
+            </Link>
+          </li>
+          <li>
+            <Link href="/admin/raporlar" className="text-indigo-600 hover:underline">
+              İndirme ve dağıtım raporları
             </Link>
           </li>
           <li>

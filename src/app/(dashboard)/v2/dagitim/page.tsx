@@ -12,6 +12,7 @@ import { useOrganization } from "@/components/OrganizationProvider";
 import { DEFAULT_RULES, type ScheduleRules } from "@/lib/scheduler/model";
 import { writeScheduleJobV2 } from "@/lib/schedule-job";
 import { trackScheduleStart } from "@/lib/analytics";
+import { reportUsage } from "@/lib/usage-events";
 
 export default function DagitimPage() {
   const supabase = createClient();
@@ -57,6 +58,12 @@ export default function DagitimPage() {
       createdAt: Date.now(),
     });
     trackScheduleStart(rounds);
+    reportUsage({
+      organizationId,
+      eventType: "schedule_start",
+      edition: "v2",
+      metadata: { rounds },
+    });
     router.push("/v2/dagitim/izleme");
   };
 

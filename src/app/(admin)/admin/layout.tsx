@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin", label: "Özet" },
   { href: "/admin/destek", label: "Destek", badge: true },
   { href: "/admin/kurumlar", label: "Kurumlar" },
+  { href: "/admin/raporlar", label: "Raporlar" },
   { href: "/admin/kullanicilar", label: "Kullanıcılar" },
 ] as const;
 

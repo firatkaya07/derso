@@ -13,6 +13,7 @@ import { throwIfDbError } from "@/lib/db-error";
 import type { RawLessonRow } from "@/lib/pdf-generator";
 import type { ClassScheduleDay } from "@/lib/types";
 import { trackFileDownload } from "@/lib/analytics";
+import { reportUsage } from "@/lib/usage-events";
 
 type DownloadId =
   | "sinif-carsaf"
@@ -195,6 +196,13 @@ export default function IndirmePage() {
         file_extension: "pdf",
         link_text: id,
       });
+      reportUsage({
+        organizationId,
+        eventType: "download",
+        edition: "v1",
+        artifact: id,
+        format: "pdf",
+      });
       if (result === "downloaded") {
         toast.info(
           "Açılır pencere engellendiği için belge HTML olarak indirildi. Dosyayı açıp tarayıcıdan yazdırabilirsiniz."
@@ -223,6 +231,13 @@ export default function IndirmePage() {
         file_name: id,
         file_extension: "xlsx",
         link_text: `${id}-excel`,
+      });
+      reportUsage({
+        organizationId,
+        eventType: "download",
+        edition: "v1",
+        artifact: id,
+        format: "xlsx",
       });
       toast.success("Excel dosyası indirildi.");
     } catch (err) {
