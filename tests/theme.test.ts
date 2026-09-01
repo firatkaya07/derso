@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME, parseTheme } from "@/lib/theme";
 
 describe("parseTheme", () => {
-  it("açık temayı tanır", () => {
-    expect(parseTheme("light")).toBe("light");
+  it("koyu temayı tanır", () => {
+    expect(parseTheme("dark")).toBe("dark");
   });
 
-  it("geçersiz değerde koyuya düşer", () => {
-    expect(parseTheme("dark")).toBe("dark");
+  it("geçersiz değerde aydınlığa düşer", () => {
+    expect(parseTheme("light")).toBe("light");
     expect(parseTheme("nope")).toBe(DEFAULT_THEME);
-    expect(parseTheme(null)).toBe("dark");
-    expect(parseTheme(undefined)).toBe("dark");
+    expect(parseTheme(null)).toBe("light");
+    expect(parseTheme(undefined)).toBe("light");
   });
 });
