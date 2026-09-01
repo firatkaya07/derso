@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useEdition } from "@/components/EditionProvider";
+import { useSettings } from "@/components/SettingsProvider";
 import EditionIntroModal from "@/components/EditionIntroModal";
 import {
   markEditionIntroSeen,
@@ -45,13 +46,11 @@ const SHARED_CARDS: Card[] = [
   },
 ];
 
-function versionedCards(edition: ScheduleEdition): Card[] {
-  const prefix = edition === "v2" ? "/v2" : "";
-  const suffix = edition === "v2" ? " (V2)" : "";
+function definitionCards(edition: ScheduleEdition): Card[] {
   return [
     {
       href: edition === "v2" ? "/v2/tanimlar" : "/tanimlar",
-      title: `Genel Tanımlar${suffix}`,
+      title: edition === "v2" ? "Genel Tanımlar (V2)" : "Genel Tanımlar",
       description:
         edition === "v2"
           ? "Hafta içi / hafta sonu zaman çizelgesi ve teneffüsler"
@@ -59,6 +58,13 @@ function versionedCards(edition: ScheduleEdition): Card[] {
       icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
     },
     ...SHARED_CARDS,
+  ];
+}
+
+function programCards(edition: ScheduleEdition): Card[] {
+  const prefix = edition === "v2" ? "/v2" : "";
+  const suffix = edition === "v2" ? " (V2)" : "";
+  return [
     {
       href: `${prefix}/dagitim`,
       title: `Otomatik Dağıtım${suffix}`,
@@ -98,9 +104,69 @@ function versionedCards(edition: ScheduleEdition): Card[] {
   ];
 }
 
+function Group({
+  label,
+  cards,
+  tintClass,
+}: {
+  label: string;
+  cards: Card[];
+  tintClass: string;
+}) {
+  return (
+    <section>
+      <h2 className="ios-section-label">{label}</h2>
+      <div className="ios-inset">
+        {cards.map((card) => (
+          <Link key={card.href} href={card.href} className="ios-row">
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] ${tintClass}`}
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.75}
+                  d={card.icon}
+                />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="ios-headline block truncate">{card.title}</span>
+              <span className="ios-footnote mt-0.5 block truncate">
+                {card.description}
+              </span>
+            </span>
+            <svg
+              className="ios-chevron"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function DashboardHome() {
   const { edition, ready } = useEdition();
-  const cards = versionedCards(edition);
+  const settings = useSettings();
   const isV2 = edition === "v2";
   const introPending = useSyncExternalStore(
     subscribeEditionIntro,
@@ -108,73 +174,38 @@ export default function DashboardHome() {
     () => false
   );
   const introOpen = ready && introPending;
+  const title = settings.institutionName?.trim() || "Derso";
 
   return (
     <div>
       <EditionIntroModal open={introOpen} onDismiss={markEditionIntroSeen} />
-      {isV2 && (
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
-            Derso V2
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Hafta içi ve hafta sonu için ayrı ders saatleri, teneffüsler ve
-            çıktılar. V1 programı etkilenmez.
-          </p>
-        </div>
-      )}
+      <header className="mb-6">
+        <h1 className="ios-large-title">{isV2 ? "Derso V2" : title}</h1>
+        <p className="ios-subhead mt-1">
+          {isV2
+            ? "Hafta içi ve hafta sonu için ayrı ders saatleri, teneffüsler ve çıktılar. V1 programı etkilenmez."
+            : "Tanımları düzenleyin, programı dağıtın, çıktıları alın."}
+        </p>
+      </header>
 
       {!ready ? (
-        <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
-          Yükleniyor…
-        </div>
+        <div className="ios-subhead py-12 text-center">Yükleniyor…</div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className={`group relative rounded-2xl border border-[var(--color-border)] bg-white p-6 transition-all duration-250 hover:-translate-y-0.5 ${
-                isV2
-                  ? "hover:border-emerald-300 hover:shadow-md"
-                  : "hover:border-[var(--color-primary-muted)] hover:shadow-[0_8px_30px_rgba(99,102,241,0.08)]"
-              }`}
-            >
-              <div
-                className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition-colors duration-250 ${
-                  isV2
-                    ? "bg-emerald-50 text-emerald-700 group-hover:bg-emerald-100"
-                    : "bg-[var(--color-primary-light)] group-hover:bg-[var(--color-primary-muted)]"
-                }`}
-              >
-                <svg
-                  className={`h-5 w-5 ${isV2 ? "" : "text-[var(--color-primary)]"}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d={card.icon}
-                  />
-                </svg>
-              </div>
-              <h3
-                className={`font-semibold text-[var(--color-text)] transition-colors duration-200 ${
-                  isV2
-                    ? "group-hover:text-emerald-700"
-                    : "group-hover:text-[var(--color-primary)]"
-                }`}
-              >
-                {card.title}
-              </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {card.description}
-              </p>
-            </Link>
-          ))}
+        <div className="ios-grouped max-w-xl">
+          <Group
+            label="Tanımlar"
+            cards={definitionCards(edition)}
+            tintClass="bg-[var(--color-primary-light)] text-[var(--color-primary)]"
+          />
+          <Group
+            label="Program"
+            cards={programCards(edition)}
+            tintClass={
+              isV2
+                ? "bg-[var(--color-accent-light)] text-[var(--color-accent)]"
+                : "bg-[var(--color-primary-light)] text-[var(--color-primary)]"
+            }
+          />
         </div>
       )}
     </div>

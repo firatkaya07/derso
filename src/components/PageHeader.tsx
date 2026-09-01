@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEdition } from "@/components/EditionProvider";
+import { homeHref } from "@/lib/edition";
 
 interface PageHeaderProps {
   title: string;
@@ -6,42 +10,45 @@ interface PageHeaderProps {
   action?: React.ReactNode;
 }
 
-/** Dashboard CRUD sayfalarının ortak üst çubuğu. */
+/** Dashboard CRUD sayfalarının ortak üst çubuğu — iOS large title + geri. */
 export default function PageHeader({
   title,
   description,
   action,
 }: PageHeaderProps) {
+  const { edition } = useEdition();
+  const home = homeHref(edition);
+
   return (
-    <div className="flex items-start justify-between gap-4 mb-6">
-      <div className="flex items-start gap-2.5 min-w-0">
+    <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="min-w-0">
         <Link
-          href="/home"
-          className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors duration-200 mt-0.5 shrink-0"
+          href={home}
+          className="mb-2 inline-flex min-h-11 items-center gap-1 text-[17px] text-[var(--color-primary)]"
           aria-label="Ana sayfaya dön"
         >
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={2.2}
               d="M15 19l-7-7 7-7"
             />
           </svg>
+          Ana Sayfa
         </Link>
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-[var(--color-text)]">{title}</h1>
-          {description && (
-            <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">{description}</p>
-          )}
-        </div>
+        <h1 className="ios-large-title">{title}</h1>
+        {description ? (
+          <p className="ios-subhead mt-1 max-w-xl">{description}</p>
+        ) : null}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action ? <div className="shrink-0 pt-11">{action}</div> : null}
     </div>
   );
 }

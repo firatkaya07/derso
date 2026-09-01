@@ -36,26 +36,26 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface)] px-4 pb-[env(safe-area-inset-bottom)]">
       <SkipToContent />
       <main id="icerik" className="w-full max-w-md">
-        <p className="text-center text-sm font-semibold tracking-wide text-[var(--color-primary)] mb-2">
+        <p className="ios-section-label px-0 text-center text-[var(--color-primary)]">
           Derso
         </p>
-        <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
+        <h1 className="ios-large-title text-center">
           Kurumunuzu oluşturun
         </h1>
-        <p className="text-sm text-gray-500 text-center mb-8">
+        <p className="ios-subhead mx-auto mt-2 mb-8 max-w-sm text-center">
           Her kurumun öğretmen, sınıf ve program verileri birbirinden ayrıdır.
           Logo ve kurum bilgilerini sonraki adımda Tanımlar’dan düzenleyebilirsiniz.
         </p>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-[var(--color-border)] rounded-2xl p-6 shadow-[0_20px_60px_rgba(99,102,241,0.08)] space-y-4"
+          className="ios-inset space-y-4 p-5"
         >
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Kurum adı</span>
+            <span className="ios-subhead mb-1.5 block text-[var(--color-text)]">Kurum adı</span>
             <input
               type="text"
               name="organization"
@@ -63,14 +63,14 @@ export default function OnboardingPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Örn. Anadolu Kurs Merkezi"
-              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-[border-color,box-shadow] duration-200"
+              className="ios-field"
               autoFocus
               disabled={saving}
             />
           </label>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <p className="rounded-[10px] bg-[var(--color-fill)] px-3 py-2 text-[15px] text-[var(--color-destructive)]">
               {error}
             </p>
           )}
@@ -78,7 +78,7 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-60 text-white text-sm font-semibold py-2.5 transition-all duration-200 shadow-[0_2px_8px_rgba(99,102,241,0.25)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)]"
+            className="ios-btn ios-btn-primary w-full"
           >
             {saving ? "Oluşturuluyor…" : "Kurumu oluştur"}
           </button>

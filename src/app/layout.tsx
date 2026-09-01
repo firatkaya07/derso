@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Analytics from "@/components/Analytics";
 import { ToastProvider } from "@/components/Toast";
@@ -13,12 +12,17 @@ import {
 } from "@/lib/site";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
 const siteUrl = getSiteUrl();
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -69,8 +73,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[var(--color-surface)] font-[family-name:var(--font-geist-sans)]">
+    <html lang="tr" className="h-full antialiased">
+      <body className="min-h-full bg-[var(--color-surface)] font-sans">
         <ToastProvider>{children}</ToastProvider>
         <ContactFabLazy />
         <SpeedInsights />

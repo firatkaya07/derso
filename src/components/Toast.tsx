@@ -32,14 +32,14 @@ const AUTO_DISMISS_MS: Record<ToastKind, number> = {
   error: 9000,
 };
 
-const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
+const STYLES: Record<ToastKind, { icon: ReactNode }> = {
   success: {
-    wrapper: "bg-white border-emerald-200 text-[var(--color-text)]",
     icon: (
       <svg
-        className="w-5 h-5 text-green-500 shrink-0"
+        className="h-6 w-6 shrink-0 text-[var(--color-success)]"
         fill="currentColor"
         viewBox="0 0 20 20"
+        aria-hidden="true"
       >
         <path
           fillRule="evenodd"
@@ -50,12 +50,12 @@ const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
     ),
   },
   error: {
-    wrapper: "bg-white border-red-200 text-[var(--color-text)]",
     icon: (
       <svg
-        className="w-5 h-5 text-red-500 shrink-0"
+        className="h-6 w-6 shrink-0 text-[var(--color-destructive)]"
         fill="currentColor"
         viewBox="0 0 20 20"
+        aria-hidden="true"
       >
         <path
           fillRule="evenodd"
@@ -66,12 +66,12 @@ const STYLES: Record<ToastKind, { wrapper: string; icon: ReactNode }> = {
     ),
   },
   info: {
-    wrapper: "bg-white border-indigo-200 text-[var(--color-text)]",
     icon: (
       <svg
-        className="w-5 h-5 text-blue-500 shrink-0"
+        className="h-6 w-6 shrink-0 text-[var(--color-info)]"
         fill="currentColor"
         viewBox="0 0 20 20"
+        aria-hidden="true"
       >
         <path
           fillRule="evenodd"
@@ -112,26 +112,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="fixed bottom-4 right-4 z-[90] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
+        className="pointer-events-none fixed top-[calc(8px+env(safe-area-inset-top))] left-1/2 z-[90] flex w-[min(100%-24px,24rem)] -translate-x-1/2 flex-col gap-2"
         role="status"
         aria-live="polite"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-start gap-2.5 rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.08)] px-4 py-3 text-sm toast-enter ${STYLES[toast.kind].wrapper}`}
+            className="ios-banner pointer-events-auto toast-enter"
             role={toast.kind === "error" ? "alert" : undefined}
           >
             {STYLES[toast.kind].icon}
-            <span className="flex-1 leading-snug break-words">{toast.message}</span>
+            <span className="ios-subhead flex-1 break-words pt-0.5 text-[var(--color-text)]">
+              {toast.message}
+            </span>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors duration-200 shrink-0"
+              className="ios-btn ios-btn-plain h-11 w-11 shrink-0 p-0 text-[var(--color-text-muted)]"
               aria-label="Kapat"
             >
               <svg
-                className="w-4 h-4"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
