@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { trackLogin, trackSignUp } from "@/lib/analytics";
 import SkipToContent from "@/components/SkipToContent";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 type Mode = "login" | "signup";
 
@@ -231,6 +232,9 @@ export default function LoginPage() {
         {/* Form panel */}
         <main id="icerik" className="flex flex-col justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-md mx-auto">
+            <div className="mb-4 flex justify-end">
+              <ThemeSwitcher />
+            </div>
             <div className="lg:hidden text-center mb-8">
               <Link
                 href="/"
