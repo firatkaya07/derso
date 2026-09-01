@@ -1,11 +1,71 @@
 {
   "version": 1,
   "skills": {
+    "auditing-performance": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/auditing-performance/SKILL.md",
+      "computedHash": "f979be0522fe55bea68e3d55b2dca14140d2b0cb3b32424df0a210e2ed7373d1"
+    },
+    "auditing-security": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/auditing-security/SKILL.md",
+      "computedHash": "a9da2b16a234fadd1cbda895fbae971d06e997a38e57a7aa6eb59b47bb52b7a8"
+    },
+    "converting-css-modules-to-tailwind": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/converting-css-modules-to-tailwind/SKILL.md",
+      "computedHash": "692fe6b28e2f74026d459e2d3bd62b4af12d09cabcce0a3614cb82734395971c"
+    },
+    "converting-css-to-tailwind": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/converting-css-to-tailwind/SKILL.md",
+      "computedHash": "c5eaabfbaa0407e5d71dcc6a794972bbeea8b2a1c6b603da7e9ceb66b15266d1"
+    },
+    "react-native-patterns": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/react-native-patterns/SKILL.md",
+      "computedHash": "bfd334c78246b5b5fd634f486653649eade74692d97f26287ecd1a6b7e4d3fba"
+    },
     "reviewing-code": {
       "source": "spencerpauly/awesome-cursor-skills",
       "sourceType": "github",
       "skillPath": "resources/reviewing-code/SKILL.md",
       "computedHash": "849ffd33cf1072d21af988bbf98d3701637640d86d33d5b4db16c5c35339b549"
+    },
+    "using-ui-stack": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/using-ui-stack/SKILL.md",
+      "computedHash": "07e109e0074c6f1dadc60c6716dadb725710b632be3853d2ec1b475f5cc79163"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "computedHash": "575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+    },
+    "vercel-react-view-transitions": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-view-transitions/SKILL.md",
+      "computedHash": "2033ef20681c90d4f93deee719e55e019c254e496d9bf80381c27cc539292001"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
     }
   }
 }
