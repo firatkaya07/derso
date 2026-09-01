@@ -42,8 +42,8 @@ function SunIcon() {
 }
 
 const OPTIONS: { value: AppTheme; label: string; icon: typeof MoonIcon }[] = [
-  { value: "dark", label: "Koyu tema", icon: MoonIcon },
   { value: "light", label: "Açık tema", icon: SunIcon },
+  { value: "dark", label: "Koyu tema", icon: MoonIcon },
 ];
 
 export function ThemeSwitcher() {

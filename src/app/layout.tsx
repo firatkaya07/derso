@@ -21,7 +21,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#000000",
+  themeColor: "#f2f2f7",
 };
 
 export const metadata: Metadata = {
@@ -73,7 +73,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className="h-full antialiased" data-theme="dark" suppressHydrationWarning>
+    <html lang="tr" className="h-full antialiased" data-theme="light" suppressHydrationWarning>
       <body className="min-h-full bg-[var(--color-surface)] font-sans">
         <Script
           id="derso-theme"
