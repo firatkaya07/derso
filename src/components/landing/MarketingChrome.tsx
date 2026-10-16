@@ -87,6 +87,7 @@ export function MarketingFooter() {
           <Link href="/ders-programi-excel-pdf">Excel / PDF</Link>
           <Link href="/blog">Blog</Link>
           <Link href="/login">Giriş</Link>
+          <Link href="/gizlilik">Gizlilik</Link>
         </nav>
         <p>Kurs ve okul ders programı yönetimi</p>
         <p className="landing-footer__copy">
