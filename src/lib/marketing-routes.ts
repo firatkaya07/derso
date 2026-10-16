@@ -15,6 +15,7 @@ export const SEO_STATIC_PATHS = [
   ...SEO_SOLUTION_PATHS,
   ...SEO_FEATURE_PATHS,
   "/blog",
+  "/gizlilik",
 ] as const;
 
 export function isPublicMarketingPath(path: string): boolean {
