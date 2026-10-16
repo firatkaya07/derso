@@ -61,16 +61,39 @@ Oturum `expo-sqlite` tabanlı `localStorage` ile cihazda saklanır (Expo'nun
 Supabase rehberindeki yöntem). V1/V2 seçimi kullanıcının web'deki tercihinden
 (`user_preferences.schedule_edition`) okunur.
 
-## Mağazaya çıkış (EAS)
+## Android derlemesi (Play Console için .aab)
+
+Proje EAS'ta `@firatkaya/derso` olarak kayıtlı. İmza anahtarı (keystore) ve
+`versionCode` sayacı EAS'ta tutulur; her derlemede sürüm numarası otomatik
+artar. Supabase değişkenleri EAS ortam değişkeni olarak tanımlıdır.
+
+**Bulutta** (bilgisayarda Android aracı gerekmez):
 
 ```bash
-npx eas-cli@latest login
-npx eas-cli@latest init                       # projeyi Expo hesabına bağlar
-npx eas-cli@latest build --profile preview    # test için kurulabilir derleme
-npx eas-cli@latest build --profile production
-npx eas-cli@latest submit --platform ios
+npm run build:android
 ```
 
-Mağaza için Apple Developer (yıllık 99 USD) ve Google Play Console (tek
-seferlik 25 USD) hesapları gerekir. Paket kimliği iOS ve Android için
-`com.dersomatik.app`; mağazaya yüklendikten sonra değiştirilemez.
+**Bilgisayarda** (Android Studio gerekir; anahtarı ve sürüm numarasını yine
+EAS'tan alır, şifreler diske yazılmaz):
+
+```bash
+npm run build:android:local    # çıktı: dist/derso.aab
+```
+
+Yerel derleme için Android Studio'yu kurup bir kez açın (SDK'yı ilk açılışta
+indirir) ve kabukta şu değişkenleri tanımlayın:
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+```
+
+İlk `.aab` Play Console'a elle yüklenir (Test > Dahili test > Yeni sürüm;
+Play App Signing açık kalsın). Sonrakiler `npx eas-cli@latest submit -p android`
+ile gönderilebilir.
+
+## Mağaza hesapları
+
+Apple Developer (yıllık 99 USD) ve Google Play Console (tek seferlik 25 USD)
+hesapları gerekir. Paket kimliği iOS ve Android için `com.dersomatik.app`;
+mağazaya yüklendikten sonra değiştirilemez.

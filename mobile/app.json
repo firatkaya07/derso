@@ -32,8 +32,7 @@
           "imageWidth": 160,
           "resizeMode": "contain"
         }
-      ],
-      "./plugins/with-release-signing"
+      ]
     ],
     "scheme": "derso",
     "experiments": {
