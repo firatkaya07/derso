@@ -72,6 +72,5 @@ npx eas-cli@latest submit --platform ios
 ```
 
 Mağaza için Apple Developer (yıllık 99 USD) ve Google Play Console (tek
-seferlik 25 USD) hesapları gerekir. Paket kimliği `app.json` içinde
-`com.dersomatik.app` olarak ayarlı; yayından önce kesinleştirin, sonradan
-değiştirilemez.
+seferlik 25 USD) hesapları gerekir. Paket kimliği iOS ve Android için
+`com.dersomatik.app`; mağazaya yüklendikten sonra değiştirilemez.
