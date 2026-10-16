@@ -275,7 +275,12 @@ src/
   proxy.ts              Oturum yenileme ve yetkisiz erişim yönlendirmesi
 supabase/migrations/    Şema ve RLS
 tests/                  Vitest birim testleri
+mobile/                 Expo (React Native) mobil uygulama; bkz. mobile/README.md
 ```
+
+`src/lib` altındaki kod mobil uygulamayla paylaşılır. Bu dosyalara paketleri
+yalnızca `import type` ile alın ve `next/*` ya da tarayıcıya özgü API'lere
+bağımlılık eklemeyin; aksi halde mobil derleme bozulur.
 
 ## Bilinen kısıtlar
 
