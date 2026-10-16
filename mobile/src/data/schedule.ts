@@ -158,3 +158,20 @@ export async function loadTeacherName(id: string): Promise<string> {
   throwIfDbError(result, "Öğretmen okunamadı");
   return result.data?.name ?? "Öğretmen";
 }
+
+/** Ana sayfadaki kutularda gösterilen kayıt sayıları. */
+export async function loadCounts(
+  organizationId: string
+): Promise<{ classes: number; teachers: number }> {
+  const [classes, teachers] = await Promise.all(
+    (["classes", "teachers"] as const).map((table) =>
+      supabase
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+    )
+  );
+  throwIfDbError(classes, "Sınıflar okunamadı");
+  throwIfDbError(teachers, "Öğretmenler okunamadı");
+  return { classes: classes.count ?? 0, teachers: teachers.count ?? 0 };
+}
