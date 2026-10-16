@@ -16,8 +16,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.dersomatik.app",
-      "versionCode": 1
+      "package": "com.dersomatik.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
