@@ -12,7 +12,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "1",
+      "buildNumber": "2",
       "appleTeamId": "64LAYF4GNP"
     },
     "android": {
@@ -22,7 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.dersomatik.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
