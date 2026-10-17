@@ -12,7 +12,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "1",
+      "buildNumber": "2",
       "appleTeamId": "64LAYF4GNP"
     },
     "android": {
@@ -21,7 +21,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.dersomatik.app"
+      "package": "com.dersomatik.app",
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,7 +39,8 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/with-release-signing"
     ],
     "scheme": "derso",
     "experiments": {
@@ -49,17 +51,7 @@
         "asyncRoutes": {
           "web": true
         }
-      },
-      "eas": {
-        "projectId": "2318b281-dc64-4661-bca5-9a29708c9b24"
       }
-    },
-    "owner": "firatkaya",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/2318b281-dc64-4661-bca5-9a29708c9b24"
     }
   }
 }

@@ -13,7 +13,6 @@
     "expo-splash-screen": "~58.0.10",
     "expo-sqlite": "~58.0.13",
     "expo-status-bar": "~58.0.3",
-    "expo-updates": "~58.0.17",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
@@ -32,9 +31,9 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "build:android": "npx eas-cli@latest build --platform android --profile production",
-    "build:android:local": "npx eas-cli@latest build --platform android --profile production --local --output dist/derso.aab",
-    "update:production": "npx eas-cli@latest update --channel production --environment production"
+    "version:bump": "node scripts/bump-version.js",
+    "android:aab": "expo prebuild --platform android --clean && cd android && ./gradlew bundleRelease",
+    "ios:prebuild": "expo prebuild --platform ios --clean"
   },
   "private": true
 }
