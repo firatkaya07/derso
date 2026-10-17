@@ -92,6 +92,24 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 Play App Signing açık kalsın). Sonrakiler `npx eas-cli@latest submit -p android`
 ile gönderilebilir.
 
+## Paket yüklemeden güncelleme (EAS Update)
+
+Sadece JavaScript/TypeScript, görsel ve metin değişiklikleri yeni `.aab`
+gerektirmez; doğrudan yüklü uygulamalara gönderilir:
+
+```bash
+npm run update:production -- --message "Ana sayfa düzenlendi"
+```
+
+Uygulama güncellemeyi arka planda indirir, bir sonraki açılışta uygular
+(gerekirse uygulamayı kapatıp iki kez açın).
+
+`runtimeVersion` politikası `appVersion`'dır: güncelleme yalnızca aynı
+`version` (ör. 1.0.0) ile derlenmiş uygulamalara gider. Native paket eklemek
+(`npx expo install` ile native kod içeren bir modül) ya da `app.json`'daki
+native ayarları değiştirmek yeni derleme ister; bu durumda `app.json`'daki
+`version`'ı artırıp `npm run build:android` çalıştırın.
+
 ## Mağaza hesapları
 
 Apple Developer (yıllık 99 USD) ve Google Play Console (tek seferlik 25 USD)
