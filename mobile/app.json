@@ -2,13 +2,16 @@
   "expo": {
     "name": "Derso",
     "slug": "derso",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.dersomatik.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.dersomatik.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +35,8 @@
           "imageWidth": 160,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "derso",
     "experiments": {
@@ -48,6 +52,12 @@
         "projectId": "2318b281-dc64-4661-bca5-9a29708c9b24"
       }
     },
-    "owner": "firatkaya"
+    "owner": "firatkaya",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2318b281-dc64-4661-bca5-9a29708c9b24"
+    }
   }
 }
