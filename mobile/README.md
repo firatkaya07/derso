@@ -61,54 +61,66 @@ Oturum `expo-sqlite` tabanlı `localStorage` ile cihazda saklanır (Expo'nun
 Supabase rehberindeki yöntem). V1/V2 seçimi kullanıcının web'deki tercihinden
 (`user_preferences.schedule_edition`) okunur.
 
-## Android derlemesi (Play Console için .aab)
+## Mağaza derlemeleri (yerel)
 
-Proje EAS'ta `@firatkaya/derso` olarak kayıtlı. İmza anahtarı (keystore) ve
-`versionCode` sayacı EAS'ta tutulur; her derlemede sürüm numarası otomatik
-artar. Supabase değişkenleri EAS ortam değişkeni olarak tanımlıdır.
+Derlemelerin hepsi bu bilgisayarda yapılır; EAS kullanılmaz. Supabase
+değişkenleri derleme sırasında `.env.local` dosyasından pakete gömülür.
 
-**Bulutta** (bilgisayarda Android aracı gerekmez):
+### 1. Sürüm numaralarını artırın
 
-```bash
-npm run build:android
-```
-
-**Bilgisayarda** (Android Studio gerekir; anahtarı ve sürüm numarasını yine
-EAS'tan alır, şifreler diske yazılmaz):
+Play ve App Store aynı numarayla ikinci yüklemeyi kabul etmez:
 
 ```bash
-npm run build:android:local    # çıktı: dist/derso.aab
+npm run version:bump            # versionCode ve buildNumber +1
+npm run version:bump -- 1.0.2   # ayrıca uygulama sürümünü değiştirir
 ```
 
-Yerel derleme için Android Studio'yu kurup bir kez açın (SDK'yı ilk açılışta
-indirir) ve kabukta şu değişkenleri tanımlayın:
+Numaralar `app.json` içindedir (`version`, `android.versionCode`,
+`ios.buildNumber`); değişikliği commit edin.
+
+### 2. Android (.aab)
+
+Gerekenler: Android Studio (JDK ve SDK onunla gelir), `~/.zshrc` içinde
+`JAVA_HOME` ve `ANDROID_HOME`, ve imza bilgileri.
+
+İmza: Play'e kayıtlı upload anahtarı `~/.android-keys/derso-upload.jks`
+dosyasındadır; şifreleri `~/.gradle/gradle.properties` içindeki
+`DERSO_UPLOAD_*` değişkenlerindedir (repoya girmez).
+`plugins/with-release-signing.js` release derlemesini bu anahtarla imzalar.
+Anahtarı ve şifreleri bir şifre yöneticisinde yedekleyin: kaybolursa Play
+Console'dan upload anahtarı sıfırlama talep etmek gerekir.
 
 ```bash
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
+npm run android:aab
 ```
 
-İlk `.aab` Play Console'a elle yüklenir (Test > Dahili test > Yeni sürüm;
-Play App Signing açık kalsın). Sonrakiler `npx eas-cli@latest submit -p android`
-ile gönderilebilir.
+Çıktı: `android/app/build/outputs/bundle/release/app-release.aab`. Play
+Console → Test/Üretim → Yeni sürüm oluştur → dosyayı yükleyin.
 
-## Paket yüklemeden güncelleme (EAS Update)
-
-Sadece JavaScript/TypeScript, görsel ve metin değişiklikleri yeni `.aab`
-gerektirmez; doğrudan yüklü uygulamalara gönderilir:
+Android Studio arayüzünden derlemek isterseniz Android Studio'yu terminalden
+açın (Dock'tan açılınca `node` bulunamaz):
 
 ```bash
-npm run update:production -- --message "Ana sayfa düzenlendi"
+"/Applications/Android Studio.app/Contents/MacOS/studio" android > /dev/null 2>&1 &
 ```
 
-Uygulama güncellemeyi arka planda indirir, bir sonraki açılışta uygular
-(gerekirse uygulamayı kapatıp iki kez açın).
+### 3. iOS (App Store / TestFlight)
 
-`runtimeVersion` politikası `appVersion`'dır: güncelleme yalnızca aynı
-`version` (ör. 1.0.0) ile derlenmiş uygulamalara gider. Native paket eklemek
-(`npx expo install` ile native kod içeren bir modül) ya da `app.json`'daki
-native ayarları değiştirmek yeni derleme ister; bu durumda `app.json`'daki
-`version`'ı artırıp `npm run build:android` çalıştırın.
+Gerekenler: Xcode, CocoaPods (`brew install cocoapods`), Xcode → Settings →
+Accounts altında Apple geliştirici hesabı. Ekip kimliği `app.json` içinde
+(`ios.appleTeamId`), imzalamayı Xcode otomatik yönetir.
+
+```bash
+npm run ios:prebuild
+open ios/Derso.xcworkspace
+```
+
+Xcode'da cihaz olarak **Any iOS Device (arm64)** seçin → **Product → Archive**
+→ Organizer'da **Distribute App → App Store Connect**. Paket birkaç dakika
+sonra TestFlight'ta görünür.
+
+`android/` ve `ios/` klasörleri `prebuild` ile üretilir ve gitignore'dadır;
+elle düzenlemeyin, ayarları `app.json` ya da `plugins/` üzerinden yapın.
 
 ## Mağaza hesapları
 
