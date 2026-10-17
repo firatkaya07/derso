@@ -12,7 +12,8 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "appleTeamId": "64LAYF4GNP"
     },
     "android": {
       "adaptiveIcon": {
