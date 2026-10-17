@@ -8,6 +8,10 @@ export default function AppLayout() {
         headerTintColor: colors.primary,
         headerTitleStyle: { color: colors.text },
         headerBackTitle: "Geri",
+        // iOS 26+ başlığı varsayılan olarak saydam; içerik (gün seçici)
+        // başlığın altına kayıyordu. Opak başlıkta içerik altından başlar.
+        headerTransparent: false,
+        headerStyle: { backgroundColor: colors.card },
         contentStyle: { backgroundColor: colors.surface },
       }}
     >
