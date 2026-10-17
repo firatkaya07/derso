@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.dersomatik.app",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
