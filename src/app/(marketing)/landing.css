@@ -851,6 +851,61 @@
   margin-bottom: 0.5rem;
 }
 
+/* ── Store badges ── */
+
+.landing-stores {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.landing-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 1rem 0.4rem 0.8rem;
+  border-radius: 0.65rem;
+  color: #fff;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  line-height: 1.1;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+
+.landing-store:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.landing-store:focus-visible {
+  outline: 2px solid var(--landing-ember);
+  outline-offset: 2px;
+}
+
+.landing-store__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-store__eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.landing-store__name {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.landing-footer .landing-stores {
+  margin-top: 0;
+  width: 100%;
+}
+
 /* ── Footer ── */
 
 .landing-footer {

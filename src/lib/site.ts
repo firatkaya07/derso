@@ -25,6 +25,16 @@ export function getSiteUrl(): string {
 
 export const SITE_NAME = "Derso";
 
+/** App Store kaydı (bundle: com.dersomatik.app). */
+export const APP_STORE_ID = "6824037251";
+export const APP_STORE_URL = `https://apps.apple.com/tr/app/derso/id${APP_STORE_ID}`;
+
+/**
+ * Google Play kaydı. Mağaza sayfası herkese açılana kadar null; açılınca
+ * `https://play.google.com/store/apps/details?id=com.dersomatik.app` yapın.
+ */
+export const GOOGLE_PLAY_URL: string | null = null;
+
 export const SITE_TAGLINE =
   "Ders programı hazırlama programı — otomatik ders programı";
 

@@ -1,4 +1,11 @@
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
+import {
+  APP_STORE_URL,
+  GOOGLE_PLAY_URL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+  getSiteUrl,
+} from "@/lib/site";
 import { PRICING_PLANS } from "./pricing";
 
 const FAQS = [
@@ -49,8 +56,9 @@ export default function LandingJsonLd() {
         "@id": `${site}/#app`,
         name: SITE_NAME,
         applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
+        operatingSystem: GOOGLE_PLAY_URL ? "Web, iOS, Android" : "Web, iOS",
         url: site,
+        sameAs: [APP_STORE_URL, GOOGLE_PLAY_URL].filter(Boolean),
         description: SITE_DESCRIPTION,
         inLanguage: "tr-TR",
         offers: PRICING_PLANS.map((plan) => ({

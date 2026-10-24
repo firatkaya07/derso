@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import TrackedLink from "@/components/TrackedLink";
+import StoreBadges from "./StoreBadges";
 
 type MarketingNavProps = {
   activeHref?: string;
@@ -90,6 +91,7 @@ export function MarketingFooter() {
           <Link href="/gizlilik">Gizlilik</Link>
         </nav>
         <p>Kurs ve okul ders programı yönetimi</p>
+        <StoreBadges location="footer" />
         <p className="landing-footer__copy">
           © {new Date().getFullYear()} Derso. Tüm hakları saklıdır.
         </p>

@@ -3,6 +3,7 @@ import TrackedLink from "@/components/TrackedLink";
 import type { ReactNode } from "react";
 import ScheduleHeroVisual from "./ScheduleHeroVisual";
 import PricingSection from "./PricingSection";
+import StoreBadges from "./StoreBadges";
 import { MarketingFooter, MarketingNav } from "./MarketingChrome";
 
 const STEPS = [
@@ -170,6 +171,7 @@ export default function LandingPage() {
                   Paketleri gör
                 </a>
               </div>
+              <StoreBadges location="hero" />
             </div>
 
             <div className="landing-hero__stage">
