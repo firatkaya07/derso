@@ -18,6 +18,9 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="sinif/[id]" options={{ title: "Sınıf programı" }} />
       <Stack.Screen name="ogretmen/[id]" options={{ title: "Öğretmen programı" }} />
+      <Stack.Screen name="destek/index" options={{ title: "Destek" }} />
+      <Stack.Screen name="destek/yeni" options={{ title: "Yeni mesaj" }} />
+      <Stack.Screen name="destek/[id]" options={{ title: "Konuşma" }} />
     </Stack>
   );
 }
