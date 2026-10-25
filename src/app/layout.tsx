@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Analytics from "@/components/Analytics";
+import SessionRevocationGuard from "@/components/SessionRevocationGuard";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ContactFabLazy from "@/components/ContactFabLazy";
@@ -82,7 +83,10 @@ export default function RootLayout({
           {THEME_BOOTSTRAP_SCRIPT}
         </Script>
         <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <SessionRevocationGuard />
+            {children}
+          </ToastProvider>
           <ContactFabLazy />
         </ThemeProvider>
         <SpeedInsights />

@@ -1,7 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/env";
 import { isPublicMarketingPath } from "@/lib/marketing-routes";
+import {
+  SESSION_REVOKED_AT_RPC,
+  sessionAccessRevoked,
+} from "@/lib/session-revocation";
 
 function isSeoAsset(path: string): boolean {
   return (
@@ -12,6 +17,30 @@ function isSeoAsset(path: string): boolean {
     path === "/manifest.webmanifest" ||
     path.startsWith("/manifest")
   );
+}
+
+function redirectWithAuthCookies(
+  request: NextRequest,
+  pathname: string,
+  supabaseResponse: NextResponse
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  const redirectResponse = NextResponse.redirect(url);
+  for (const cookie of supabaseResponse.headers.getSetCookie()) {
+    redirectResponse.headers.append("set-cookie", cookie);
+  }
+  return redirectResponse;
+}
+
+/** İptal kaydı, eldeki access token'dan yeniyse oturum düşmüştür. */
+async function sessionIsRevoked(supabase: SupabaseClient): Promise<boolean> {
+  const [{ data: sessionData }, revoked] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.rpc(SESSION_REVOKED_AT_RPC),
+  ]);
+  if (revoked.error) return false;
+  return sessionAccessRevoked(sessionData.session?.access_token, revoked.data);
 }
 
 /** Supabase SSR oturum çerezi var mı — ağ çağrısı yapmadan hızlı kontrol. */
@@ -63,16 +92,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  let activeUser = user;
+  if (user && (await sessionIsRevoked(supabase))) {
+    await supabase.auth.signOut({ scope: "local" });
+    activeUser = null;
   }
 
-  if (user && (path === "/login" || path === "/")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/home";
-    return NextResponse.redirect(url);
+  if (!activeUser && !isPublic) {
+    return redirectWithAuthCookies(request, "/login", supabaseResponse);
+  }
+
+  if (activeUser && (path === "/login" || path === "/")) {
+    return redirectWithAuthCookies(request, "/home", supabaseResponse);
   }
 
   return supabaseResponse;

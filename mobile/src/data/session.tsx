@@ -3,13 +3,21 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { AppState } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { getCurrentMembership, type OrganizationMembership } from "@/lib/org";
 import { loadScheduleEdition } from "@/lib/user-preferences";
 import { DEFAULT_EDITION, type ScheduleEdition } from "@/lib/edition";
+import {
+  SESSION_REVOKED_AT_RPC,
+  accessTokenIssuedAt,
+  isSessionRevoked,
+  revokedAtValue,
+} from "@/lib/session-revocation";
 import { supabase } from "./supabase";
 
 interface SessionState {
@@ -30,6 +38,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
   const [edition, setEdition] = useState<ScheduleEdition>(DEFAULT_EDITION);
   const [loading, setLoading] = useState(true);
+  const sessionRef = useRef<Session | null>(null);
+
+  const clearSession = useCallback(() => {
+    sessionRef.current = null;
+    setSession(null);
+    setMembership(null);
+    setEdition(DEFAULT_EDITION);
+    setLoading(false);
+  }, []);
+
+  const signOutLocal = useCallback(async () => {
+    clearSession();
+    await supabase.auth.signOut({ scope: "local" });
+  }, [clearSession]);
+
+  /** Sunucu bu token'dan sonra oturumu kapattıysa yerel girişi siler. */
+  const dropIfRevoked = useCallback(
+    async (next: Session | null): Promise<boolean> => {
+      if (!next) return false;
+      const { data, error } = await supabase.rpc(SESSION_REVOKED_AT_RPC);
+      if (error) return false;
+      if (
+        !isSessionRevoked(
+          accessTokenIssuedAt(next.access_token),
+          revokedAtValue(data)
+        )
+      ) {
+        return false;
+      }
+      await signOutLocal();
+      return true;
+    },
+    [signOutLocal]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -37,17 +79,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const apply = async (next: Session | null) => {
       if (!next) {
         if (cancelled) return;
-        setSession(null);
-        setMembership(null);
-        setEdition(DEFAULT_EDITION);
-        setLoading(false);
+        clearSession();
         return;
       }
-      const [nextMembership, nextEdition] = await Promise.all([
+      const [nextMembership, nextEdition, dropped] = await Promise.all([
         getCurrentMembership(supabase),
         loadScheduleEdition(supabase, next.user.id),
+        dropIfRevoked(next),
       ]);
-      if (cancelled) return;
+      if (cancelled || dropped) return;
+      sessionRef.current = next;
       setSession(next);
       setMembership(nextMembership);
       setEdition(nextEdition);
@@ -59,17 +100,61 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // için iş bir sonraki tura bırakılır.
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
       if (event === "TOKEN_REFRESHED") {
+        sessionRef.current = next;
         setSession(next);
+        setTimeout(() => void dropIfRevoked(next), 0);
         return;
       }
       setTimeout(() => void apply(next), 0);
     });
 
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void dropIfRevoked(sessionRef.current);
+      }
+    });
+
     return () => {
       cancelled = true;
       data.subscription.unsubscribe();
+      appState.remove();
     };
-  }, []);
+  }, [clearSession, dropIfRevoked]);
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`session-revocation:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "session_revocations",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.new as { revoked_at?: string } | null;
+          const current = sessionRef.current;
+          if (
+            current &&
+            isSessionRevoked(
+              accessTokenIssuedAt(current.access_token),
+              row?.revoked_at ?? null
+            )
+          ) {
+            void signOutLocal();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [session?.user.id, signOutLocal]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
