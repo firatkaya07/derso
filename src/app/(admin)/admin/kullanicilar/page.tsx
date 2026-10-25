@@ -34,8 +34,8 @@ export default async function AdminUsersPage() {
         <h1 className="text-2xl font-bold tracking-tight">Kullanıcılar</h1>
         <p className="text-sm text-slate-600 mt-1">
           Auth kullanıcıları ve bağlı kurum bilgileri. Oturumları kapatmak
-          telefon ve tarayıcıdaki girişi düşürür; kullanıcı yeniden giriş
-          yapabilir.
+          tarayıcıdaki girişi hemen düşürür. Telefon, güncel uygulama
+          sürümündeyse giriş ekranına döner; mağazadaki mevcut sürüm açık kalır.
         </p>
       </div>
 

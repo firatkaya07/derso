@@ -1,15 +1,19 @@
--- Platform admin bir kullanıcının tüm oturumlarını kapatabilsin.
+-- Platform admin bir kullanıcının oturumlarını işaretleyebilsin.
 --
--- Access token süresi dolana kadar geçerli kalır. Bu yüzden iki şey birden
--- yapılır: auth.sessions silinir (yenileme biter) ve session_revocations
--- satırı yazılır (açık uygulama, token süresi dolmadan giriş ekranına döner).
--- Yeni giriş, revoked_at sonrasında üretildiği için etkilenmez.
+-- auth.sessions silinmez. Mağazadaki mevcut mobil sürüm bu tabloyu okumaz;
+-- oturum satırı durduğu sürece token yenilemesi çalışır ve uygulama açık kalır.
+-- Güncel web ve mobil, JWT içindeki session_id bu tablodaysa yerel çıkış yapar.
+-- Yenileme aynı session_id'yi taşır, yeni giriş yeni bir session_id alır.
 
 create table if not exists public.session_revocations (
-  user_id uuid primary key references auth.users (id) on delete cascade,
-  revoked_at timestamptz not null,
+  session_id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  revoked_at timestamptz not null default now(),
   revoked_by uuid references auth.users (id) on delete set null
 );
+
+create index if not exists session_revocations_user_id_idx
+  on public.session_revocations (user_id);
 
 alter table public.session_revocations enable row level security;
 
@@ -23,16 +27,38 @@ create policy session_revocations_select_own
 revoke all on table public.session_revocations from public, anon, authenticated;
 grant select on table public.session_revocations to authenticated;
 
-create or replace function public.session_revoked_at()
-returns timestamptz
-language sql
+create or replace function public.session_is_revoked()
+returns boolean
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select r.revoked_at
-  from public.session_revocations r
-  where r.user_id = auth.uid();
+declare
+  v_session uuid;
+begin
+  if auth.uid() is null then
+    return false;
+  end if;
+
+  begin
+    v_session := nullif(auth.jwt() ->> 'session_id', '')::uuid;
+  exception
+    when invalid_text_representation then
+      return false;
+  end;
+
+  if v_session is null then
+    return false;
+  end if;
+
+  return exists (
+    select 1
+    from public.session_revocations r
+    where r.user_id = auth.uid()
+      and r.session_id = v_session
+  );
+end;
 $$;
 
 create or replace function public.admin_revoke_user_sessions(p_user_id uuid)
@@ -63,34 +89,21 @@ begin
     raise exception 'Kullanıcı bulunamadı';
   end if;
 
-  insert into public.session_revocations (user_id, revoked_at, revoked_by)
-  values (p_user_id, now(), auth.uid())
-  on conflict (user_id) do update
+  insert into public.session_revocations (session_id, user_id, revoked_at, revoked_by)
+  select s.id, s.user_id, now(), auth.uid()
+  from auth.sessions s
+  where s.user_id = p_user_id
+  on conflict (session_id) do update
     set revoked_at = excluded.revoked_at,
-        revoked_by = excluded.revoked_by;
-
-  if to_regclass('auth.mfa_amr_claims') is not null then
-    delete from auth.mfa_amr_claims
-    where session_id in (
-      select s.id from auth.sessions s where s.user_id = p_user_id
-    );
-  end if;
-
-  delete from auth.refresh_tokens
-  where user_id::text = p_user_id::text
-     or session_id in (
-       select s.id from auth.sessions s where s.user_id = p_user_id
-     );
-
-  delete from auth.sessions
-  where user_id = p_user_id;
+        revoked_by = excluded.revoked_by,
+        user_id = excluded.user_id;
 end;
 $$;
 
-revoke all on function public.session_revoked_at() from public, anon;
+revoke all on function public.session_is_revoked() from public, anon;
 revoke all on function public.admin_revoke_user_sessions(uuid) from public, anon;
 
-grant execute on function public.session_revoked_at() to authenticated;
+grant execute on function public.session_is_revoked() to authenticated;
 grant execute on function public.admin_revoke_user_sessions(uuid) to authenticated;
 
 alter table public.session_revocations replica identity full;

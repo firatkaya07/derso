@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import {
-  SESSION_REVOKED_AT_RPC,
-  accessTokenIssuedAt,
-  isSessionRevoked,
-  revokedAtValue,
+  SESSION_IS_REVOKED_RPC,
+  rpcFlag,
+  sessionIdMatches,
 } from "@/lib/session-revocation";
 
 /**
@@ -26,16 +25,8 @@ export default function SessionRevocationGuard() {
 
     const drop = async (session: Session | null) => {
       if (!session || cancelled) return;
-      const { data, error } = await supabase.rpc(SESSION_REVOKED_AT_RPC);
-      if (cancelled || error) return;
-      if (
-        !isSessionRevoked(
-          accessTokenIssuedAt(session.access_token),
-          revokedAtValue(data)
-        )
-      ) {
-        return;
-      }
+      const { data, error } = await supabase.rpc(SESSION_IS_REVOKED_RPC);
+      if (cancelled || error || !rpcFlag(data)) return;
       await supabase.auth.signOut({ scope: "local" });
       router.replace("/login");
     };
@@ -75,16 +66,10 @@ export default function SessionRevocationGuard() {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const row = payload.new as { revoked_at?: string } | null;
+          const row = payload.new as { session_id?: string } | null;
           void supabase.auth.getSession().then(({ data: sessionData }) => {
             const session = sessionData.session;
-            if (
-              session &&
-              isSessionRevoked(
-                accessTokenIssuedAt(session.access_token),
-                row?.revoked_at ?? null
-              )
-            ) {
+            if (session && sessionIdMatches(session.access_token, row?.session_id)) {
               void supabase.auth.signOut({ scope: "local" }).then(() => {
                 router.replace("/login");
               });

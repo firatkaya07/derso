@@ -13,10 +13,9 @@ import { getCurrentMembership, type OrganizationMembership } from "@/lib/org";
 import { loadScheduleEdition } from "@/lib/user-preferences";
 import { DEFAULT_EDITION, type ScheduleEdition } from "@/lib/edition";
 import {
-  SESSION_REVOKED_AT_RPC,
-  accessTokenIssuedAt,
-  isSessionRevoked,
-  revokedAtValue,
+  SESSION_IS_REVOKED_RPC,
+  rpcFlag,
+  sessionIdMatches,
 } from "@/lib/session-revocation";
 import { supabase } from "./supabase";
 
@@ -53,20 +52,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut({ scope: "local" });
   }, [clearSession]);
 
-  /** Sunucu bu token'dan sonra oturumu kapattıysa yerel girişi siler. */
+  /** Bu oturumun session_id'si iptal listesindeyse yerel girişi siler. */
   const dropIfRevoked = useCallback(
     async (next: Session | null): Promise<boolean> => {
       if (!next) return false;
-      const { data, error } = await supabase.rpc(SESSION_REVOKED_AT_RPC);
-      if (error) return false;
-      if (
-        !isSessionRevoked(
-          accessTokenIssuedAt(next.access_token),
-          revokedAtValue(data)
-        )
-      ) {
-        return false;
-      }
+      const { data, error } = await supabase.rpc(SESSION_IS_REVOKED_RPC);
+      if (error || !rpcFlag(data)) return false;
       await signOutLocal();
       return true;
     },
@@ -136,15 +127,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const row = payload.new as { revoked_at?: string } | null;
+          const row = payload.new as { session_id?: string } | null;
           const current = sessionRef.current;
-          if (
-            current &&
-            isSessionRevoked(
-              accessTokenIssuedAt(current.access_token),
-              row?.revoked_at ?? null
-            )
-          ) {
+          if (current && sessionIdMatches(current.access_token, row?.session_id)) {
             void signOutLocal();
           }
         }

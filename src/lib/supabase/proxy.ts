@@ -3,10 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/env";
 import { isPublicMarketingPath } from "@/lib/marketing-routes";
-import {
-  SESSION_REVOKED_AT_RPC,
-  sessionAccessRevoked,
-} from "@/lib/session-revocation";
+import { SESSION_IS_REVOKED_RPC, rpcFlag } from "@/lib/session-revocation";
 
 function isSeoAsset(path: string): boolean {
   return (
@@ -33,14 +30,11 @@ function redirectWithAuthCookies(
   return redirectResponse;
 }
 
-/** İptal kaydı, eldeki access token'dan yeniyse oturum düşmüştür. */
+/** Bu isteğin session_id'si iptal listesindeyse true. RPC yoksa kimseyi düşürmez. */
 async function sessionIsRevoked(supabase: SupabaseClient): Promise<boolean> {
-  const [{ data: sessionData }, revoked] = await Promise.all([
-    supabase.auth.getSession(),
-    supabase.rpc(SESSION_REVOKED_AT_RPC),
-  ]);
-  if (revoked.error) return false;
-  return sessionAccessRevoked(sessionData.session?.access_token, revoked.data);
+  const { data, error } = await supabase.rpc(SESSION_IS_REVOKED_RPC);
+  if (error) return false;
+  return rpcFlag(data);
 }
 
 /** Supabase SSR oturum çerezi var mı — ağ çağrısı yapmadan hızlı kontrol. */

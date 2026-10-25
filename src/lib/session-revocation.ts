@@ -1,50 +1,37 @@
-/** Kullanıcının kendi iptal anını okur. Satır yoksa null. */
-export const SESSION_REVOKED_AT_RPC = "session_revoked_at";
+/** Çağıran oturumun session_id'si iptal listesindeyse true. */
+export const SESSION_IS_REVOKED_RPC = "session_is_revoked";
 
-/** Platform admin tüm cihazlardaki oturumu kapatır. */
+/** Platform admin, kullanıcının o anki oturumlarını iptal listesine yazar. */
 export const ADMIN_REVOKE_USER_SESSIONS_RPC = "admin_revoke_user_sessions";
 
-/**
- * Access token'ın `iat` değeri bu andan önceyse oturum düşürülmüştür.
- * Yeni giriş daha sonraki bir `iat` aldığı için açık kalır.
- */
-export function isSessionRevoked(
-  issuedAtSeconds: number | null,
-  revokedAtIso: string | null
-): boolean {
-  if (revokedAtIso == null || issuedAtSeconds == null) return false;
-  if (!Number.isFinite(issuedAtSeconds)) return false;
-  const revokedMs = Date.parse(revokedAtIso);
-  if (Number.isNaN(revokedMs)) return false;
-  return issuedAtSeconds * 1000 < revokedMs;
+export function rpcFlag(data: unknown): boolean {
+  return data === true;
 }
 
-export function revokedAtValue(data: unknown): string | null {
-  return typeof data === "string" && data.trim().length > 0 ? data : null;
-}
-
-/** İmzayı doğrulamaz; yalnızca istemcinin elindeki token'ın üretim anını okur. */
-export function accessTokenIssuedAt(
+/** İmzayı doğrulamaz; yalnızca eldeki token'ın session_id değerini okur. */
+export function accessTokenSessionId(
   accessToken: string | null | undefined
-): number | null {
+): string | null {
   if (!accessToken) return null;
   const segment = accessToken.split(".")[1];
   if (!segment) return null;
   try {
-    const json = JSON.parse(decodeBase64Url(segment)) as { iat?: unknown };
-    return typeof json.iat === "number" && Number.isFinite(json.iat)
-      ? json.iat
+    const json = JSON.parse(decodeBase64Url(segment)) as { session_id?: unknown };
+    return typeof json.session_id === "string" && json.session_id.length > 0
+      ? json.session_id
       : null;
   } catch {
     return null;
   }
 }
 
-export function sessionAccessRevoked(
+/** Realtime olayı bu cihazın oturumuna aitse düşürülmeli. */
+export function sessionIdMatches(
   accessToken: string | null | undefined,
-  revokedAt: unknown
+  sessionId: unknown
 ): boolean {
-  return isSessionRevoked(accessTokenIssuedAt(accessToken), revokedAtValue(revokedAt));
+  const current = accessTokenSessionId(accessToken);
+  return current != null && typeof sessionId === "string" && current === sessionId;
 }
 
 function decodeBase64Url(segment: string): string {

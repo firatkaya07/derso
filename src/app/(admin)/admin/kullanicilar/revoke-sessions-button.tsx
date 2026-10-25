@@ -44,7 +44,7 @@ export function RevokeSessionsButton({
       <ConfirmDialog
         isOpen={open}
         title="Oturumları kapat"
-        message={`${email} hesabının telefon ve tarayıcı oturumları kapanır. Yeniden giriş yapması gerekir.`}
+        message={`${email} hesabının tarayıcı oturumu kapanır. Güncel telefon uygulaması da giriş ekranına döner. Mağazadaki mevcut sürüm açık kalır.`}
         confirmLabel="Oturumları kapat"
         loadingLabel="Kapatılıyor…"
         loading={pending}
