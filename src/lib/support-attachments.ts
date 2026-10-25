@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { isSupportAttachmentPath } from "@/lib/support-attachment-path";
 
 export const SUPPORT_BUCKET = "support-attachments";
 
@@ -75,23 +76,40 @@ export function validateSupportFile(file: File): ValidatedAttachment | { error: 
   };
 }
 
-function safeFileName(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/[^\w.\-]+/g, "_")
-    .replace(/_+/g, "_")
-    .slice(0, 80);
+type InvokeError = { message?: string; context?: Response };
+
+async function invokeAttachment<T>(body: Record<string, unknown>): Promise<T> {
+  const supabase = createClient();
+  const { data, error } = await supabase.functions.invoke("support-attachment", {
+    body,
+  });
+  if (error) {
+    throw new Error(await readInvokeError(error as InvokeError));
+  }
+  return data as T;
+}
+
+async function readInvokeError(error: InvokeError): Promise<string> {
+  try {
+    const body = (await error.context?.json()) as { error?: string } | null;
+    if (body && typeof body.error === "string" && body.error.length > 0) {
+      return body.error;
+    }
+  } catch {
+    // Fonksiyon gövdesi JSON değilse genel metne düş.
+  }
+  return "Dosya işlemi başarısız.";
 }
 
 export async function uploadSupportAttachment(
   conversationId: string,
-  file: File
+  file: File,
+  guestToken: string | null
 ): Promise<{
   path: string;
   name: string;
   mime: string;
   size: number;
-  publicUrl: string;
 }> {
   const validated = validateSupportFile(file);
   if ("error" in validated) {
@@ -99,35 +117,58 @@ export async function uploadSupportAttachment(
   }
 
   const supabase = createClient();
-  const ext = safeFileName(file.name);
-  const path = `support/${conversationId}/${crypto.randomUUID()}_${ext}`;
+  const ticket = await invokeAttachment<{ path?: string; token?: string }>({
+    action: "upload",
+    conversationId,
+    fileName: file.name,
+    contentType: file.type,
+    guestToken,
+  });
+  if (!ticket.path || !ticket.token || !isSupportAttachmentPath(conversationId, ticket.path)) {
+    throw new Error("Dosya yüklenemedi.");
+  }
 
   const { error } = await supabase.storage
     .from(SUPPORT_BUCKET)
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
+    .uploadToSignedUrl(ticket.path, ticket.token, file, {
       contentType: file.type || undefined,
+      upsert: false,
     });
 
   if (error) {
     throw new Error(error.message || "Dosya yüklenemedi.");
   }
 
-  const { data } = supabase.storage.from(SUPPORT_BUCKET).getPublicUrl(path);
-
   return {
-    path,
+    path: ticket.path,
     name: file.name,
     mime: file.type,
     size: file.size,
-    publicUrl: data.publicUrl,
   };
 }
 
-export function publicUrlForAttachment(path: string): string {
-  const supabase = createClient();
-  return supabase.storage.from(SUPPORT_BUCKET).getPublicUrl(path).data.publicUrl;
+export async function downloadSupportAttachment(
+  conversationId: string,
+  path: string,
+  guestToken: string | null
+): Promise<Blob> {
+  if (!isSupportAttachmentPath(conversationId, path)) {
+    throw new Error("Geçersiz dosya yolu.");
+  }
+  const ticket = await invokeAttachment<{ signedUrl?: string }>({
+    action: "download",
+    conversationId,
+    path,
+    guestToken,
+  });
+  if (!ticket.signedUrl) {
+    throw new Error("Dosya açılamadı.");
+  }
+  const response = await fetch(ticket.signedUrl);
+  if (!response.ok) {
+    throw new Error("Dosya açılamadı.");
+  }
+  return response.blob();
 }
 
 export function isImageMime(mime: string | null | undefined): boolean {
