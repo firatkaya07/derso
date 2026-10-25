@@ -7,11 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ACCEPT_ATTR,
   formatBytes,
-  isImageMime,
-  publicUrlForAttachment,
   uploadSupportAttachment,
   validateSupportFile,
 } from "@/lib/support-attachments";
+import { SupportAttachmentView } from "@/components/SupportAttachmentView";
 import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
 
 type Conversation = {
@@ -124,7 +123,11 @@ export default function AdminSupportThreadPage() {
       let attachment: Awaited<ReturnType<typeof uploadSupportAttachment>> | null =
         null;
       if (pendingFile) {
-        attachment = await uploadSupportAttachment(conversationId, pendingFile);
+        attachment = await uploadSupportAttachment(
+          conversationId,
+          pendingFile,
+          null
+        );
       }
       const { data, error: rpcError } = await supabase.rpc("admin_reply_message", {
         p_conversation_id: conversationId,
@@ -237,33 +240,15 @@ export default function AdminSupportThreadPage() {
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
                   ) : null}
                   {m.attachment_path ? (
-                    isImageMime(m.attachment_mime) ? (
-                      <a
-                        href={publicUrlForAttachment(m.attachment_path)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block mt-1.5"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={publicUrlForAttachment(m.attachment_path)}
-                          alt={m.attachment_name ?? "Görsel"}
-                          className="max-h-40 rounded-lg"
-                        />
-                      </a>
-                    ) : (
-                      <a
-                        href={publicUrlForAttachment(m.attachment_path)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1.5 inline-flex text-xs underline"
-                      >
-                        {m.attachment_name}
-                        {m.attachment_size
-                          ? ` (${formatBytes(m.attachment_size)})`
-                          : ""}
-                      </a>
-                    )
+                    <SupportAttachmentView
+                      conversationId={conversationId}
+                      path={m.attachment_path}
+                      name={m.attachment_name}
+                      mime={m.attachment_mime}
+                      size={m.attachment_size}
+                      guestToken={null}
+                      appearance="admin"
+                    />
                   ) : null}
                   <p className="text-[10px] mt-1 opacity-60">
                     {new Date(m.created_at).toLocaleString("tr-TR")}

@@ -5,13 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ACCEPT_ATTR,
   formatBytes,
-  isImageMime,
   MAX_DOC_BYTES,
   MAX_IMAGE_BYTES,
-  publicUrlForAttachment,
   uploadSupportAttachment,
   validateSupportFile,
 } from "@/lib/support-attachments";
+import { SupportAttachmentView } from "@/components/SupportAttachmentView";
 import { isSendHotkey, SEND_HOTKEY_HINT } from "@/lib/keyboard";
 import { trackSupportOpen, trackSupportMessage } from "@/lib/analytics";
 
@@ -127,51 +126,6 @@ function AttachmentPreview({
         </svg>
       </button>
     </div>
-  );
-}
-
-function MessageAttachment({ message }: { message: SupportMessage }) {
-  if (!message.attachment_path) return null;
-  const url = publicUrlForAttachment(message.attachment_path);
-  const image = isImageMime(message.attachment_mime);
-
-  if (image) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-1.5 overflow-hidden rounded-lg"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt={message.attachment_name ?? "Görsel"}
-          className="max-h-40 w-full object-cover"
-        />
-      </a>
-    );
-  }
-
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`mt-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium ${
-        message.sender === "user"
-          ? "bg-indigo-500/40 text-white hover:bg-indigo-500/55"
-          : "bg-white border border-gray-200 text-indigo-700 hover:bg-indigo-50"
-      }`}
-    >
-      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-      </svg>
-      <span className="truncate flex-1">{message.attachment_name ?? "Dosya"}</span>
-      {message.attachment_size ? (
-        <span className="opacity-70 shrink-0">{formatBytes(message.attachment_size)}</span>
-      ) : null}
-    </a>
   );
 }
 
@@ -437,7 +391,7 @@ export default function ContactFab() {
       | null = null;
 
     if (file) {
-      attachment = await uploadSupportAttachment(conversationId, file);
+      attachment = await uploadSupportAttachment(conversationId, file, token);
     }
 
     const { data, error: rpcError } = await supabase.rpc("support_send_message", {
@@ -819,7 +773,19 @@ export default function ContactFab() {
                           {m.body ? (
                             <p className="whitespace-pre-wrap break-words">{m.body}</p>
                           ) : null}
-                          <MessageAttachment message={m} />
+                          {m.attachment_path ? (
+                            <SupportAttachmentView
+                              conversationId={m.conversation_id}
+                              path={m.attachment_path}
+                              name={m.attachment_name}
+                              mime={m.attachment_mime}
+                              size={m.attachment_size}
+                              guestToken={authInfo ? null : guestToken}
+                              appearance={
+                                m.sender === "user" ? "chat-user" : "chat-support"
+                              }
+                            />
+                          ) : null}
                           <p
                             className={`text-[10px] mt-1 ${
                               m.sender === "user"
