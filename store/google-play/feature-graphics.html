@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>Derso Google Play özellik grafikleri</title>
+  <style>
+    @font-face {
+      font-family: Inter;
+      src: url("file:///usr/share/fonts/truetype/macos/Inter-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("file:///usr/share/fonts/truetype/macos/Inter-Medium.ttf") format("truetype");
+      font-weight: 500;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("file:///usr/share/fonts/truetype/macos/Inter-SemiBold.ttf") format("truetype");
+      font-weight: 600;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("file:///usr/share/fonts/truetype/macos/Inter-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1024px;
+      background: #071512;
+    }
+
+    body {
+      font-family: Inter, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .art {
+      position: relative;
+      width: 1024px;
+      height: 500px;
+      overflow: hidden;
+      color: #fff;
+      background:
+        radial-gradient(520px 340px at 92% 8%, rgba(45, 212, 191, 0.22), transparent 62%),
+        radial-gradient(420px 280px at 0% 100%, rgba(15, 118, 110, 0.45), transparent 70%),
+        #071512;
+    }
+
+    .art::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
+      pointer-events: none;
+    }
+
+    .inner {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 44px 48px 44px 52px;
+      gap: 28px;
+    }
+
+    .copy {
+      width: 470px;
+      flex: none;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .brand img {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: block;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 1px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: #2dd4bf;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .kicker i {
+      width: 18px;
+      height: 2px;
+      background: #2dd4bf;
+      border-radius: 2px;
+      display: block;
+    }
+
+    h1 {
+      font-size: 46px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      max-width: 460px;
+    }
+
+    .lede {
+      margin-top: 16px;
+      max-width: 420px;
+      font-size: 18px;
+      line-height: 1.4;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .panel {
+      width: 430px;
+      height: 392px;
+      flex: none;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.28);
+      padding: 16px 16px 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+
+    .panel-head p {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .pill {
+      font-size: 12px;
+      font-weight: 700;
+      color: #071512;
+      background: #2dd4bf;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 36px repeat(5, 1fr);
+      gap: 5px;
+    }
+
+    .day, .hour {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hour {
+      justify-content: flex-end;
+      padding-right: 2px;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 600;
+    }
+
+    .cell {
+      height: 58px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 7px;
+    }
+
+    .cell b {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .cell small {
+      margin-top: 1px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .a { background: rgba(45, 212, 191, 0.32); }
+    .b { background: rgba(56, 189, 248, 0.3); }
+    .c { background: rgba(251, 191, 36, 0.28); }
+    .d { background: rgba(244, 114, 182, 0.28); }
+    .e { background: rgba(167, 139, 250, 0.3); }
+
+    .stack {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+      padding: 8px 6px;
+    }
+
+    .card {
+      background: rgba(7, 21, 18, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px 16px 14px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .who {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #2dd4bf;
+    }
+
+    .ok {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #2dd4bf;
+      color: #071512;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .card h2 {
+      font-size: 22px;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+
+    .card p {
+      margin-top: 4px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .files {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+      padding: 6px;
+    }
+
+    .file {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 14px;
+      align-items: center;
+      background: rgba(7, 21, 18, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .badge {
+      width: 54px;
+      height: 64px;
+      border-radius: 10px;
+      display: grid;
+      place-items: end center;
+      padding-bottom: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #071512;
+    }
+
+    .xls { background: linear-gradient(180deg, #bbf7d0, #34d399); }
+    .pdf { background: linear-gradient(180deg, #fecdd3, #fb7185); }
+
+    .file strong {
+      display: block;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .file span {
+      display: block;
+      margin-top: 3px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.66);
+    }
+
+    .lines {
+      margin-top: 8px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .lines i {
+      display: block;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .lines i:nth-child(1) { width: 92%; }
+    .lines i:nth-child(2) { width: 74%; }
+    .lines i:nth-child(3) { width: 84%; }
+  </style>
+</head>
+<body>
+  <section class="art" id="otomatik">
+    <div class="inner">
+      <div class="copy">
+        <div class="brand">
+          <img src="../../public/logo.webp" alt="" />
+          <div>
+            <strong>Derso</strong>
+            <span>Ders dağıtım programı</span>
+          </div>
+        </div>
+        <p class="kicker"><i></i>Otomatik dağıtım</p>
+        <h1>Programı saniyeler içinde kurun</h1>
+        <p class="lede">Ders, öğretmen ve sınıf tek seferde yerleşir. Okul ve kurslar için.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <p>11-A · Haftalık program</p>
+          <span class="pill">Hazır</span>
+        </div>
+        <div class="grid">
+          <div></div>
+          <div class="day">Pzt</div>
+          <div class="day">Sal</div>
+          <div class="day">Çar</div>
+          <div class="day">Per</div>
+          <div class="day">Cum</div>
+
+          <div class="hour">09</div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell d"><b>KİM</b><small>D. Şahin</small></div>
+          <div class="cell c"><b>TR</b><small>C. Demir</small></div>
+          <div class="cell"></div>
+          <div class="cell e"><b>BİY</b><small>E. Arslan</small></div>
+
+          <div class="hour">10</div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell d"><b>KİM</b><small>D. Şahin</small></div>
+          <div class="cell c"><b>TR</b><small>C. Demir</small></div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell"></div>
+
+          <div class="hour">11</div>
+          <div class="cell b"><b>FİZ</b><small>B. Kaya</small></div>
+          <div class="cell"></div>
+          <div class="cell e"><b>BİY</b><small>E. Arslan</small></div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell c"><b>TR</b><small>C. Demir</small></div>
+
+          <div class="hour">13</div>
+          <div class="cell"></div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell"></div>
+          <div class="cell d"><b>KİM</b><small>D. Şahin</small></div>
+          <div class="cell c"><b>TR</b><small>C. Demir</small></div>
+
+          <div class="hour">14</div>
+          <div class="cell c"><b>TR</b><small>C. Demir</small></div>
+          <div class="cell a"><b>MAT</b><small>A. Yılmaz</small></div>
+          <div class="cell b"><b>FİZ</b><small>B. Kaya</small></div>
+          <div class="cell"></div>
+          <div class="cell b"><b>FİZ</b><small>B. Kaya</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="art" id="cakisma">
+    <div class="inner">
+      <div class="copy">
+        <div class="brand">
+          <img src="../../public/logo.webp" alt="" />
+          <div>
+            <strong>Derso</strong>
+            <span>Ders dağıtım programı</span>
+          </div>
+        </div>
+        <p class="kicker"><i></i>Çakışma kontrolü</p>
+        <h1>Öğretmen ve sınıf aynı saatte çakışmaz</h1>
+        <p class="lede">Uygunluk ve kurallar dağıtıma baştan uygulanır.</p>
+      </div>
+      <div class="panel">
+        <div class="stack">
+          <article class="card">
+            <div class="card-top">
+              <span class="who">Öğretmen</span>
+              <span class="ok">✓</span>
+            </div>
+            <h2>A. Yılmaz</h2>
+            <p>Pazartesi 09:00 · Matematik · 11-A</p>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <span class="who">Sınıf</span>
+              <span class="ok">✓</span>
+            </div>
+            <h2>11-A</h2>
+            <p>Pazartesi 09:00 · tek ders, tek öğretmen</p>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <span class="who">Sonuç</span>
+              <span class="ok">✓</span>
+            </div>
+            <h2>Çakışma yok</h2>
+            <p>Aynı saat başka bir derse yazılmadı.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="art" id="cikti">
+    <div class="inner">
+      <div class="copy">
+        <div class="brand">
+          <img src="../../public/logo.webp" alt="" />
+          <div>
+            <strong>Derso</strong>
+            <span>Ders dağıtım programı</span>
+          </div>
+        </div>
+        <p class="kicker"><i></i>Dışa aktarım</p>
+        <h1>Programı Excel ve PDF olarak alın</h1>
+        <p class="lede">Sınıf ve öğretmen çizelgesini paylaşın veya yazdırın.</p>
+      </div>
+      <div class="panel">
+        <div class="files">
+          <article class="file">
+            <div class="badge xls">XLS</div>
+            <div>
+              <strong>11-A programı</strong>
+              <span>Excel · sınıf çizelgesi</span>
+              <div class="lines"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+          <article class="file">
+            <div class="badge pdf">PDF</div>
+            <div>
+              <strong>Öğretmen programı</strong>
+              <span>PDF · yazdırmaya hazır</span>
+              <div class="lines"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+          <article class="file">
+            <div class="badge xls">XLS</div>
+            <div>
+              <strong>Çarşaf liste</strong>
+              <span>Excel · tüm kurum</span>
+              <div class="lines"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
