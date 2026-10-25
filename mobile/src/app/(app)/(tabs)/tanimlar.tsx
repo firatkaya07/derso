@@ -1,4 +1,6 @@
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import {
   academicYearLabel,
   loadSettings,
@@ -111,6 +113,18 @@ export default function DefinitionsTab() {
         <Row label="E-posta" value={session?.user.email} />
       </Section>
 
+      <Section title="Yardım">
+        <Pressable
+          onPress={() => router.push("/destek")}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.row, styles.linkRow, pressed && styles.linkPressed]}
+        >
+          <Ionicons name="chatbubbles-outline" size={20} color={colors.primary} />
+          <Text style={styles.linkText}>Destek mesajları</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Pressable>
+      </Section>
+
       <Pressable
         onPress={signOut}
         accessibilityRole="button"
@@ -158,6 +172,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: "right",
   },
+  linkRow: {
+    justifyContent: "flex-start",
+    borderBottomWidth: 0,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  linkPressed: { backgroundColor: colors.primaryLight },
+  linkText: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.text },
   hint: {
     fontSize: 13,
     color: colors.textSecondary,
