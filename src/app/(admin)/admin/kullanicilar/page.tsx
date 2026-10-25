@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { requirePlatformAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
+import { RevokeSessionsButton } from "./revoke-sessions-button";
 
 export const metadata: Metadata = {
   title: "Kullanıcılar — Admin",
@@ -18,15 +20,22 @@ type UserRow = {
 
 export default async function AdminUsersPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_list_users");
+  const [gate, list] = await Promise.all([
+    requirePlatformAdmin(),
+    supabase.rpc("admin_list_users"),
+  ]);
+  const { data, error } = list;
   const rows = (data ?? []) as UserRow[];
+  const currentUserId = gate.user?.id ?? null;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Kullanıcılar</h1>
         <p className="text-sm text-slate-600 mt-1">
-          Auth kullanıcıları ve bağlı kurum bilgileri.
+          Auth kullanıcıları ve bağlı kurum bilgileri. Oturumları kapatmak
+          tarayıcıdaki girişi hemen düşürür. Telefon, güncel uygulama
+          sürümündeyse giriş ekranına döner; mağazadaki mevcut sürüm açık kalır.
         </p>
       </div>
 
@@ -44,6 +53,7 @@ export default async function AdminUsersPage() {
               <th className="px-4 py-3 font-medium">Kurum</th>
               <th className="px-4 py-3 font-medium hidden md:table-cell">Rol</th>
               <th className="px-4 py-3 font-medium hidden sm:table-cell">Son giriş</th>
+              <th className="px-4 py-3 font-medium">Oturum</th>
             </tr>
           </thead>
           <tbody>
@@ -67,6 +77,13 @@ export default async function AdminUsersPage() {
                   {row.last_sign_in_at
                     ? new Date(row.last_sign_in_at).toLocaleString("tr-TR")
                     : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <RevokeSessionsButton
+                    userId={row.id}
+                    email={row.email}
+                    self={row.id === currentUserId}
+                  />
                 </td>
               </tr>
             ))}
