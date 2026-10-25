@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
 import type { ColorValue } from "react-native";
+import { NotificationBell } from "~/components/NotificationBell";
 import { colors } from "~/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -27,7 +28,12 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: "Ana sayfa", tabBarIcon: tabIcon("home-outline", "home") }}
+        options={{
+          title: "Ana sayfa",
+          tabBarIcon: tabIcon("home-outline", "home"),
+          headerRight: NotificationBell,
+          headerRightContainerStyle: { paddingRight: 16 },
+        }}
       />
       <Tabs.Screen
         name="siniflar"

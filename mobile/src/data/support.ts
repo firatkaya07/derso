@@ -79,6 +79,28 @@ export async function sendSupportMessage(
   return data as SupportMessage;
 }
 
+export interface SupportNotification {
+  conversation_id: string;
+  full_name: string;
+  /** Son okumadan sonra gelen yanıt sayısı; 0 ise bildirim okunmuştur. */
+  unread: number;
+  last_reply_at: string;
+}
+
+/** Destek yanıtı almış konuşmalar, en son yanıt başta. Okunanlar da gelir. */
+export async function listSupportNotifications(): Promise<SupportNotification[]> {
+  const { data, error } = await supabase.rpc("support_notifications");
+  if (error) throw new Error(error.message);
+  return (data as SupportNotification[]) ?? [];
+}
+
+export async function markSupportRead(conversationId: string): Promise<void> {
+  const { error } = await supabase.rpc("support_mark_read", {
+    p_conversation_id: conversationId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export function attachmentUrl(path: string): string {
   return supabase.storage.from(SUPPORT_BUCKET).getPublicUrl(path).data.publicUrl;
 }

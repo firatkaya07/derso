@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Image,
@@ -28,6 +28,7 @@ import {
   type SupportConversation,
   type SupportMessage,
 } from "~/data/support";
+import { useSupportUnread } from "~/data/support-unread";
 import { useAsync } from "~/data/use-async";
 import { ErrorView, LoadingView } from "~/components/StateViews";
 import { colors } from "~/theme";
@@ -109,7 +110,7 @@ export default function SupportConversationScreen() {
   const keyboardVisible = useKeyboardVisible();
   // Klavye açıkken alt güvenli alan klavyenin altında kalır; boşluk bırakılmaz.
   const bottomInset = keyboardVisible ? 0 : insets.bottom;
-  const listRef = useRef<FlatList<SupportMessage>>(null);
+  const { markRead } = useSupportUnread();
 
   const state = useAsync(async (): Promise<{
     conversation: SupportConversation | null;
@@ -129,10 +130,10 @@ export default function SupportConversationScreen() {
   const [error, setError] = useState("");
 
   const loaded = state.data?.messages;
-  const messages = useMemo(() => {
+  const newestFirst = useMemo(() => {
     const base = loaded ?? [];
     const known = new Set(base.map((m) => m.id));
-    return [...base, ...added.filter((m) => !known.has(m.id))];
+    return [...base, ...added.filter((m) => !known.has(m.id))].reverse();
   }, [loaded, added]);
 
   const addMessage = useCallback(
@@ -153,14 +154,21 @@ export default function SupportConversationScreen() {
           filter: `conversation_id=eq.${id}`,
         },
         (payload) => {
-          addMessage(payload.new as SupportMessage);
+          const row = payload.new as SupportMessage;
+          addMessage(row);
+          // Ekran açıkken gelen yanıt görülmüş sayılır.
+          if (row.sender === "support") void markRead(id);
         }
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [id, addMessage]);
+  }, [id, addMessage, markRead]);
+
+  useEffect(() => {
+    void markRead(id);
+  }, [id, markRead]);
 
   const send = async () => {
     const body = draft.trim();
@@ -194,15 +202,15 @@ export default function SupportConversationScreen() {
       behavior="padding"
       keyboardVerticalOffset={headerHeight}
     >
+      {/* Ters liste en yeni mesajdan başlar; uzun konuşmada da son mesaj görünür. */}
       <FlatList
-        ref={listRef}
-        data={messages}
+        inverted
+        data={newestFirst}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <Bubble message={item} />}
         contentContainerStyle={styles.list}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={<Text style={styles.empty}>Henüz mesaj yok.</Text>}
       />
 
@@ -247,8 +255,15 @@ export default function SupportConversationScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  list: { padding: 12, gap: 10, flexGrow: 1 },
-  empty: { textAlign: "center", marginTop: 32, fontSize: 14, color: colors.textSecondary },
+  // Ters listede flex-end görsel olarak üst demek: kısa konuşma yukarıdan başlar.
+  list: { padding: 12, gap: 10, flexGrow: 1, justifyContent: "flex-end" },
+  empty: {
+    textAlign: "center",
+    marginTop: 32,
+    fontSize: 14,
+    color: colors.textSecondary,
+    transform: [{ scaleY: -1 }],
+  },
   bubbleRow: { flexDirection: "row" },
   rowMine: { justifyContent: "flex-end" },
   rowTheirs: { justifyContent: "flex-start" },
